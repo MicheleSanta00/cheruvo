@@ -58,10 +58,16 @@ def get_finbert():
 # ---------------------------------------------------------------------------
 
 def _get_connection():
-    """Restituisce una connessione a Supabase via DATABASE_URL."""
+    # Prova prima os.environ (updater/GitHub Actions), poi st.secrets (Streamlit Cloud)
     database_url = os.environ.get("DATABASE_URL", "")
     if not database_url:
-        raise RuntimeError("DATABASE_URL non trovata nelle variabili d'ambiente / secrets")
+        try:
+            import streamlit as st
+            database_url = st.secrets["DATABASE_URL"]
+        except Exception:
+            pass
+    if not database_url:
+        raise RuntimeError("DATABASE_URL non trovata")
     return psycopg2.connect(database_url)
 
 
