@@ -1,8 +1,7 @@
-import sqlite3
+import os
 import pandas as pd
 from datetime import datetime, timedelta
 import requests
-from pathlib import Path
 from transformers import AutoTokenizer, AutoModelForSequenceClassification
 import feedparser
 from bs4 import BeautifulSoup
@@ -10,17 +9,14 @@ import torch
 import praw
 import time
 import logging
-import os
 import psycopg2
-
-def _get_connection():
-    return psycopg2.connect(os.environ["DATABASE_URL"])
-
+import psycopg2.extras
+from psycopg2 import sql
 
 logger = logging.getLogger(__name__)
 
 # ---------------------------------------------------------------------------
-# FinBERT – singleton, nessuna dipendenza da Streamlit
+# FinBERT
 # ---------------------------------------------------------------------------
 
 class FinBERTSentiment:
@@ -36,7 +32,6 @@ class FinBERTSentiment:
         return cls._instance
 
     def predict(self, text):
-        """Ritorna un valore tra -1 (negativo) e +1 (positivo)."""
         if not text or len(text.strip()) < 10:
             return 0.0
         inputs = self.tokenizer(
@@ -46,19 +41,12 @@ class FinBERTSentiment:
             outputs = self.model(**inputs)
             probs = torch.nn.functional.softmax(outputs.logits, dim=-1)
             scores = probs.detach().numpy()[0]
-        # FinBERT labels: [positive, negative, neutral]
-        sentiment_score = scores[0] - scores[1]
-        return float(max(-1.0, min(1.0, sentiment_score)))
+        return float(max(-1.0, min(1.0, scores[0] - scores[1])))
 
 
-# Helper – usato da Streamlit (con cache) e dall'updater (senza cache)
 _finbert_instance = None
 
 def get_finbert():
-    """Restituisce l'istanza FinBERT.
-    Quando chiamato dentro Streamlit viene wrappato con @st.cache_resource
-    nel modulo ui.py per evitare di ricaricare il modello ad ogni rerun.
-    """
     global _finbert_instance
     if _finbert_instance is None:
         _finbert_instance = FinBERTSentiment()
@@ -66,23 +54,24 @@ def get_finbert():
 
 
 # ---------------------------------------------------------------------------
-# DB unico – data/news.db  con colonna ticker
+# Connessione Supabase (PostgreSQL)
 # ---------------------------------------------------------------------------
 
-DB_PATH = Path("data") / "news.db"
-
-
 def _get_connection():
-    DB_PATH.parent.mkdir(parents=True, exist_ok=True)
-    return sqlite3.connect(DB_PATH)
+    """Restituisce una connessione a Supabase via DATABASE_URL."""
+    database_url = os.environ.get("DATABASE_URL", "")
+    if not database_url:
+        raise RuntimeError("DATABASE_URL non trovata nelle variabili d'ambiente / secrets")
+    return psycopg2.connect(database_url)
 
 
 def init_database():
-    """Crea la tabella se non esiste. Aggiunge ticker come colonna."""
+    """Crea la tabella se non esiste (idempotente)."""
     conn = _get_connection()
-    conn.execute("""
+    cur = conn.cursor()
+    cur.execute("""
         CREATE TABLE IF NOT EXISTS news (
-            id               INTEGER PRIMARY KEY AUTOINCREMENT,
+            id               SERIAL PRIMARY KEY,
             ticker           TEXT    NOT NULL,
             source           TEXT,
             title            TEXT,
@@ -95,6 +84,7 @@ def init_database():
         )
     """)
     conn.commit()
+    cur.close()
     conn.close()
 
 
@@ -105,29 +95,15 @@ def init_database():
 class SuperNewsAnalyzer:
 
     def __init__(self, ticker, api_key, ui=None):
-        """
-        ticker   – simbolo (es. "NVDA")
-        api_key  – dict con le chiavi delle API
-        ui       – oggetto opzionale con metodi .info(), .success(), .warning(), .error()
-                   Se None viene usato il logger standard (modalità silent/updater).
-        """
         self.ticker = ticker.upper()
         self.api_key = api_key
         self.ui = ui or _SilentUI()
         init_database()
 
-    # ------------------------------------------------------------------
-    # UI helper – delegato a Streamlit oppure a print/logger
-    # ------------------------------------------------------------------
-
     def _info(self, msg):    self.ui.info(msg)
     def _success(self, msg): self.ui.success(msg)
     def _warning(self, msg): self.ui.warning(msg)
     def _error(self, msg):   self.ui.error(msg)
-
-    # ------------------------------------------------------------------
-    # Utility
-    # ------------------------------------------------------------------
 
     def _format_date(self, date_str):
         if not date_str:
@@ -153,16 +129,12 @@ class SuperNewsAnalyzer:
                 'apikey': self.api_key.get('ALPHA_VANTAGE', 'demo').strip(),
                 'sort': 'LATEST'
             }
-            response = requests.get(
-                "https://www.alphavantage.co/query", params=params, timeout=15
-            )
+            response = requests.get("https://www.alphavantage.co/query", params=params, timeout=15)
             response.raise_for_status()
             data = response.json()
-
             if 'feed' not in data or not data['feed']:
                 self._info("Alpha Vantage: nessuna news")
                 return []
-
             finbert = get_finbert()
             for item in data['feed'][:50]:
                 title = item.get('title', '').strip()
@@ -209,18 +181,16 @@ class SuperNewsAnalyzer:
                         url = article.get('url', '')
                         if not title or len(title) < 10 or not url:
                             continue
-                        sentiment = finbert.predict(f"{title} {description}")
                         news_list.append({
                             'source': source,
                             'title': title,
                             'summary': (description or title)[:250],
                             'published_date': self._format_date(article.get('publishedAt')),
                             'url': url,
-                            'sentiment': sentiment,
+                            'sentiment': finbert.predict(f"{title} {description}"),
                         })
                 except Exception:
                     continue
-            # Deduplica
             seen, unique = set(), []
             for n in news_list:
                 key = n['url'] or n['title'].lower()
@@ -246,7 +216,7 @@ class SuperNewsAnalyzer:
                 timeout=15
             )
             if response.status_code == 403:
-                self._error("FMP 403: API key non valida o limiti free esauriti")
+                self._error("FMP 403: API key non valida")
                 return []
             finbert = get_finbert()
             for item in response.json():
@@ -305,7 +275,6 @@ class SuperNewsAnalyzer:
             soup = BeautifulSoup(response.text, "html.parser")
             articles = soup.select("h3 a")
             if not articles:
-                self._info("Yahoo Finance: nessun articolo trovato")
                 return []
             finbert = get_finbert()
             news_list = []
@@ -319,7 +288,7 @@ class SuperNewsAnalyzer:
                     'source': 'Yahoo Finance',
                     'title': title,
                     'summary': title,
-                    'published_date': '',   # non disponibile via scraping
+                    'published_date': '',
                     'url': link,
                     'sentiment': finbert.predict(title),
                 })
@@ -362,21 +331,20 @@ class SuperNewsAnalyzer:
             return []
 
     # ------------------------------------------------------------------
-    # Salvataggio
+    # Salvataggio su Supabase
     # ------------------------------------------------------------------
 
     def save_news_to_db(self, news_list):
         if not news_list:
             return 0
         conn = _get_connection()
-        cursor = conn.cursor()
+        cur = conn.cursor()
 
-        # Carica titoli già presenti per questo ticker
-        cursor.execute(
-            "SELECT lower(trim(title)), lower(trim(source)) FROM news WHERE ticker = ?",
+        cur.execute(
+            "SELECT lower(trim(title)), lower(trim(source)) FROM news WHERE ticker = %s",
             (self.ticker,)
         )
-        existing = set(cursor.fetchall())
+        existing = set(cur.fetchall())
 
         new_entries = []
         for news in news_list:
@@ -396,25 +364,26 @@ class SuperNewsAnalyzer:
 
         if new_entries:
             try:
-                cursor.executemany("""
+                psycopg2.extras.execute_values(cur, """
                     INSERT INTO news (ticker, source, title, summary, published_date, url, sentiment)
-                    VALUES (?, ?, ?, ?, ?, ?, ?)
+                    VALUES %s
+                    ON CONFLICT (ticker, title, source) DO NOTHING
                 """, new_entries)
                 conn.commit()
                 self._success(f"{len(new_entries)} news salvate nel DB")
-            except sqlite3.IntegrityError as e:
-                self._warning(f"Duplicati ignorati: {e}")
+            except Exception as e:
+                self._warning(f"Errore salvataggio: {e}")
                 conn.rollback()
 
+        cur.close()
         conn.close()
         return len(new_entries)
 
     # ------------------------------------------------------------------
-    # Mega fetch (Streamlit + silent)
+    # Mega fetch
     # ------------------------------------------------------------------
 
     def mega_fetch(self):
-        """Versione completa – usata da Streamlit (con progress bar)."""
         import streamlit as st
         self._info(f"Aggiornamento notizie {self.ticker}...")
         progress_bar = st.progress(0)
@@ -426,7 +395,6 @@ class SuperNewsAnalyzer:
             ("FMP",           self.fetch_fmp_news),
             ("RSS",           self.fetch_rss),
             ("Yahoo",         self.fetch_yahoo),
-            # ("Reddit",      self.fetch_reddit),
         ]
         for i, (nome, fn) in enumerate(fonti):
             self._info(f"Recupero da {nome}...")
@@ -434,7 +402,6 @@ class SuperNewsAnalyzer:
             progress_bar.progress((i + 1) / len(fonti))
             time.sleep(0.5)
 
-        # Deduplicazione per URL
         seen, uniche = set(), []
         for n in all_news:
             if n.get('url') and n['url'] not in seen:
@@ -447,7 +414,6 @@ class SuperNewsAnalyzer:
         return count
 
     def mega_fetch_silent(self):
-        """Versione senza Streamlit – usata dall'updater automatico."""
         print(f"[{datetime.now():%H:%M:%S}] Aggiornamento {self.ticker}...")
         self.clean_duplicates()
         all_news = []
@@ -484,8 +450,8 @@ class SuperNewsAnalyzer:
         conn = _get_connection()
         cutoff = (datetime.now() - timedelta(days=days)).strftime('%Y-%m-%d')
         df = pd.read_sql(
-            "SELECT * FROM news WHERE ticker = ? AND published_date >= ? ORDER BY published_date DESC",
-            conn, params=[self.ticker, cutoff]
+            "SELECT * FROM news WHERE ticker = %s AND published_date >= %s ORDER BY published_date DESC",
+            conn, params=(self.ticker, cutoff)
         )
         conn.close()
         return df
@@ -493,8 +459,8 @@ class SuperNewsAnalyzer:
     def get_all_data(self):
         conn = _get_connection()
         df = pd.read_sql(
-            "SELECT * FROM news WHERE ticker = ? ORDER BY published_date DESC",
-            conn, params=[self.ticker]
+            "SELECT * FROM news WHERE ticker = %s ORDER BY published_date DESC",
+            conn, params=(self.ticker,)
         )
         conn.close()
         if df.empty:
@@ -505,17 +471,18 @@ class SuperNewsAnalyzer:
 
     def clean_duplicates(self):
         conn = _get_connection()
-        cursor = conn.cursor()
-        cursor.execute("""
+        cur = conn.cursor()
+        cur.execute("""
             DELETE FROM news
-            WHERE rowid NOT IN (
-                SELECT MIN(rowid)
+            WHERE id NOT IN (
+                SELECT MIN(id)
                 FROM news
                 GROUP BY ticker, lower(trim(title)), lower(trim(source))
             )
         """)
-        deleted = cursor.rowcount
+        deleted = cur.rowcount
         conn.commit()
+        cur.close()
         conn.close()
         if deleted > 0:
             self._info(f"Puliti {deleted} duplicati")
@@ -523,7 +490,7 @@ class SuperNewsAnalyzer:
 
 
 # ---------------------------------------------------------------------------
-# UI silenziosa – usata quando non c'è Streamlit
+# UI helpers
 # ---------------------------------------------------------------------------
 
 class _SilentUI:
@@ -533,23 +500,12 @@ class _SilentUI:
     def error(self, msg):   logger.error(msg);   print(f"[ERR]  {msg}")
 
 
-# ---------------------------------------------------------------------------
-# StreamlitUI – wrapper da usare in ui.py
-# ---------------------------------------------------------------------------
-
 class StreamlitUI:
     def info(self, msg):
-        import streamlit as st
-        st.info(msg)
-
+        import streamlit as st; st.info(msg)
     def success(self, msg):
-        import streamlit as st
-        st.success(msg)
-
+        import streamlit as st; st.success(msg)
     def warning(self, msg):
-        import streamlit as st
-        st.warning(msg)
-
+        import streamlit as st; st.warning(msg)
     def error(self, msg):
-        import streamlit as st
-        st.error(msg)
+        import streamlit as st; st.error(msg)
