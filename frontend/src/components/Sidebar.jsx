@@ -1,5 +1,8 @@
 import { useState, useEffect } from 'react'
 import { supabase } from '../supabase.js'
+import { useState, useEffect, useRef } from 'react'
+import { supabase } from '../supabase.js'
+import { TICKERS } from '../data/tickers.js'
 
 const DEFAULT_WATCHLIST = ['NVDA', 'AAPL', 'TSLA', 'MSFT', 'GOOGL']
 const PERIODS = [{ v: '1mo', l: '1M' }, { v: '3mo', l: '3M' }, { v: '6mo', l: '6M' }, { v: '1y', l: '1A' }]
@@ -8,6 +11,31 @@ export default function Sidebar({ ticker, days, period, onLoad, onFetch, loading
   const [input, setInput] = useState(ticker)
   const [watchlist, setWatchlist] = useState(DEFAULT_WATCHLIST)
   const [saving, setSaving] = useState(false)
+  const [suggestions, setSuggestions] = useState([])
+  const [showSuggestions, setShowSuggestions] = useState(false)
+  const inputRef = useRef(null)
+
+  const handleInputChange = (e) => {
+    const val = e.target.value.toUpperCase()
+    setInput(val)
+    if (val.length >= 1) {
+      const filtered = TICKERS.filter(t =>
+        t.symbol.startsWith(val) ||
+        t.name.toUpperCase().includes(val)
+      ).slice(0, 6)
+      setSuggestions(filtered)
+      setShowSuggestions(filtered.length > 0)
+    } else {
+      setShowSuggestions(false)
+    }
+  }
+
+  const selectSuggestion = (t) => {
+    setInput(t.symbol)
+    setShowSuggestions(false)
+    submit(t.symbol)
+  }
+
 
   useEffect(() => {
     loadWatchlist()
@@ -70,15 +98,20 @@ export default function Sidebar({ ticker, days, period, onLoad, onFetch, loading
         <span style={{ fontSize: 14, fontWeight: 500, letterSpacing: '-0.01em' }}>FinSentinel</span>
       </div>
 
-      {/* Search */}
-      <div>
-        <Label>Ticker</Label>
+      {/* Search con autocomplete */}
+      <div style={{ position: 'relative' }}>
         <div style={{ display: 'flex', gap: 6, marginTop: 6 }}>
           <input
+            ref={inputRef}
             value={input}
-            onChange={e => setInput(e.target.value.toUpperCase())}
-            onKeyDown={e => e.key === 'Enter' && submit()}
-            placeholder="NVDA"
+            onChange={handleInputChange}
+            onKeyDown={e => {
+              if (e.key === 'Enter') { setShowSuggestions(false); submit() }
+              if (e.key === 'Escape') setShowSuggestions(false)
+            }}
+            onBlur={() => setTimeout(() => setShowSuggestions(false), 150)}
+            onFocus={() => input.length >= 1 && setShowSuggestions(suggestions.length > 0)}
+            placeholder="NVDA, ENI.MI..."
             style={{
               flex: 1, background: 'var(--dark)',
               border: '1px solid var(--border-br)',
@@ -88,7 +121,7 @@ export default function Sidebar({ ticker, days, period, onLoad, onFetch, loading
             }}
           />
           <button
-            onClick={() => submit()}
+            onClick={() => { setShowSuggestions(false); submit() }}
             style={{
               background: 'var(--blue)', color: 'white',
               borderRadius: 7, padding: '0 12px', fontSize: 13,
@@ -96,6 +129,43 @@ export default function Sidebar({ ticker, days, period, onLoad, onFetch, loading
             }}
           >→</button>
         </div>
+
+        {/* Dropdown suggerimenti */}
+        {showSuggestions && (
+          <div style={{
+            position: 'absolute', top: '100%', left: 0, right: 0,
+            background: 'var(--dark)', border: '1px solid var(--border)',
+            borderRadius: 8, marginTop: 4, zIndex: 100,
+            overflow: 'hidden', boxShadow: '0 8px 24px rgba(0,0,0,0.4)',
+          }}>
+            {suggestions.map(t => (
+              <div
+                key={t.symbol}
+                onMouseDown={() => selectSuggestion(t)}
+                style={{
+                  padding: '8px 12px', cursor: 'pointer',
+                  display: 'flex', justifyContent: 'space-between',
+                  alignItems: 'center', fontSize: 13,
+                  borderBottom: '1px solid var(--border)',
+                  transition: 'background 0.1s',
+                }}
+                onMouseEnter={e => e.currentTarget.style.background = 'rgba(255,255,255,0.05)'}
+                onMouseLeave={e => e.currentTarget.style.background = 'transparent'}
+              >
+                <div>
+                  <span style={{ fontWeight: 500, color: 'var(--white)' }}>{t.symbol}</span>
+                  <span style={{ fontSize: 11, color: 'var(--muted)', marginLeft: 8 }}>{t.name}</span>
+                </div>
+                <span style={{
+                  fontSize: 10, color: 'var(--azure)',
+                  background: 'rgba(96,165,250,0.08)',
+                  border: '1px solid rgba(96,165,250,0.15)',
+                  padding: '2px 6px', borderRadius: 4,
+                }}>{t.exchange}</span>
+              </div>
+            ))}
+          </div>
+        )}
       </div>
 
       {/* Watchlist */}
