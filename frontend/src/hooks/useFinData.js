@@ -1,6 +1,6 @@
 import { useState, useCallback } from 'react'
 
-const BASE = import.meta.env.VITE_API_BASE || '/api'
+const BASE = 'https://financial-sentiment-analysis-20px.onrender.com'
 
 export function useFinData() {
   const [tickerInfo, setTickerInfo]   = useState(null)
