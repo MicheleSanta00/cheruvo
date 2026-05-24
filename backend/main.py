@@ -22,6 +22,7 @@ app.add_middleware(
     allow_origins=[
         "https://finsentinel-three.vercel.app",
         "https://finsentinel-five.vercel.app",
+        "https://appfinsentinel-m2g8wgb23-michelesanta00s-projects.vercel.app",
     ],
     allow_methods=["*"],
     allow_headers=["*"],
