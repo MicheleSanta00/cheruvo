@@ -6,6 +6,8 @@ sys.path.insert(0, os.path.dirname(__file__))
 
 from data.database import SuperNewsAnalyzer
 
+DEFAULT_TICKERS = ['NVDA', 'AAPL', 'TSLA', 'MSFT', 'GOOGL', 'META', 'AMD', 'AMZN']
+
 def get_all_tickers():
     conn = psycopg2.connect(os.environ["DATABASE_URL"])
     cur = conn.cursor()
@@ -16,10 +18,11 @@ def get_all_tickers():
     return tickers
 
 if __name__ == "__main__":
-    tickers = get_all_tickers()
+    tickers_db = get_all_tickers()
+    tickers = list(set(DEFAULT_TICKERS + tickers_db))
     
     if not tickers:
-        print("Nessun ticker nel database ancora.")
+        print("Nessun ticker trovato.")
     
     for ticker in tickers:
         print(f"Aggiornando {ticker}...")
