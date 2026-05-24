@@ -221,31 +221,85 @@ class SuperNewsAnalyzer:
         return news_list
 
     def fetch_rss(self):
+        ticker_lower = self.ticker.lower()
         sources = {
-            f"https://feeds.finance.yahoo.com/rss/2.0/headline?s={self.ticker}&region=US&lang=en-US": "Yahoo Finance RSS",
-            "https://www.cnbc.com/id/100003114/device/rss/rss.html": "CNBC",
-            "https://feeds.marketwatch.com/marketwatch/topstories/": "MarketWatch",
+            f"https://feeds.finance.yahoo.com/rss/2.0/headline?s={self.ticker}&region=US&lang=en-US": "Yahoo Finance",
+            f"https://finviz.com/rss.ashx?t={self.ticker}": "Finviz",
+            f"https://news.google.com/rss/search?q={self.ticker}+stock&hl=en-US&gl=US&ceid=US:en": "Google News",
+            f"https://news.google.com/rss/search?q={self.ticker}+earnings&hl=en-US&gl=US&ceid=US:en": "Google News Earnings",
+            f"https://seekingalpha.com/api/sa/combined/{self.ticker}.xml": "Seeking Alpha",
+            f"https://www.investing.com/rss/news_{self.ticker}.rss": "Investing.com",
+            "https://feeds.marketwatch.com/marketwatch/marketpulse/": "MarketWatch",
+            "https://www.reutersagency.com/feed/?best-topics=business-finance&post_type=best": "Reuters",
         }
         news_list = []
         finbert = get_finbert()
+        
         for url, name in sources.items():
             try:
                 feed = feedparser.parse(url)
-                for entry in feed.entries[:20]:
+                if not feed.entries:
+                    print(f"RSS {name}: 0 news")
+                    continue
+                count = 0
+                for entry in feed.entries[:25]:
                     title = entry.get("title", "").strip()
-                    if not title:
+                    if not title or len(title) < 10:
                         continue
-                    summary = entry.get("summary", "")
+                    # Fonti generiche: filtra per ticker nel titolo
+                    if name in ["MarketWatch", "Reuters"] and self.ticker.lower() not in title.lower():
+                        continue
+                    summary = entry.get("summary", "") or entry.get("description", "")
+                    # Rimuovi HTML dal summary
+                    import re
+                    summary = re.sub(r'<[^>]+>', '', summary)[:250]
                     news_list.append({
                         "source": name,
                         "title": title,
-                        "summary": summary[:250],
+                        "summary": summary,
                         "published_date": self._format_date(entry.get("published", "")),
                         "url": entry.get("link", ""),
                         "sentiment": finbert.predict(f"{title} {summary}"),
                     })
+                    count += 1
+                print(f"RSS {name}: {count} news")
             except Exception as e:
                 print(f"RSS {name}: {str(e)[:60]}")
+        
+        print(f"RSS totale: {len(news_list)} news")
+        return news_list
+    
+    def fetch_sec(self):
+        """SEC EDGAR — comunicati ufficiali (earnings, acquisizioni, ecc.)"""
+        news_list = []
+        try:
+            headers = {"User-Agent": "FinSentinel contact@finsentinel.com"}
+            # Cerca il CIK del ticker
+            r = requests.get(
+                f"https://efts.sec.gov/LATEST/search-index?q=%22{self.ticker}%22&dateRange=custom&startdt={(datetime.now()-timedelta(days=30)).strftime('%Y-%m-%d')}&enddt={datetime.now().strftime('%Y-%m-%d')}&forms=8-K",
+                headers=headers, timeout=15
+            )
+            data = r.json()
+            hits = data.get("hits", {}).get("hits", [])
+            finbert = get_finbert()
+            for hit in hits[:15]:
+                source_data = hit.get("_source", {})
+                title = source_data.get("display_names", [self.ticker])[0]
+                form = source_data.get("form_type", "8-K")
+                filed = source_data.get("file_date", "")
+                description = source_data.get("period_of_report", "")
+                full_title = f"{self.ticker} {form} — {title}"
+                news_list.append({
+                    "source": "SEC EDGAR",
+                    "title": full_title,
+                    "summary": f"Filing {form} presentato il {filed}",
+                    "published_date": self._format_date(filed),
+                    "url": f"https://www.sec.gov/cgi-bin/browse-edgar?action=getcompany&company={self.ticker}&type=8-K&dateb=&owner=include&count=10",
+                    "sentiment": finbert.predict(full_title),
+                })
+            print(f"SEC EDGAR: {len(news_list)} filing")
+        except Exception as e:
+            print(f"SEC EDGAR error: {str(e)[:80]}")
         return news_list
 
     def fetch_reddit(self):
@@ -326,7 +380,7 @@ class SuperNewsAnalyzer:
             ("NewsAPI",       self.fetch_newsapi),
             ("FMP",           self.fetch_fmp_news),
             ("RSS",           self.fetch_rss),
-            ("Reddit",        self.fetch_reddit),
+            ("SEC EDGAR",     self.fetch_sec),
         ]:
             print(f"  → {nome}")
             try:
