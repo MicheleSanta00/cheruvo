@@ -19,8 +19,13 @@ def get_all_tickers():
     return tickers
 
 if __name__ == "__main__":
+    import random
     tickers_db = get_all_tickers()
     tickers = list(set(DEFAULT_TICKERS + tickers_db))
+    
+    # Aggiorna solo 3 ticker per run per evitare timeout
+    tickers = random.sample(tickers, min(3, len(tickers)))
+    print(f"Ticker selezionati: {tickers}")
 
     for ticker in tickers:
         print(f"Aggiornando {ticker}...")

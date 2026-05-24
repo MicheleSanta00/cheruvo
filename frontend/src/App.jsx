@@ -36,7 +36,7 @@ export default function App() {
 
   useEffect(() => {
     if (user) {
-      fetch(`${import.meta.env.VITE_API_BASE}/api/subscription/${user.id}`)
+      fetch(`${import.meta.env.VITE_API_BASE}/subscription/${user.id}`)
         .then(r => r.json())
         .then(data => setIsPro(data.status === 'pro'))
     }
@@ -48,7 +48,7 @@ export default function App() {
   }
 
   const handleUpgrade = async () => {
-    const res = await fetch(`${import.meta.env.VITE_API_BASE}/api/checkout`, {
+    const res = await fetch(`${import.meta.env.VITE_API_BASE}/checkout`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ email: user.email, user_id: user.id }),
