@@ -5,6 +5,7 @@ import psycopg2
 sys.path.insert(0, os.path.dirname(__file__))
 
 from data.database import SuperNewsAnalyzer
+from backend.alerts import check_and_send_alerts
 
 DEFAULT_TICKERS = ['NVDA', 'AAPL', 'TSLA', 'MSFT', 'GOOGL', 'META', 'AMD', 'AMZN']
 
@@ -20,10 +21,7 @@ def get_all_tickers():
 if __name__ == "__main__":
     tickers_db = get_all_tickers()
     tickers = list(set(DEFAULT_TICKERS + tickers_db))
-    
-    if not tickers:
-        print("Nessun ticker trovato.")
-    
+
     for ticker in tickers:
         print(f"Aggiornando {ticker}...")
         try:
@@ -32,3 +30,7 @@ if __name__ == "__main__":
             print(f"  ✓ {ticker} aggiornato")
         except Exception as e:
             print(f"  ✗ Errore su {ticker}: {e}")
+
+    # Controlla e manda alert
+    print("\nControllo alert...")
+    check_and_send_alerts()
