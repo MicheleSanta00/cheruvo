@@ -13,6 +13,7 @@ import pandas as pd
 
 from database import SuperNewsAnalyzer, init_database
 from prices import get_prices, validate_ticker
+from stripe_routes import router as stripe_router, init_subscriptions_table
 
 app = FastAPI(title="FinSentinel API", version="2.0.0")
 
@@ -25,6 +26,8 @@ app.add_middleware(
     allow_methods=["*"],
     allow_headers=["*"],
 )
+
+app.include_router(stripe_router)
 
 API_KEY = {
     "ALPHA_VANTAGE": os.environ.get("ALPHA_VANTAGE", ""),
@@ -42,6 +45,7 @@ API_KEY = {
 @app.on_event("startup")
 def startup():
     init_database()
+    init_subscriptions_table()
 
 
 # ── Endpoints ──────────────────────────────────────────────────────────────

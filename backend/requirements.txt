@@ -8,3 +8,4 @@ python-multipart==0.0.9
 python-dateutil==2.9.0
 requests==2.32.3
 resend==2.0.0
+stripe==9.0.0
