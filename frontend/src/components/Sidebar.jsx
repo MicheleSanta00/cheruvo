@@ -2,24 +2,31 @@ import { useState, useEffect, useRef } from 'react'
 import { supabase } from '../supabase.js'
 import { TICKERS } from '../data/tickers.js'
 
-const DEFAULT_WATCHLIST = ['NVDA', 'AAPL', 'TSLA', 'MSFT', 'GOOGL']
-const PERIODS = [{ v: '1mo', l: '1M' }, { v: '3mo', l: '3M' }, { v: '6mo', l: '6M' }, { v: '1y', l: '1A' }]
+const PERIODS_FREE = [{ v: '1mo', l: '1M' }, { v: '3mo', l: '3M' }]
+const PERIODS_PRO  = [{ v: '1mo', l: '1M' }, { v: '3mo', l: '3M' }, { v: '6mo', l: '6M' }, { v: '1y', l: '1A' }]
 
-export default function Sidebar({ ticker, days, period, onLoad, onFetch, loading, fetching, onTickerChange, onDaysChange, onPeriodChange }) {
+const MAX_WATCHLIST_FREE = 3
+const MAX_DAYS_FREE = 30
+const MAX_DAYS_PRO = 90
+
+export default function Sidebar({ ticker, days, period, onLoad, onFetch, loading, fetching, onTickerChange, onDaysChange, onPeriodChange, isPro, onUpgrade }) {
   const [input, setInput] = useState(ticker)
-  const [watchlist, setWatchlist] = useState(DEFAULT_WATCHLIST)
+  const [watchlist, setWatchlist] = useState(['NVDA', 'AAPL', 'TSLA'])
   const [saving, setSaving] = useState(false)
   const [suggestions, setSuggestions] = useState([])
   const [showSuggestions, setShowSuggestions] = useState(false)
   const inputRef = useRef(null)
+
+  const PERIODS = isPro ? PERIODS_PRO : PERIODS_FREE
+  const maxDays = isPro ? MAX_DAYS_PRO : MAX_DAYS_FREE
+  const maxWatchlist = isPro ? Infinity : MAX_WATCHLIST_FREE
 
   const handleInputChange = (e) => {
     const val = e.target.value.toUpperCase()
     setInput(val)
     if (val.length >= 1) {
       const filtered = TICKERS.filter(t =>
-        t.symbol.startsWith(val) ||
-        t.name.toUpperCase().includes(val)
+        t.symbol.startsWith(val) || t.name.toUpperCase().includes(val)
       ).slice(0, 6)
       setSuggestions(filtered)
       setShowSuggestions(filtered.length > 0)
@@ -34,24 +41,21 @@ export default function Sidebar({ ticker, days, period, onLoad, onFetch, loading
     submit(t.symbol)
   }
 
-
-  useEffect(() => {
-    loadWatchlist()
-  }, [])
+  useEffect(() => { loadWatchlist() }, [])
 
   const loadWatchlist = async () => {
     const { data, error } = await supabase
-      .from('watchlist')
-      .select('ticker')
-      .order('created_at', { ascending: true })
-    if (!error && data.length > 0) {
-      setWatchlist(data.map(r => r.ticker))
-    }
+      .from('watchlist').select('ticker').order('created_at', { ascending: true })
+    if (!error && data?.length > 0) setWatchlist(data.map(r => r.ticker))
   }
 
   const addTicker = async (t) => {
     const v = t.toUpperCase().trim()
     if (!v || watchlist.includes(v)) return
+    if (!isPro && watchlist.length >= MAX_WATCHLIST_FREE) {
+      onUpgrade()
+      return
+    }
     setSaving(true)
     const { data: { user } } = await supabase.auth.getUser()
     await supabase.from('watchlist').insert({ user_id: user.id, ticker: v })
@@ -71,6 +75,20 @@ export default function Sidebar({ ticker, days, period, onLoad, onFetch, loading
     onLoad(v, days, period)
   }
 
+  const handleDaysChange = (val) => {
+    const capped = Math.min(val, maxDays)
+    onDaysChange(capped)
+  }
+
+  const handlePeriodChange = (p) => {
+    if (!isPro && !PERIODS_FREE.find(x => x.v === p.v)) {
+      onUpgrade()
+      return
+    }
+    onPeriodChange(p.v)
+    onLoad(ticker, days, p.v)
+  }
+
   return (
     <aside style={{
       width: 220, flexShrink: 0,
@@ -78,15 +96,14 @@ export default function Sidebar({ ticker, days, period, onLoad, onFetch, loading
       borderRight: '1px solid var(--border)',
       display: 'flex', flexDirection: 'column',
       height: '100%', overflowY: 'auto',
-      padding: '20px 12px',
-      gap: 24,
+      padding: '20px 12px', gap: 24,
     }}>
 
       {/* Logo */}
       <div style={{ display: 'flex', alignItems: 'center', gap: 9, padding: '0 8px', marginBottom: 4 }}>
         <div style={{
           width: 28, height: 28, background: 'var(--blue)',
-          borderRadius: 7, display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0,
+          borderRadius: 7, display: 'flex', alignItems: 'center', justifyContent: 'center',
         }}>
           <svg width="14" height="14" viewBox="0 0 14 14" fill="none">
             <path d="M1.5 10.5L5 6.5L8 9L12.5 4" stroke="white" strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round"/>
@@ -96,8 +113,9 @@ export default function Sidebar({ ticker, days, period, onLoad, onFetch, loading
         <span style={{ fontSize: 14, fontWeight: 500, letterSpacing: '-0.01em' }}>FinSentinel</span>
       </div>
 
-      {/* Search con autocomplete */}
+      {/* Search */}
       <div style={{ position: 'relative' }}>
+        <Label>Ticker</Label>
         <div style={{ display: 'flex', gap: 6, marginTop: 6 }}>
           <input
             ref={inputRef}
@@ -120,15 +138,10 @@ export default function Sidebar({ ticker, days, period, onLoad, onFetch, loading
           />
           <button
             onClick={() => { setShowSuggestions(false); submit() }}
-            style={{
-              background: 'var(--blue)', color: 'white',
-              borderRadius: 7, padding: '0 12px', fontSize: 13,
-              fontWeight: 500,
-            }}
+            style={{ background: 'var(--blue)', color: 'white', borderRadius: 7, padding: '0 12px', fontSize: 13, fontWeight: 500 }}
           >→</button>
         </div>
 
-        {/* Dropdown suggerimenti */}
         {showSuggestions && (
           <div style={{
             position: 'absolute', top: '100%', left: 0, right: 0,
@@ -145,7 +158,6 @@ export default function Sidebar({ ticker, days, period, onLoad, onFetch, loading
                   display: 'flex', justifyContent: 'space-between',
                   alignItems: 'center', fontSize: 13,
                   borderBottom: '1px solid var(--border)',
-                  transition: 'background 0.1s',
                 }}
                 onMouseEnter={e => e.currentTarget.style.background = 'rgba(255,255,255,0.05)'}
                 onMouseLeave={e => e.currentTarget.style.background = 'transparent'}
@@ -168,17 +180,19 @@ export default function Sidebar({ ticker, days, period, onLoad, onFetch, loading
 
       {/* Watchlist */}
       <div>
-        <Label>Watchlist</Label>
-        <div style={{ marginTop: 6, display: 'flex', flexDirection: 'column', gap: 2 }}>
+        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '0 8px', marginBottom: 8 }}>
+          <Label style={{ padding: 0 }}>Watchlist</Label>
+          {!isPro && (
+            <span style={{ fontSize: 10, color: 'var(--muted)' }}>{watchlist.length}/{MAX_WATCHLIST_FREE}</span>
+          )}
+        </div>
+        <div style={{ display: 'flex', flexDirection: 'column', gap: 2 }}>
           {watchlist.map(t => (
-            <div
-              key={t}
-              style={{
-                display: 'flex', justifyContent: 'space-between', alignItems: 'center',
-                padding: '8px 10px', borderRadius: 7,
-                background: ticker === t ? 'rgba(30,92,255,0.15)' : 'transparent',
-              }}
-            >
+            <div key={t} style={{
+              display: 'flex', justifyContent: 'space-between', alignItems: 'center',
+              padding: '8px 10px', borderRadius: 7,
+              background: ticker === t ? 'rgba(30,92,255,0.15)' : 'transparent',
+            }}>
               <button
                 onClick={() => submit(t)}
                 style={{
@@ -189,68 +203,114 @@ export default function Sidebar({ ticker, days, period, onLoad, onFetch, loading
               >{t}</button>
               <button
                 onClick={() => removeTicker(t)}
-                style={{
-                  fontSize: 11, color: 'var(--muted)',
-                  background: 'transparent', padding: '2px 4px',
-                  opacity: 0.5,
-                }}
-                title="Rimuovi"
+                style={{ fontSize: 11, color: 'var(--muted)', background: 'transparent', padding: '2px 4px', opacity: 0.5 }}
               >✕</button>
             </div>
           ))}
 
-          {/* Aggiungi ticker */}
-          <button
-            onClick={() => { if (input) addTicker(input) }}
-            disabled={saving}
-            style={{
-              marginTop: 6, padding: '7px 10px', borderRadius: 7,
-              fontSize: 12, color: 'var(--muted)',
-              border: '1px dashed rgba(255,255,255,0.1)',
-              background: 'transparent', textAlign: 'left',
-              opacity: saving ? 0.5 : 1,
-            }}
-          >
-            {saving ? 'Salvando...' : '+ Aggiungi alla watchlist'}
-          </button>
+          {/* Add ticker or upgrade */}
+          {!isPro && watchlist.length >= MAX_WATCHLIST_FREE ? (
+            <button
+              onClick={onUpgrade}
+              style={{
+                marginTop: 6, padding: '7px 10px', borderRadius: 7,
+                fontSize: 12, color: 'var(--azure)',
+                border: '1px dashed rgba(96,165,250,0.3)',
+                background: 'rgba(96,165,250,0.05)', textAlign: 'left',
+              }}
+            >
+              ⚡ Pro per watchlist illimitata
+            </button>
+          ) : (
+            <button
+              onClick={() => { if (input) addTicker(input) }}
+              disabled={saving}
+              style={{
+                marginTop: 6, padding: '7px 10px', borderRadius: 7,
+                fontSize: 12, color: 'var(--muted)',
+                border: '1px dashed rgba(255,255,255,0.1)',
+                background: 'transparent', textAlign: 'left',
+                opacity: saving ? 0.5 : 1,
+              }}
+            >
+              {saving ? 'Salvando...' : '+ Aggiungi alla watchlist'}
+            </button>
+          )}
         </div>
       </div>
 
-      {/* Days */}
+      {/* Days slider */}
       <div>
-        <Label>News ultimi {days} giorni</Label>
+        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '0 8px', marginBottom: 4 }}>
+          <Label style={{ padding: 0 }}>News ultimi {days}g</Label>
+          {!isPro && <span style={{ fontSize: 10, color: 'var(--muted)' }}>🔒 max 30g</span>}
+        </div>
         <input
-          type="range" min={7} max={90} value={days}
-          onChange={e => onDaysChange(Number(e.target.value))}
+          type="range" min={7} max={maxDays} value={Math.min(days, maxDays)}
+          onChange={e => handleDaysChange(Number(e.target.value))}
           onMouseUp={() => onLoad(ticker, days, period)}
-          style={{ width: '100%', marginTop: 8, accentColor: 'var(--blue)' }}
+          style={{ width: '100%', marginTop: 4, accentColor: 'var(--blue)' }}
         />
         <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: 11, color: 'var(--muted)', marginTop: 4 }}>
-          <span>7g</span><span>90g</span>
+          <span>7g</span>
+          <span>{maxDays}g {!isPro && '(Pro: 90g)'}</span>
         </div>
       </div>
 
-      {/* Period */}
+      {/* Periods */}
       <div>
         <Label>Periodo prezzi</Label>
         <div style={{ display: 'flex', gap: 4, marginTop: 6, flexWrap: 'wrap' }}>
-          {PERIODS.map(p => (
-            <button
-              key={p.v}
-              onClick={() => { onPeriodChange(p.v); onLoad(ticker, days, p.v) }}
-              style={{
-                padding: '5px 10px', borderRadius: 6, fontSize: 12, fontWeight: 500,
-                border: '1px solid',
-                borderColor: period === p.v ? 'rgba(30,92,255,0.5)' : 'var(--border-br)',
-                background: period === p.v ? 'rgba(30,92,255,0.15)' : 'transparent',
-                color: period === p.v ? 'var(--azure)' : 'var(--muted)',
-              }}
-            >{p.l}</button>
-          ))}
+          {PERIODS_PRO.map(p => {
+            const isLocked = !isPro && !PERIODS_FREE.find(x => x.v === p.v)
+            const isActive = period === p.v
+            return (
+              <button
+                key={p.v}
+                onClick={() => handlePeriodChange(p)}
+                style={{
+                  padding: '5px 10px', borderRadius: 6, fontSize: 12, fontWeight: 500,
+                  border: '1px solid',
+                  borderColor: isActive ? 'rgba(30,92,255,0.5)' : isLocked ? 'rgba(255,255,255,0.04)' : 'var(--border-br)',
+                  background: isActive ? 'rgba(30,92,255,0.15)' : 'transparent',
+                  color: isActive ? 'var(--azure)' : isLocked ? 'rgba(255,255,255,0.2)' : 'var(--muted)',
+                  cursor: isLocked ? 'default' : 'pointer',
+                  position: 'relative',
+                }}
+                title={isLocked ? 'Disponibile con Pro' : ''}
+              >
+                {isLocked ? '🔒' : ''}{p.l}
+              </button>
+            )
+          })}
         </div>
       </div>
 
       <div style={{ flex: 1 }} />
+
+      {/* Upgrade banner for free users */}
+      {!isPro && (
+        <button
+          onClick={onUpgrade}
+          style={{
+            padding: '12px', borderRadius: 10,
+            background: 'linear-gradient(135deg, rgba(30,92,255,0.15), rgba(96,165,250,0.08))',
+            border: '1px solid rgba(30,92,255,0.25)',
+            cursor: 'pointer', textAlign: 'left',
+          }}
+        >
+          <div style={{ fontSize: 12, fontWeight: 500, color: 'var(--azure)', marginBottom: 4 }}>
+            ⚡ Passa a Pro
+          </div>
+          <div style={{ fontSize: 11, color: 'var(--muted)', lineHeight: 1.5 }}>
+            Watchlist illimitata · 90 giorni<br/>
+            Alert email · Export CSV
+          </div>
+          <div style={{ fontSize: 12, color: 'var(--white)', marginTop: 8, fontWeight: 500 }}>
+            €9/mese →
+          </div>
+        </button>
+      )}
 
       {/* Fetch button */}
       <button
@@ -269,6 +329,12 @@ export default function Sidebar({ ticker, days, period, onLoad, onFetch, loading
   )
 }
 
-function Label({ children }) {
-  return <div style={{ fontSize: 11, fontWeight: 500, color: 'var(--muted)', letterSpacing: '0.08em', textTransform: 'uppercase', padding: '0 8px' }}>{children}</div>
+function Label({ children, style }) {
+  return (
+    <div style={{
+      fontSize: 11, fontWeight: 500, color: 'var(--muted)',
+      letterSpacing: '0.08em', textTransform: 'uppercase',
+      padding: '0 8px', ...style,
+    }}>{children}</div>
+  )
 }

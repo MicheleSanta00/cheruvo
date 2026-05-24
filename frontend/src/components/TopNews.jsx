@@ -1,26 +1,36 @@
-export default function TopNews({ news }) {
-  if (!news.length) return null
-
-  const sorted = [...news].sort((a, b) => b.sentiment - a.sentiment)
-  const positive = sorted.slice(0, 8)
-  const negative = [...news].sort((a, b) => a.sentiment - b.sentiment).slice(0, 5)
+export default function TopNews({ news, isPro, onUpgrade }) {
+  const sorted   = [...news].sort((a, b) => b.sentiment - a.sentiment)
+  const positive = sorted.slice(0, isPro ? 10 : 3)
+  const negative = [...news].sort((a, b) => a.sentiment - b.sentiment).slice(0, isPro ? 5 : 2)
 
   return (
     <div>
-      <h3 style={{ fontFamily: 'var(--serif)', fontSize: 22, fontWeight: 400, letterSpacing: '-0.02em', marginBottom: 20 }}>
-        Top News
-      </h3>
+      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'baseline', marginBottom: 20 }}>
+        <h3 style={{ fontFamily: 'var(--serif)', fontSize: 22, fontWeight: 400, letterSpacing: '-0.02em' }}>
+          Top News
+        </h3>
+        {!isPro && (
+          <span style={{ fontSize: 12, color: 'var(--muted)' }}>
+            Mostrate {positive.length + negative.length} su {news.length} —{' '}
+            <span
+              onClick={onUpgrade}
+              style={{ color: 'var(--azure)', cursor: 'pointer', textDecoration: 'underline' }}
+            >Pro per tutte</span>
+          </span>
+        )}
+      </div>
+
       <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 20 }}>
-        <NewsColumn title="Ottimismo" items={positive} positive />
-        <NewsColumn title="Pessimismo" items={negative} positive={false} />
+        <NewsColumn title="Ottimismo" items={positive} positive onUpgrade={onUpgrade} isPro={isPro} total={sorted.length} />
+        <NewsColumn title="Pessimismo" items={negative} positive={false} onUpgrade={onUpgrade} isPro={isPro} total={news.length} />
       </div>
     </div>
   )
 }
 
-function NewsColumn({ title, items, positive }) {
+function NewsColumn({ title, items, positive, onUpgrade, isPro, total }) {
   const color = positive ? 'var(--green)' : 'var(--red)'
-  const borderColor = positive ? 'rgba(52,211,153,0.2)' : 'rgba(248,113,113,0.2)'
+  const hiddenCount = total - items.length
 
   return (
     <div>
@@ -35,8 +45,7 @@ function NewsColumn({ title, items, positive }) {
             target="_blank"
             rel="noopener noreferrer"
             style={{
-              display: 'block',
-              padding: '12px 14px',
+              display: 'block', padding: '12px 14px',
               background: 'rgba(255,255,255,0.02)',
               border: '1px solid var(--border)',
               borderLeft: `3px solid ${color}`,
@@ -59,6 +68,27 @@ function NewsColumn({ title, items, positive }) {
             </div>
           </a>
         ))}
+
+        {/* Locked items for free users */}
+        {!isPro && hiddenCount > 0 && (
+          <button
+            onClick={onUpgrade}
+            style={{
+              padding: '12px 14px', borderRadius: '0 8px 8px 0',
+              background: 'rgba(30,92,255,0.04)',
+              border: '1px solid rgba(30,92,255,0.15)',
+              borderLeft: `3px solid rgba(30,92,255,0.3)`,
+              cursor: 'pointer', textAlign: 'left',
+            }}
+          >
+            <div style={{ fontSize: 13, color: 'var(--muted)' }}>
+              🔒 +{hiddenCount} news nascoste
+            </div>
+            <div style={{ fontSize: 12, color: 'var(--azure)', marginTop: 4 }}>
+              Passa a Pro per vedere tutte →
+            </div>
+          </button>
+        )}
       </div>
     </div>
   )

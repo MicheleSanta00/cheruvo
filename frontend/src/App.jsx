@@ -15,13 +15,12 @@ const DEFAULT_DAYS   = 30
 const DEFAULT_PERIOD = '3mo'
 
 export default function App() {
-
-  const [user, setUser]           = useState(null)
+  const [user, setUser]               = useState(null)
   const [authLoading, setAuthLoading] = useState(true)
-  const [ticker, setTicker]       = useState(DEFAULT_TICKER)
-  const [days, setDays]           = useState(DEFAULT_DAYS)
-  const [period, setPeriod]       = useState(DEFAULT_PERIOD)
-  const [isPro, setIsPro]         = useState(false)
+  const [ticker, setTicker]           = useState(DEFAULT_TICKER)
+  const [days, setDays]               = useState(DEFAULT_DAYS)
+  const [period, setPeriod]           = useState(DEFAULT_PERIOD)
+  const [isPro, setIsPro]             = useState(false)
   const [showProfile, setShowProfile] = useState(false)
 
   const { tickerInfo, news, stats, prices, sentiment, loading, fetching, error, load, triggerFetch } = useFinData()
@@ -41,6 +40,7 @@ export default function App() {
       fetch(`${import.meta.env.VITE_API_BASE}/subscription/${user.id}`)
         .then(r => r.json())
         .then(data => setIsPro(data.status === 'pro'))
+        .catch(() => setIsPro(false))
     }
   }, [user])
 
@@ -59,42 +59,43 @@ export default function App() {
     if (data.url) window.location.href = data.url
   }
 
+  const handleExport = () => {
+    if (!isPro) { handleUpgrade(); return }
+    if (!news.length) return
+    const headers = ['title', 'source', 'published_date', 'sentiment', 'url']
+    const rows = news.map(n => headers.map(h => `"${(n[h] || '').toString().replace(/"/g, '""')}"`).join(','))
+    const csv = [headers.join(','), ...rows].join('\n')
+    const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' })
+    const url = URL.createObjectURL(blob)
+    const a = document.createElement('a'); a.href = url
+    a.download = `${ticker}_sentiment_${new Date().toISOString().slice(0,10)}.csv`
+    a.click(); URL.revokeObjectURL(url)
+  }
+
   if (authLoading) return null
   if (!user) return <Auth onLogin={setUser} />
 
   return (
     <div style={{ display: 'flex', height: '100vh', overflow: 'hidden', background: 'var(--black)' }}>
 
-      {/* Profilo modal */}
       {showProfile && (
         <Profile
-          user={user}
-          isPro={isPro}
+          user={user} isPro={isPro}
           onClose={() => setShowProfile(false)}
           onUpgrade={() => { setShowProfile(false); handleUpgrade() }}
         />
       )}
 
-      {/* Sidebar */}
       <Sidebar
-        ticker={ticker}
-        days={days}
-        period={period}
-        loading={loading}
-        fetching={fetching}
-        onTickerChange={setTicker}
-        onDaysChange={setDays}
-        onPeriodChange={setPeriod}
-        onLoad={load}
-        onFetch={handleFetch}
+        ticker={ticker} days={days} period={period}
+        loading={loading} fetching={fetching} isPro={isPro}
+        onTickerChange={setTicker} onDaysChange={setDays} onPeriodChange={setPeriod}
+        onLoad={load} onFetch={handleFetch} onUpgrade={handleUpgrade}
       />
 
-      {/* Main area */}
-      <main style={{
-        flex: 1, display: 'flex', flexDirection: 'column',
-        overflow: 'hidden', height: '100vh',
-      }}>
-        {/* Top bar */}
+      <main style={{ flex: 1, display: 'flex', flexDirection: 'column', overflow: 'hidden', height: '100vh' }}>
+
+        {/* Header */}
         <header style={{
           height: 56, flexShrink: 0,
           borderBottom: '1px solid var(--border)',
@@ -122,53 +123,52 @@ export default function App() {
             </span>
           )}
 
-          <div style={{ marginLeft: 'auto', display: 'flex', alignItems: 'center', gap: 12 }}>
-  
-              <a href="https://finsentinel-five.vercel.app"
+          <div style={{ marginLeft: 'auto', display: 'flex', alignItems: 'center', gap: 10 }}>
+
+            {/* Export CSV */}
+            {news.length > 0 && (
+              <button
+                onClick={handleExport}
+                title={isPro ? 'Esporta CSV' : 'Pro: Esporta CSV'}
+                style={{
+                  fontSize: 12, color: isPro ? 'var(--muted)' : 'rgba(255,255,255,0.2)',
+                  border: '1px solid var(--border)', borderRadius: 6,
+                  padding: '4px 10px', background: 'transparent', cursor: 'pointer',
+                  display: 'flex', alignItems: 'center', gap: 4,
+                }}
+              >
+                {isPro ? '↓ CSV' : '🔒 CSV'}
+              </button>
+            )}
+
+            <a href="https://finsentinel-five.vercel.app"
               style={{
                 fontSize: 12, color: 'var(--muted)', textDecoration: 'none',
                 border: '1px solid var(--border)', borderRadius: 6,
-                padding: '4px 10px', transition: 'color 0.2s',
+                padding: '4px 10px',
               }}
-            >
-              ← Home
-            </a>
+            >← Home</a>
 
-            {loading && (
-              <span style={{ fontSize: 12, color: 'var(--muted)', display: 'flex', alignItems: 'center', gap: 6 }}>
-                <Spinner /> Caricamento...
-              </span>
-            )}
-            {fetching && (
-              <span style={{ fontSize: 12, color: 'var(--azure)', display: 'flex', alignItems: 'center', gap: 6 }}>
-                <Spinner color="var(--azure)" /> Aggiornando news...
-              </span>
-            )}
+            {loading && <Spinner />}
+            {fetching && <Spinner color="var(--azure)" />}
 
             {isPro ? (
               <span style={{
                 fontSize: 12, color: '#4ade80',
                 border: '1px solid rgba(74,222,128,0.3)',
                 borderRadius: 6, padding: '4px 10px',
-              }}>
-                ✓ Pro
-              </span>
+              }}>✓ Pro</span>
             ) : (
               <button
                 onClick={handleUpgrade}
                 style={{
-                  fontSize: 12, color: 'white',
-                  background: 'var(--blue)',
-                  border: 'none', borderRadius: 6,
-                  padding: '4px 12px', cursor: 'pointer',
-                  fontWeight: 500,
+                  fontSize: 12, color: 'white', background: 'var(--blue)',
+                  border: 'none', borderRadius: 6, padding: '4px 12px',
+                  cursor: 'pointer', fontWeight: 500,
                 }}
-              >
-                ⚡ Passa a Pro
-              </button>
+              >⚡ Pro</button>
             )}
 
-            {/* Avatar — apre profilo */}
             <div
               onClick={() => setShowProfile(true)}
               title={user?.email}
@@ -177,7 +177,6 @@ export default function App() {
                 background: 'var(--blue)', display: 'flex',
                 alignItems: 'center', justifyContent: 'center',
                 fontSize: 13, fontWeight: 500, cursor: 'pointer',
-                flexShrink: 0, userSelect: 'none',
               }}
             >
               {user?.email?.[0].toUpperCase()}
@@ -185,53 +184,36 @@ export default function App() {
           </div>
         </header>
 
-        {/* Scroll area */}
+        {/* Content */}
         <div style={{ flex: 1, overflowY: 'auto', padding: '24px 28px', display: 'flex', flexDirection: 'column', gap: 24 }}>
 
-          {/* Error */}
           {error && (
             <div style={{
               background: 'rgba(248,113,113,0.08)', border: '1px solid rgba(248,113,113,0.2)',
               borderRadius: 10, padding: '12px 16px', fontSize: 14, color: 'var(--red)',
-            }}>
-              {error}
-            </div>
+            }}>{error}</div>
           )}
 
-          {/* KPIs */}
           {stats && <KPIGrid stats={stats} />}
 
-          {/* Empty state */}
-          {!loading && !tickerInfo && !error && (
-            <EmptyState />
-          )}
+          {!loading && !tickerInfo && !error && <EmptyState />}
 
-          {/* No news */}
           {tickerInfo && !loading && !news.length && !error && (
             <div style={{
               background: 'rgba(96,165,250,0.06)', border: '1px solid rgba(96,165,250,0.15)',
               borderRadius: 12, padding: '24px 28px', textAlign: 'center',
             }}>
               <div style={{ fontSize: 15, color: 'var(--azure)', marginBottom: 8 }}>Nessuna news nel database</div>
-              <div style={{ fontSize: 13, color: 'var(--muted)' }}>Clicca <b style={{ color: 'var(--white)' }}>Aggiorna news</b> nella sidebar per caricare i dati.</div>
+              <div style={{ fontSize: 13, color: 'var(--muted)' }}>Clicca <b style={{ color: 'var(--white)' }}>Aggiorna news</b> nella sidebar.</div>
             </div>
           )}
 
-          {/* Chart */}
           {(prices.length > 0 || news.length > 0) && (
-            <div style={{
-              background: 'rgba(255,255,255,0.02)',
-              border: '1px solid var(--border)',
-              borderRadius: 12, padding: 20,
-            }}>
+            <div style={{ background: 'rgba(255,255,255,0.02)', border: '1px solid var(--border)', borderRadius: 12, padding: 20 }}>
               <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: 16 }}>
                 <div>
-                  <div style={{ fontSize: 15, fontWeight: 500, letterSpacing: '-0.01em' }}>
-                    {ticker} — Prezzo & Sentiment
-                  </div>
-                  <div style={{ fontSize: 12, color: 'var(--muted)', marginTop: 2 }}>
-                    Candlestick OHLCV + Sentiment giornaliero FinBERT
-                  </div>
+                  <div style={{ fontSize: 15, fontWeight: 500, letterSpacing: '-0.01em' }}>{ticker} — Prezzo & Sentiment</div>
+                  <div style={{ fontSize: 12, color: 'var(--muted)', marginTop: 2 }}>Candlestick OHLCV + Sentiment FinBERT</div>
                 </div>
                 <div style={{ display: 'flex', gap: 6 }}>
                   <Legend color="var(--azure)" label="Prezzo" />
@@ -245,13 +227,32 @@ export default function App() {
             </div>
           )}
 
-          {/* Top News */}
-          {news.length > 0 && <TopNews news={news} />}
+          {news.length > 0 && <TopNews news={news} isPro={isPro} onUpgrade={handleUpgrade} />}
+          {news.length > 0 && isPro && <Stats news={news} />}
 
-          {/* Stats */}
-          {news.length > 0 && <Stats news={news} />}
+          {/* Stats locked for free */}
+          {news.length > 0 && !isPro && (
+            <div style={{
+              background: 'rgba(30,92,255,0.04)', border: '1px solid rgba(30,92,255,0.15)',
+              borderRadius: 12, padding: '28px', textAlign: 'center',
+            }}>
+              <div style={{ fontSize: 15, color: 'var(--white)', marginBottom: 8, fontWeight: 500 }}>
+                🔒 Statistiche avanzate
+              </div>
+              <div style={{ fontSize: 13, color: 'var(--muted)', marginBottom: 16 }}>
+                Distribuzione fonti, istogramma sentiment e analisi dettagliata disponibili con Pro.
+              </div>
+              <button
+                onClick={handleUpgrade}
+                style={{
+                  background: 'var(--blue)', color: 'white', border: 'none',
+                  borderRadius: 8, padding: '10px 24px', fontSize: 14,
+                  fontWeight: 500, cursor: 'pointer',
+                }}
+              >⚡ Passa a Pro — €9/mese</button>
+            </div>
+          )}
 
-          {/* Bottom padding */}
           <div style={{ height: 20 }} />
         </div>
       </main>
@@ -297,7 +298,7 @@ function EmptyState() {
         Benvenuto in FinSentinel
       </h2>
       <p style={{ fontSize: 14, color: 'var(--muted)', maxWidth: 400, lineHeight: 1.7 }}>
-        Cerca un ticker nella sidebar oppure selezionane uno dalla watchlist per visualizzare sentiment, prezzi e notizie in tempo reale.
+        Cerca un ticker nella sidebar oppure selezionane uno dalla watchlist per visualizzare sentiment, prezzi e notizie.
       </p>
     </div>
   )
