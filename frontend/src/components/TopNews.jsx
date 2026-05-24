@@ -5,24 +5,24 @@ export default function TopNews({ news, isPro, onUpgrade }) {
 
   return (
     <div>
-      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'baseline', marginBottom: 20 }}>
+      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'baseline', marginBottom: 20, flexWrap: 'wrap', gap: 8 }}>
         <h3 style={{ fontFamily: 'var(--serif)', fontSize: 22, fontWeight: 400, letterSpacing: '-0.02em' }}>
           Top News
         </h3>
         {!isPro && (
           <span style={{ fontSize: 12, color: 'var(--muted)' }}>
-            Mostrate {positive.length + negative.length} su {news.length} —{' '}
+            Showing {positive.length + negative.length} of {news.length} —{' '}
             <span
               onClick={onUpgrade}
               style={{ color: 'var(--azure)', cursor: 'pointer', textDecoration: 'underline' }}
-            >Pro per tutte</span>
+            >Pro to see all</span>
           </span>
         )}
       </div>
 
-      <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 20 }}>
-        <NewsColumn title="Ottimismo" items={positive} positive onUpgrade={onUpgrade} isPro={isPro} total={sorted.length} />
-        <NewsColumn title="Pessimismo" items={negative} positive={false} onUpgrade={onUpgrade} isPro={isPro} total={news.length} />
+      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(280px, 1fr))', gap: 20 }}>
+        <NewsColumn title="Bullish" items={positive} positive onUpgrade={onUpgrade} isPro={isPro} total={sorted.length} />
+        <NewsColumn title="Bearish" items={negative} positive={false} onUpgrade={onUpgrade} isPro={isPro} total={news.length} />
       </div>
     </div>
   )
@@ -69,7 +69,6 @@ function NewsColumn({ title, items, positive, onUpgrade, isPro, total }) {
           </a>
         ))}
 
-        {/* Locked items for free users */}
         {!isPro && hiddenCount > 0 && (
           <button
             onClick={onUpgrade}
@@ -82,10 +81,10 @@ function NewsColumn({ title, items, positive, onUpgrade, isPro, total }) {
             }}
           >
             <div style={{ fontSize: 13, color: 'var(--muted)' }}>
-              🔒 +{hiddenCount} news nascoste
+              🔒 +{hiddenCount} hidden articles
             </div>
             <div style={{ fontSize: 12, color: 'var(--azure)', marginTop: 4 }}>
-              Passa a Pro per vedere tutte →
+              Upgrade to Pro to unlock →
             </div>
           </button>
         )}

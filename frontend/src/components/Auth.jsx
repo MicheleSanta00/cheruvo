@@ -21,7 +21,7 @@ export default function Auth({ onLogin }) {
     } else {
       const { error } = await supabase.auth.signUp({ email, password })
       if (error) setError(error.message)
-      else setMessage('Controlla la tua email per confermare la registrazione!')
+      else setMessage('Check your email to confirm your registration!')
     }
     setLoading(false)
   }
@@ -29,10 +29,10 @@ export default function Auth({ onLogin }) {
   return (
     <div style={{
       height: '100vh', display: 'flex', alignItems: 'center', justifyContent: 'center',
-      background: 'var(--black)',
+      background: 'var(--black)', padding: '16px',
     }}>
       <div style={{
-        width: 360, background: 'var(--near-black)',
+        width: '100%', maxWidth: 360, background: 'var(--near-black)',
         border: '1px solid var(--border)', borderRadius: 16, padding: 32,
       }}>
         {/* Logo */}
@@ -50,13 +50,12 @@ export default function Auth({ onLogin }) {
         </div>
 
         <h2 style={{ fontSize: 20, fontWeight: 500, marginBottom: 6, letterSpacing: '-0.02em' }}>
-          {isLogin ? 'Accedi' : 'Crea account'}
+          {isLogin ? 'Sign in' : 'Create account'}
         </h2>
         <p style={{ fontSize: 13, color: 'var(--muted)', marginBottom: 24 }}>
-          {isLogin ? 'Bentornato su FinSentinel' : 'Inizia gratis, nessuna carta richiesta'}
+          {isLogin ? 'Welcome back to FinSentinel' : 'Start for free, no credit card required'}
         </p>
 
-        {/* Campi */}
         <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
           <input
             type="email"
@@ -84,7 +83,6 @@ export default function Auth({ onLogin }) {
           />
         </div>
 
-        {/* Errore / messaggio */}
         {error && (
           <p style={{ fontSize: 13, color: '#f87171', marginTop: 12 }}>{error}</p>
         )}
@@ -92,7 +90,6 @@ export default function Auth({ onLogin }) {
           <p style={{ fontSize: 13, color: '#4ade80', marginTop: 12 }}>{message}</p>
         )}
 
-        {/* Bottone */}
         <button
           onClick={handle}
           disabled={loading}
@@ -100,19 +97,19 @@ export default function Auth({ onLogin }) {
             width: '100%', background: 'var(--blue)', color: 'white',
             borderRadius: 8, padding: '11px 0', fontSize: 14, fontWeight: 500,
             marginTop: 20, opacity: loading ? 0.6 : 1, transition: 'opacity .2s',
+            cursor: loading ? 'default' : 'pointer',
           }}
         >
-          {loading ? 'Caricamento...' : isLogin ? 'Accedi' : 'Registrati'}
+          {loading ? 'Loading...' : isLogin ? 'Sign in' : 'Sign up'}
         </button>
 
-        {/* Switch login/register */}
         <p style={{ fontSize: 13, color: 'var(--muted)', textAlign: 'center', marginTop: 16 }}>
-          {isLogin ? 'Non hai un account?' : 'Hai già un account?'}{' '}
+          {isLogin ? "Don't have an account?" : 'Already have an account?'}{' '}
           <span
             onClick={() => { setIsLogin(!isLogin); setError(''); setMessage('') }}
             style={{ color: 'var(--azure)', cursor: 'pointer' }}
           >
-            {isLogin ? 'Registrati' : 'Accedi'}
+            {isLogin ? 'Sign up' : 'Sign in'}
           </span>
         </p>
       </div>

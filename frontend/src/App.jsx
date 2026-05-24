@@ -22,6 +22,7 @@ export default function App() {
   const [period, setPeriod]           = useState(DEFAULT_PERIOD)
   const [isPro, setIsPro]             = useState(false)
   const [showProfile, setShowProfile] = useState(false)
+  const [sidebarOpen, setSidebarOpen] = useState(false)
 
   const { tickerInfo, news, stats, prices, sentiment, loading, fetching, error, load, triggerFetch } = useFinData()
 
@@ -76,7 +77,20 @@ export default function App() {
   if (!user) return <Auth onLogin={setUser} />
 
   return (
-    <div style={{ display: 'flex', height: '100vh', overflow: 'hidden', background: 'var(--black)' }}>
+    <div style={{ display: 'flex', height: '100dvh', overflow: 'hidden', background: 'var(--black)', position: 'relative' }}>
+
+      {/* Mobile overlay */}
+      {sidebarOpen && (
+        <div
+          onClick={() => setSidebarOpen(false)}
+          style={{
+            position: 'fixed', inset: 0, zIndex: 40,
+            background: 'rgba(0,0,0,0.5)', backdropFilter: 'blur(2px)',
+            display: 'none',
+          }}
+          className="mobile-overlay"
+        />
+      )}
 
       {showProfile && (
         <Profile
@@ -86,68 +100,79 @@ export default function App() {
         />
       )}
 
-      <Sidebar
-        ticker={ticker} days={days} period={period}
-        loading={loading} fetching={fetching} isPro={isPro}
-        onTickerChange={setTicker} onDaysChange={setDays} onPeriodChange={setPeriod}
-        onLoad={load} onFetch={handleFetch} onUpgrade={handleUpgrade}
-      />
+      {/* Sidebar — hidden on mobile unless open */}
+      <div style={{
+        position: 'relative', zIndex: 50,
+        transform: 'none',
+      }} className={`sidebar-wrapper ${sidebarOpen ? 'sidebar-open' : ''}`}>
+        <Sidebar
+          ticker={ticker} days={days} period={period}
+          loading={loading} fetching={fetching} isPro={isPro}
+          onTickerChange={setTicker} onDaysChange={setDays} onPeriodChange={setPeriod}
+          onLoad={(t, d, p) => { load(t, d, p); setSidebarOpen(false) }}
+          onFetch={handleFetch} onUpgrade={handleUpgrade}
+        />
+      </div>
 
-      <main style={{ flex: 1, display: 'flex', flexDirection: 'column', overflow: 'hidden', height: '100vh' }}>
+      <main style={{ flex: 1, display: 'flex', flexDirection: 'column', overflow: 'hidden', height: '100dvh', minWidth: 0 }}>
 
         {/* Header */}
         <header style={{
           height: 56, flexShrink: 0,
           borderBottom: '1px solid var(--border)',
           display: 'flex', alignItems: 'center',
-          padding: '0 28px', gap: 16,
+          padding: '0 16px', gap: 12,
           background: 'var(--near-black)',
         }}>
+
+          {/* Mobile menu button */}
+          <button
+            onClick={() => setSidebarOpen(!sidebarOpen)}
+            className="mobile-menu-btn"
+            style={{
+              display: 'none', background: 'transparent',
+              color: 'var(--muted)', fontSize: 18, padding: '4px',
+              border: '1px solid var(--border)', borderRadius: 6,
+            }}
+          >☰</button>
+
           {tickerInfo ? (
             <>
-              <span style={{ fontSize: 16, fontWeight: 500, letterSpacing: '-0.01em' }}>{tickerInfo.ticker}</span>
-              <span style={{ fontSize: 14, color: 'var(--muted)' }}>·</span>
-              <span style={{ fontSize: 14, color: 'var(--muted)' }}>{tickerInfo.nome}</span>
+              <span style={{ fontSize: 15, fontWeight: 500, letterSpacing: '-0.01em', flexShrink: 0 }}>{tickerInfo.ticker}</span>
+              <span style={{ fontSize: 14, color: 'var(--muted)', flexShrink: 0 }}>·</span>
+              <span style={{ fontSize: 14, color: 'var(--muted)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{tickerInfo.nome}</span>
               {tickerInfo.settore && tickerInfo.settore !== 'N/A' && (
                 <span style={{
-                  fontSize: 11, color: 'var(--azure)',
+                  fontSize: 11, color: 'var(--azure)', flexShrink: 0,
                   background: 'rgba(96,165,250,0.08)',
                   border: '1px solid rgba(96,165,250,0.15)',
                   padding: '3px 10px', borderRadius: 100,
-                }}>{tickerInfo.settore}</span>
+                }} className="hide-mobile">{tickerInfo.settore}</span>
               )}
             </>
           ) : (
             <span style={{ fontSize: 14, color: 'var(--muted)', fontFamily: 'var(--serif)', fontStyle: 'italic' }}>
-              Inserisci un ticker per iniziare
+              Enter a ticker to start
             </span>
           )}
 
-          <div style={{ marginLeft: 'auto', display: 'flex', alignItems: 'center', gap: 10 }}>
+          <div style={{ marginLeft: 'auto', display: 'flex', alignItems: 'center', gap: 8, flexShrink: 0 }}>
 
-            {/* Export CSV */}
             {news.length > 0 && (
               <button
                 onClick={handleExport}
-                title={isPro ? 'Esporta CSV' : 'Pro: Esporta CSV'}
+                title={isPro ? 'Export CSV' : 'Pro: Export CSV'}
                 style={{
                   fontSize: 12, color: isPro ? 'var(--muted)' : 'rgba(255,255,255,0.2)',
                   border: '1px solid var(--border)', borderRadius: 6,
                   padding: '4px 10px', background: 'transparent', cursor: 'pointer',
                   display: 'flex', alignItems: 'center', gap: 4,
                 }}
+                className="hide-mobile"
               >
                 {isPro ? '↓ CSV' : '🔒 CSV'}
               </button>
             )}
-
-            <a href="https://finsentinel-five.vercel.app"
-              style={{
-                fontSize: 12, color: 'var(--muted)', textDecoration: 'none',
-                border: '1px solid var(--border)', borderRadius: 6,
-                padding: '4px 10px',
-              }}
-            >← Home</a>
 
             {loading && <Spinner />}
             {fetching && <Spinner color="var(--azure)" />}
@@ -165,8 +190,7 @@ export default function App() {
                   fontSize: 12, color: 'white', background: 'var(--blue)',
                   border: 'none', borderRadius: 6, padding: '4px 12px',
                   cursor: 'pointer', fontWeight: 500,
-                }}
-              >⚡ Pro</button>
+                }}>⚡ Pro</button>
             )}
 
             <div
@@ -176,7 +200,7 @@ export default function App() {
                 width: 30, height: 30, borderRadius: '50%',
                 background: 'var(--blue)', display: 'flex',
                 alignItems: 'center', justifyContent: 'center',
-                fontSize: 13, fontWeight: 500, cursor: 'pointer',
+                fontSize: 13, fontWeight: 500, cursor: 'pointer', flexShrink: 0,
               }}
             >
               {user?.email?.[0].toUpperCase()}
@@ -185,7 +209,7 @@ export default function App() {
         </header>
 
         {/* Content */}
-        <div style={{ flex: 1, overflowY: 'auto', padding: '24px 28px', display: 'flex', flexDirection: 'column', gap: 24 }}>
+        <div style={{ flex: 1, overflowY: 'auto', padding: '20px 16px', display: 'flex', flexDirection: 'column', gap: 20 }}>
 
           {error && (
             <div style={{
@@ -203,25 +227,25 @@ export default function App() {
               background: 'rgba(96,165,250,0.06)', border: '1px solid rgba(96,165,250,0.15)',
               borderRadius: 12, padding: '24px 28px', textAlign: 'center',
             }}>
-              <div style={{ fontSize: 15, color: 'var(--azure)', marginBottom: 8 }}>Nessuna news nel database</div>
-              <div style={{ fontSize: 13, color: 'var(--muted)' }}>Clicca <b style={{ color: 'var(--white)' }}>Aggiorna news</b> nella sidebar.</div>
+              <div style={{ fontSize: 15, color: 'var(--azure)', marginBottom: 8 }}>No news in the database</div>
+              <div style={{ fontSize: 13, color: 'var(--muted)' }}>Click <b style={{ color: 'var(--white)' }}>Refresh news</b> in the sidebar.</div>
             </div>
           )}
 
           {(prices.length > 0 || news.length > 0) && (
             <div style={{ background: 'rgba(255,255,255,0.02)', border: '1px solid var(--border)', borderRadius: 12, padding: 20 }}>
-              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: 16 }}>
+              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: 16, flexWrap: 'wrap', gap: 8 }}>
                 <div>
-                  <div style={{ fontSize: 15, fontWeight: 500, letterSpacing: '-0.01em' }}>{ticker} — Prezzo & Sentiment</div>
-                  <div style={{ fontSize: 12, color: 'var(--muted)', marginTop: 2 }}>Candlestick OHLCV + Sentiment FinBERT</div>
+                  <div style={{ fontSize: 15, fontWeight: 500, letterSpacing: '-0.01em' }}>{ticker} — Price & Sentiment</div>
+                  <div style={{ fontSize: 12, color: 'var(--muted)', marginTop: 2 }}>Candlestick OHLCV + FinBERT Sentiment</div>
                 </div>
                 <div style={{ display: 'flex', gap: 6 }}>
-                  <Legend color="var(--azure)" label="Prezzo" />
-                  <Legend color="var(--green)" label="Positivo" />
-                  <Legend color="var(--red)" label="Negativo" />
+                  <Legend color="var(--azure)" label="Price" />
+                  <Legend color="var(--green)" label="Positive" />
+                  <Legend color="var(--red)" label="Negative" />
                 </div>
               </div>
-              <div style={{ height: 340 }}>
+              <div style={{ height: 300 }}>
                 <Chart prices={prices} sentiment={sentiment} ticker={ticker} />
               </div>
             </div>
@@ -230,17 +254,16 @@ export default function App() {
           {news.length > 0 && <TopNews news={news} isPro={isPro} onUpgrade={handleUpgrade} />}
           {news.length > 0 && isPro && <Stats news={news} />}
 
-          {/* Stats locked for free */}
           {news.length > 0 && !isPro && (
             <div style={{
               background: 'rgba(30,92,255,0.04)', border: '1px solid rgba(30,92,255,0.15)',
               borderRadius: 12, padding: '28px', textAlign: 'center',
             }}>
               <div style={{ fontSize: 15, color: 'var(--white)', marginBottom: 8, fontWeight: 500 }}>
-                🔒 Statistiche avanzate
+                🔒 Advanced analytics
               </div>
               <div style={{ fontSize: 13, color: 'var(--muted)', marginBottom: 16 }}>
-                Distribuzione fonti, istogramma sentiment e analisi dettagliata disponibili con Pro.
+                Source breakdown, sentiment histogram and detailed analysis available with Pro.
               </div>
               <button
                 onClick={handleUpgrade}
@@ -248,8 +271,7 @@ export default function App() {
                   background: 'var(--blue)', color: 'white', border: 'none',
                   borderRadius: 8, padding: '10px 24px', fontSize: 14,
                   fontWeight: 500, cursor: 'pointer',
-                }}
-              >⚡ Passa a Pro — €9/mese</button>
+                }}>⚡ Upgrade to Pro — €9/month</button>
             </div>
           )}
 
@@ -295,10 +317,10 @@ function EmptyState() {
         </svg>
       </div>
       <h2 style={{ fontFamily: 'var(--serif)', fontSize: 28, fontWeight: 400, letterSpacing: '-0.02em' }}>
-        Benvenuto in FinSentinel
+        Welcome to FinSentinel
       </h2>
       <p style={{ fontSize: 14, color: 'var(--muted)', maxWidth: 400, lineHeight: 1.7 }}>
-        Cerca un ticker nella sidebar oppure selezionane uno dalla watchlist per visualizzare sentiment, prezzi e notizie.
+        Search for a ticker in the sidebar or pick one from your watchlist to view sentiment, prices and news.
       </p>
     </div>
   )

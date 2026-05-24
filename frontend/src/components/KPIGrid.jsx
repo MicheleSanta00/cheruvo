@@ -2,17 +2,17 @@ export default function KPIGrid({ stats }) {
   if (!stats) return null
 
   const items = [
-    { label: 'News totali',    value: stats.total?.toLocaleString(),              cls: 'blue' },
-    { label: 'Sentiment medio', value: fmt(stats.avg),  cls: stats.avg >= 0 ? 'pos' : 'neg' },
-    { label: 'Picco positivo', value: fmt(stats.max),  cls: 'pos' },
-    { label: 'Picco negativo', value: fmt(stats.min),  cls: 'neg' },
-    { label: 'Fonti attive',   value: stats.sources,                              cls: '' },
+    { label: 'Total news',       value: stats.total?.toLocaleString(),             cls: 'blue' },
+    { label: 'Avg sentiment',    value: fmt(stats.avg), cls: stats.avg >= 0 ? 'pos' : 'neg' },
+    { label: 'Positive peak',    value: fmt(stats.max), cls: 'pos' },
+    { label: 'Negative peak',    value: fmt(stats.min), cls: 'neg' },
+    { label: 'Active sources',   value: stats.sources,                             cls: '' },
   ]
 
   return (
     <div style={{
       display: 'grid',
-      gridTemplateColumns: 'repeat(5, 1fr)',
+      gridTemplateColumns: 'repeat(auto-fit, minmax(120px, 1fr))',
       gap: 10,
     }}>
       {items.map((item) => (

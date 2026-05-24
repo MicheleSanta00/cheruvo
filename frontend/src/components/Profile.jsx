@@ -6,7 +6,7 @@ export default function Profile({ user, isPro, onClose, onUpgrade }) {
 
   useEffect(() => {
     if (user?.created_at) {
-      setCreatedAt(new Date(user.created_at).toLocaleDateString('it-IT', {
+      setCreatedAt(new Date(user.created_at).toLocaleDateString('en-US', {
         day: '2-digit', month: 'long', year: 'numeric'
       }))
     }
@@ -17,16 +17,16 @@ export default function Profile({ user, isPro, onClose, onUpgrade }) {
       position: 'fixed', inset: 0, zIndex: 1000,
       background: 'rgba(0,0,0,0.6)', backdropFilter: 'blur(4px)',
       display: 'flex', alignItems: 'center', justifyContent: 'center',
+      padding: '16px',
     }} onClick={onClose}>
       <div
         onClick={e => e.stopPropagation()}
         style={{
-          width: 420, background: 'var(--near-black)',
+          width: '100%', maxWidth: 420, background: 'var(--near-black)',
           border: '1px solid var(--border)', borderRadius: 16,
           padding: 32, position: 'relative',
         }}
       >
-        {/* Close */}
         <button
           onClick={onClose}
           style={{
@@ -36,7 +36,6 @@ export default function Profile({ user, isPro, onClose, onUpgrade }) {
           }}
         >✕</button>
 
-        {/* Avatar */}
         <div style={{
           width: 56, height: 56, borderRadius: '50%',
           background: 'var(--blue)', display: 'flex',
@@ -47,18 +46,17 @@ export default function Profile({ user, isPro, onClose, onUpgrade }) {
         </div>
 
         <h2 style={{ fontSize: 18, fontWeight: 500, margin: '0 0 4px', letterSpacing: '-0.01em' }}>
-          Il tuo profilo
+          Your profile
         </h2>
         <p style={{ fontSize: 13, color: 'var(--muted)', margin: '0 0 28px' }}>
-          Gestisci il tuo account FinSentinel
+          Manage your FinSentinel account
         </p>
 
-        {/* Info */}
         <div style={{ display: 'flex', flexDirection: 'column', gap: 12, marginBottom: 28 }}>
           <Row label="Email" value={user?.email} />
-          <Row label="Iscritto il" value={createdAt} />
+          <Row label="Member since" value={createdAt} />
           <Row
-            label="Piano"
+            label="Plan"
             value={
               <span style={{
                 fontSize: 12, padding: '3px 10px', borderRadius: 6,
@@ -72,7 +70,6 @@ export default function Profile({ user, isPro, onClose, onUpgrade }) {
           />
         </div>
 
-        {/* Upgrade button */}
         {!isPro && (
           <button
             onClick={onUpgrade}
@@ -82,11 +79,10 @@ export default function Profile({ user, isPro, onClose, onUpgrade }) {
               fontWeight: 500, marginBottom: 12, cursor: 'pointer',
             }}
           >
-            ⚡ Passa a Pro — €9/mese
+            ⚡ Upgrade to Pro — €9/month
           </button>
         )}
 
-        {/* Logout */}
         <button
           onClick={() => supabase.auth.signOut()}
           style={{
@@ -95,7 +91,7 @@ export default function Profile({ user, isPro, onClose, onUpgrade }) {
             padding: '10px 0', fontSize: 13, cursor: 'pointer',
           }}
         >
-          Esci dall'account
+          Sign out
         </button>
       </div>
     </div>

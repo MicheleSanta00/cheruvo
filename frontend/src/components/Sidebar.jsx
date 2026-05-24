@@ -3,7 +3,7 @@ import { supabase } from '../supabase.js'
 import { TICKERS } from '../data/tickers.js'
 
 const PERIODS_FREE = [{ v: '1mo', l: '1M' }, { v: '3mo', l: '3M' }]
-const PERIODS_PRO  = [{ v: '1mo', l: '1M' }, { v: '3mo', l: '3M' }, { v: '6mo', l: '6M' }, { v: '1y', l: '1A' }]
+const PERIODS_PRO  = [{ v: '1mo', l: '1M' }, { v: '3mo', l: '3M' }, { v: '6mo', l: '6M' }, { v: '1y', l: '1Y' }]
 
 const MAX_WATCHLIST_FREE = 3
 const MAX_DAYS_FREE = 30
@@ -127,7 +127,7 @@ export default function Sidebar({ ticker, days, period, onLoad, onFetch, loading
             }}
             onBlur={() => setTimeout(() => setShowSuggestions(false), 150)}
             onFocus={() => input.length >= 1 && setShowSuggestions(suggestions.length > 0)}
-            placeholder="NVDA, ENI.MI..."
+            placeholder="NVDA, AAPL..."
             style={{
               flex: 1, background: 'var(--dark)',
               border: '1px solid var(--border-br)',
@@ -208,7 +208,6 @@ export default function Sidebar({ ticker, days, period, onLoad, onFetch, loading
             </div>
           ))}
 
-          {/* Add ticker or upgrade */}
           {!isPro && watchlist.length >= MAX_WATCHLIST_FREE ? (
             <button
               onClick={onUpgrade}
@@ -219,7 +218,7 @@ export default function Sidebar({ ticker, days, period, onLoad, onFetch, loading
                 background: 'rgba(96,165,250,0.05)', textAlign: 'left',
               }}
             >
-              ⚡ Pro per watchlist illimitata
+              ⚡ Pro for unlimited watchlist
             </button>
           ) : (
             <button
@@ -233,7 +232,7 @@ export default function Sidebar({ ticker, days, period, onLoad, onFetch, loading
                 opacity: saving ? 0.5 : 1,
               }}
             >
-              {saving ? 'Salvando...' : '+ Aggiungi alla watchlist'}
+              {saving ? 'Saving...' : '+ Add to watchlist'}
             </button>
           )}
         </div>
@@ -242,8 +241,8 @@ export default function Sidebar({ ticker, days, period, onLoad, onFetch, loading
       {/* Days slider */}
       <div>
         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '0 8px', marginBottom: 4 }}>
-          <Label style={{ padding: 0 }}>News ultimi {days}g</Label>
-          {!isPro && <span style={{ fontSize: 10, color: 'var(--muted)' }}>🔒 max 30g</span>}
+          <Label style={{ padding: 0 }}>Last {days}d of news</Label>
+          {!isPro && <span style={{ fontSize: 10, color: 'var(--muted)' }}>🔒 max 30d</span>}
         </div>
         <input
           type="range" min={7} max={maxDays} value={Math.min(days, maxDays)}
@@ -252,14 +251,14 @@ export default function Sidebar({ ticker, days, period, onLoad, onFetch, loading
           style={{ width: '100%', marginTop: 4, accentColor: 'var(--blue)' }}
         />
         <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: 11, color: 'var(--muted)', marginTop: 4 }}>
-          <span>7g</span>
-          <span>{maxDays}g {!isPro && '(Pro: 90g)'}</span>
+          <span>7d</span>
+          <span>{maxDays}d {!isPro && '(Pro: 90d)'}</span>
         </div>
       </div>
 
       {/* Periods */}
       <div>
-        <Label>Periodo prezzi</Label>
+        <Label>Price range</Label>
         <div style={{ display: 'flex', gap: 4, marginTop: 6, flexWrap: 'wrap' }}>
           {PERIODS_PRO.map(p => {
             const isLocked = !isPro && !PERIODS_FREE.find(x => x.v === p.v)
@@ -277,7 +276,7 @@ export default function Sidebar({ ticker, days, period, onLoad, onFetch, loading
                   cursor: isLocked ? 'default' : 'pointer',
                   position: 'relative',
                 }}
-                title={isLocked ? 'Disponibile con Pro' : ''}
+                title={isLocked ? 'Available with Pro' : ''}
               >
                 {isLocked ? '🔒' : ''}{p.l}
               </button>
@@ -288,7 +287,7 @@ export default function Sidebar({ ticker, days, period, onLoad, onFetch, loading
 
       <div style={{ flex: 1 }} />
 
-      {/* Upgrade banner for free users */}
+      {/* Upgrade banner */}
       {!isPro && (
         <button
           onClick={onUpgrade}
@@ -300,14 +299,14 @@ export default function Sidebar({ ticker, days, period, onLoad, onFetch, loading
           }}
         >
           <div style={{ fontSize: 12, fontWeight: 500, color: 'var(--azure)', marginBottom: 4 }}>
-            ⚡ Passa a Pro
+            ⚡ Upgrade to Pro
           </div>
           <div style={{ fontSize: 11, color: 'var(--muted)', lineHeight: 1.5 }}>
-            Watchlist illimitata · 90 giorni<br/>
-            Alert email · Export CSV
+            Unlimited watchlist · 90 days<br/>
+            Email alerts · CSV export
           </div>
           <div style={{ fontSize: 12, color: 'var(--white)', marginTop: 8, fontWeight: 500 }}>
-            €9/mese →
+            €9/month →
           </div>
         </button>
       )}
@@ -323,7 +322,7 @@ export default function Sidebar({ ticker, days, period, onLoad, onFetch, loading
           opacity: fetching ? 0.6 : 1,
         }}
       >
-        {fetching ? 'Aggiornamento...' : '↻  Aggiorna news'}
+        {fetching ? 'Updating...' : '↻  Refresh news'}
       </button>
     </aside>
   )

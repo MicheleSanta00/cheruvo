@@ -1,1168 +1,234 @@
 <!DOCTYPE html>
-<html lang="it">
+<html lang="en">
 <head>
-  <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>FinSentinel — AI Financial Intelligence</title>
-  <link rel="preconnect" href="https://fonts.googleapis.com">
-  <link href="https://fonts.googleapis.com/css2?family=DM+Serif+Display:ital@0;1&family=DM+Sans:ital,opsz,wght@0,9..40,300;0,9..40,400;0,9..40,500;1,9..40,300&display=swap" rel="stylesheet">
+  <meta charset="UTF-8"/>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>FinSentinel — AI Stock Sentiment Intelligence</title>
+  <meta name="description" content="Real-time AI-powered sentiment analysis for stocks. Track market mood from thousands of news sources and Reddit. Built for serious traders."/>
+  <link rel="preconnect" href="https://fonts.googleapis.com"/>
+  <link href="https://fonts.googleapis.com/css2?family=DM+Serif+Display:ital@0;1&family=DM+Sans:wght@300;400;500;600&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet"/>
   <style>
-    :root {
-      --black: #06070a;
-      --near-black: #0d0f14;
-      --dark: #12151c;
-      --blue: #1e5cff;
-      --blue-mid: #3b7bff;
-      --azure: #60a5fa;
-      --azure-light: #bfdbfe;
-      --white: #ffffff;
-      --off-white: #f4f6fb;
-      --muted: #8a94a6;
-      --border: rgba(255,255,255,0.07);
-      --border-light: rgba(255,255,255,0.12);
-      --serif: 'DM Serif Display', Georgia, serif;
-      --sans: 'DM Sans', system-ui, sans-serif;
-    }
-
     *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
-    html { scroll-behavior: smooth; }
-
-    body {
-      font-family: var(--sans);
-      background: var(--black);
-      color: var(--white);
-      -webkit-font-smoothing: antialiased;
-      overflow-x: hidden;
+    :root {
+      --black:#06070a; --near-black:#0d0f14; --dark:#12151c;
+      --blue:#1e5cff; --azure:#60a5fa; --white:#ffffff;
+      --off-white:#c8d0de; --muted:#5a6478; --border:rgba(255,255,255,0.07);
+      --green:#34d399; --red:#f87171;
+      --serif:'DM Serif Display',Georgia,serif;
+      --sans:'DM Sans',system-ui,sans-serif;
+      --mono:'JetBrains Mono',monospace;
     }
-
-    /* ─── NOISE TEXTURE ─── */
-    body::before {
-      content: '';
-      position: fixed;
-      inset: 0;
-      background-image: url("data:image/svg+xml,%3Csvg viewBox='0 0 256 256' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='noise'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='4' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23noise)' opacity='0.04'/%3E%3C/svg%3E");
-      pointer-events: none;
-      z-index: 0;
-      opacity: 0.6;
-    }
-
-    /* ─── NAV ─── */
+    html { scroll-behavior:smooth; }
+    body { background:var(--black); color:var(--white); font-family:var(--sans); -webkit-font-smoothing:antialiased; overflow-x:hidden; }
+    a { color:inherit; text-decoration:none; }
+    button { cursor:pointer; font-family:var(--sans); }
     nav {
-      position: fixed;
-      top: 0; left: 0; right: 0;
-      height: 64px;
-      display: flex;
-      align-items: center;
-      justify-content: space-between;
-      padding: 0 48px;
-      z-index: 100;
-      background: rgba(6,7,10,0.7);
-      backdrop-filter: blur(20px) saturate(180%);
-      border-bottom: 1px solid var(--border);
-    }
-
-    .logo {
-      display: flex;
-      align-items: center;
-      gap: 10px;
-      text-decoration: none;
-    }
-
-    .logo-mark {
-      width: 32px;
-      height: 32px;
-      background: var(--blue);
-      border-radius: 8px;
-      display: flex;
-      align-items: center;
-      justify-content: center;
-      flex-shrink: 0;
-    }
-
-    .logo-mark svg { width: 16px; height: 16px; }
-
-    .logo-name {
-      font-family: var(--sans);
-      font-size: 15px;
-      font-weight: 500;
-      letter-spacing: -0.01em;
-      color: var(--white);
-    }
-
-    .nav-center {
-      display: flex;
-      gap: 4px;
-    }
-
-    .nav-link {
-      font-size: 14px;
-      font-weight: 400;
-      color: var(--muted);
-      text-decoration: none;
-      padding: 6px 14px;
-      border-radius: 6px;
-      transition: color 0.15s, background 0.15s;
-    }
-
-    .nav-link:hover {
-      color: var(--white);
-      background: rgba(255,255,255,0.06);
-    }
-
-    .nav-right { display: flex; align-items: center; gap: 12px; }
-
-    .btn-ghost {
-      font-size: 14px;
-      font-weight: 400;
-      color: var(--muted);
-      text-decoration: none;
-      padding: 8px 16px;
-      border-radius: 8px;
-      transition: color 0.15s;
-    }
-
-    .btn-ghost:hover { color: var(--white); }
-
-    .btn-cta {
-      display: inline-flex;
-      align-items: center;
-      gap: 6px;
-      font-size: 14px;
-      font-weight: 500;
-      color: var(--white);
-      background: var(--blue);
-      text-decoration: none;
-      padding: 9px 20px;
-      border-radius: 8px;
-      transition: background 0.2s, transform 0.15s;
-      letter-spacing: -0.01em;
-    }
-
-    .btn-cta:hover {
-      background: var(--blue-mid);
-      transform: translateY(-1px);
-    }
-
-    .btn-cta svg { width: 14px; height: 14px; }
-
-    /* ─── HERO ─── */
-    .hero {
-      position: relative;
-      min-height: 100vh;
-      display: flex;
-      flex-direction: column;
-      align-items: center;
-      justify-content: center;
-      text-align: center;
-      padding: 120px 48px 80px;
-      z-index: 1;
-      overflow: hidden;
-    }
-
-    /* Radial glow background */
-    .hero::after {
-      content: '';
-      position: absolute;
-      top: -10%;
-      left: 50%;
-      transform: translateX(-50%);
-      width: 900px;
-      height: 600px;
-      background: radial-gradient(ellipse at center, rgba(30,92,255,0.18) 0%, rgba(30,92,255,0.06) 40%, transparent 70%);
-      pointer-events: none;
-      z-index: -1;
-    }
-
-    .hero-eyebrow {
-      display: inline-flex;
-      align-items: center;
-      gap: 8px;
-      font-size: 13px;
-      font-weight: 400;
-      color: var(--azure);
-      border: 1px solid rgba(96,165,250,0.2);
-      background: rgba(96,165,250,0.06);
-      padding: 6px 14px;
-      border-radius: 100px;
-      margin-bottom: 36px;
-      letter-spacing: 0.01em;
-      animation: fadeUp 0.7s ease both;
-    }
-
-    .hero-eyebrow span {
-      width: 6px; height: 6px;
-      background: var(--azure);
-      border-radius: 50%;
-      animation: pulse 2s ease-in-out infinite;
-    }
-
-    @keyframes pulse {
-      0%, 100% { opacity: 1; transform: scale(1); }
-      50% { opacity: 0.4; transform: scale(0.8); }
-    }
-
-    .hero-headline {
-      font-family: var(--serif);
-      font-size: clamp(54px, 7vw, 88px);
-      font-weight: 400;
-      line-height: 1.06;
-      letter-spacing: -0.02em;
-      margin-bottom: 28px;
-      max-width: 840px;
-      animation: fadeUp 0.7s 0.08s ease both;
-    }
-
-    .hero-headline em {
-      font-style: italic;
-      color: var(--azure);
-    }
-
-    .hero-sub {
-      font-size: 18px;
-      font-weight: 300;
-      color: var(--muted);
-      line-height: 1.7;
-      max-width: 520px;
-      margin: 0 auto 48px;
-      animation: fadeUp 0.7s 0.16s ease both;
-    }
-
-    .hero-actions {
-      display: flex;
-      gap: 12px;
-      align-items: center;
-      justify-content: center;
-      flex-wrap: wrap;
-      animation: fadeUp 0.7s 0.24s ease both;
-    }
-
-    .btn-primary-hero {
-      display: inline-flex;
-      align-items: center;
-      gap: 8px;
-      font-size: 15px;
-      font-weight: 500;
-      color: var(--white);
-      background: var(--blue);
-      text-decoration: none;
-      padding: 14px 28px;
-      border-radius: 10px;
-      transition: background 0.2s, box-shadow 0.2s, transform 0.15s;
-      box-shadow: 0 0 0 0 rgba(30,92,255,0);
-      letter-spacing: -0.01em;
-    }
-
-    .btn-primary-hero:hover {
-      background: var(--blue-mid);
-      box-shadow: 0 8px 30px rgba(30,92,255,0.35);
-      transform: translateY(-2px);
-    }
-
-    .btn-outline-hero {
-      display: inline-flex;
-      align-items: center;
-      gap: 8px;
-      font-size: 15px;
-      font-weight: 400;
-      color: var(--muted);
-      text-decoration: none;
-      padding: 13px 24px;
-      border-radius: 10px;
-      border: 1px solid var(--border-light);
-      transition: color 0.2s, border-color 0.2s;
-    }
-
-    .btn-outline-hero:hover {
-      color: var(--white);
-      border-color: rgba(255,255,255,0.25);
-    }
-
-    /* ─── SOCIAL PROOF ─── */
-    .social-proof {
-      margin-top: 72px;
-      display: flex;
-      align-items: center;
-      gap: 8px;
-      animation: fadeUp 0.7s 0.32s ease both;
-    }
-
-    .avatars {
-      display: flex;
-    }
-
-    .avatar {
-      width: 28px;
-      height: 28px;
-      border-radius: 50%;
-      border: 2px solid var(--black);
-      margin-left: -8px;
-      background: var(--dark);
-      overflow: hidden;
-      font-size: 11px;
-      display: flex;
-      align-items: center;
-      justify-content: center;
-      font-weight: 500;
-      color: var(--azure-light);
-    }
-
-    .avatar:first-child { margin-left: 0; }
-
-    .social-text {
-      font-size: 13px;
-      color: var(--muted);
-    }
-
-    .social-text b { color: var(--white); font-weight: 500; }
-
-    /* ─── DASHBOARD CARD ─── */
-    .dashboard-wrap {
-      position: relative;
-      z-index: 1;
-      padding: 0 48px 120px;
-      animation: fadeUp 0.9s 0.4s ease both;
-    }
-
-    .dashboard-outer {
-      max-width: 1100px;
-      margin: 0 auto;
-      border-radius: 20px;
-      border: 1px solid var(--border-light);
-      background: var(--near-black);
-      overflow: hidden;
-      box-shadow:
-        0 0 0 1px rgba(255,255,255,0.04),
-        0 40px 80px rgba(0,0,0,0.5),
-        0 0 120px rgba(30,92,255,0.08);
-    }
-
-    .win-bar {
-      height: 44px;
-      background: var(--dark);
-      border-bottom: 1px solid var(--border);
-      display: flex;
-      align-items: center;
-      padding: 0 20px;
-      gap: 8px;
-    }
-
-    .win-dot { width: 10px; height: 10px; border-radius: 50%; }
-    .win-dot.r { background: #ff5f57; }
-    .win-dot.y { background: #ffbd2e; }
-    .win-dot.g { background: #28ca41; }
-
-    .win-title {
-      margin-left: 14px;
-      font-size: 12px;
-      color: var(--muted);
-      flex: 1;
-      text-align: center;
-    }
-
-    .dash-body {
-      display: grid;
-      grid-template-columns: 220px 1fr;
-      min-height: 500px;
-    }
-
-    /* sidebar */
-    .dash-sidebar {
-      border-right: 1px solid var(--border);
-      padding: 24px 16px;
-    }
-
-    .side-section {
-      margin-bottom: 28px;
-    }
-
-    .side-label {
-      font-size: 10px;
-      font-weight: 500;
-      color: var(--muted);
-      letter-spacing: 0.1em;
-      text-transform: uppercase;
-      padding: 0 8px;
-      margin-bottom: 8px;
-    }
-
-    .side-item {
-      display: flex;
-      align-items: center;
-      justify-content: space-between;
-      padding: 9px 10px;
-      border-radius: 7px;
-      font-size: 13px;
-      cursor: pointer;
-      transition: background 0.15s;
-      margin-bottom: 2px;
-    }
-
-    .side-item:hover { background: rgba(255,255,255,0.05); }
-    .side-item.active {
-      background: rgba(30,92,255,0.15);
-      color: var(--azure);
-    }
-
-    .side-item .sym { font-weight: 500; }
-    .side-item .chg { font-size: 12px; }
-    .side-item .chg.up { color: #34d399; }
-    .side-item .chg.dn { color: #f87171; }
-
-    /* main */
-    .dash-main { padding: 24px 28px; }
-
-    .kpi-grid {
-      display: grid;
-      grid-template-columns: repeat(5, 1fr);
-      gap: 10px;
-      margin-bottom: 24px;
-    }
-
-    .kpi-tile {
-      background: rgba(255,255,255,0.03);
-      border: 1px solid var(--border);
-      border-radius: 10px;
-      padding: 14px 16px;
-    }
-
-    .kpi-tile .k-label {
-      font-size: 11px;
-      color: var(--muted);
-      margin-bottom: 6px;
-      letter-spacing: 0.02em;
-    }
-
-    .kpi-tile .k-value {
-      font-size: 22px;
-      font-weight: 500;
-      letter-spacing: -0.02em;
-      line-height: 1;
-    }
-
-    .kpi-tile .k-value.pos { color: #34d399; }
-    .kpi-tile .k-value.neg { color: #f87171; }
-    .kpi-tile .k-value.blue { color: var(--azure); }
-
-    .chart-container {
-      background: rgba(255,255,255,0.02);
-      border: 1px solid var(--border);
-      border-radius: 12px;
-      padding: 20px;
-      height: 320px;
-    }
-
-    .chart-top {
-      display: flex;
-      justify-content: space-between;
-      align-items: flex-start;
-      margin-bottom: 16px;
-    }
-
-    .chart-ticker {
-      font-size: 15px;
-      font-weight: 500;
-      letter-spacing: -0.01em;
-    }
-
-    .chart-sub {
-      font-size: 12px;
-      color: var(--muted);
-      margin-top: 2px;
-    }
-
-    .chart-pills {
-      display: flex;
-      gap: 4px;
-    }
-
-    .chart-pill {
-      font-size: 11px;
-      color: var(--muted);
-      padding: 4px 10px;
-      border-radius: 6px;
-      border: 1px solid var(--border);
-      cursor: pointer;
-    }
-
-    .chart-pill.active {
-      background: rgba(30,92,255,0.2);
-      border-color: rgba(30,92,255,0.4);
-      color: var(--azure);
-    }
-
-    .chart-svg { width: 100%; height: calc(100% - 60px); }
-
-    /* ─── DIVIDER ─── */
-    .divider-line {
-      position: relative;
-      z-index: 1;
-      height: 1px;
-      background: linear-gradient(90deg, transparent, var(--border-light), transparent);
-      margin: 0 48px;
-    }
-
-    /* ─── FEATURES ─── */
-    .features {
-      position: relative;
-      z-index: 1;
-      padding: 120px 48px;
-      max-width: 1200px;
-      margin: 0 auto;
-    }
-
-    .features-header {
-      text-align: center;
-      margin-bottom: 72px;
-    }
-
-    .eyebrow-tag {
-      display: inline-block;
-      font-size: 12px;
-      font-weight: 500;
-      color: var(--azure);
-      letter-spacing: 0.1em;
-      text-transform: uppercase;
-      margin-bottom: 16px;
-    }
-
-    .section-h {
-      font-family: var(--serif);
-      font-size: clamp(36px, 4vw, 56px);
-      font-weight: 400;
-      line-height: 1.1;
-      letter-spacing: -0.02em;
-      margin-bottom: 16px;
-    }
-
-    .section-sub {
-      font-size: 17px;
-      color: var(--muted);
-      font-weight: 300;
-      max-width: 480px;
-      margin: 0 auto;
-      line-height: 1.7;
-    }
-
-    .feat-grid {
-      display: grid;
-      grid-template-columns: repeat(3, 1fr);
-      gap: 1px;
-      background: var(--border);
-      border: 1px solid var(--border);
-      border-radius: 16px;
-      overflow: hidden;
-    }
-
-    .feat-card {
-      background: var(--near-black);
-      padding: 40px 36px;
-      transition: background 0.2s;
-      position: relative;
-    }
-
-    .feat-card:hover { background: var(--dark); }
-
-    .feat-icon-wrap {
-      width: 44px;
-      height: 44px;
-      border-radius: 10px;
-      background: rgba(30,92,255,0.12);
-      border: 1px solid rgba(30,92,255,0.2);
-      display: flex;
-      align-items: center;
-      justify-content: center;
-      margin-bottom: 22px;
-    }
-
-    .feat-icon-wrap svg {
-      width: 20px; height: 20px;
-      stroke: var(--azure);
-      fill: none;
-      stroke-width: 1.5;
-      stroke-linecap: round;
-      stroke-linejoin: round;
-    }
-
-    .feat-title {
-      font-size: 16px;
-      font-weight: 500;
-      margin-bottom: 10px;
-      letter-spacing: -0.01em;
-    }
-
-    .feat-desc {
-      font-size: 14px;
-      color: var(--muted);
-      line-height: 1.7;
-      font-weight: 300;
-    }
-
-    /* ─── STATS ─── */
-    .stats-section {
-      position: relative;
-      z-index: 1;
-      padding: 0 48px 120px;
-    }
-
-    .stats-inner {
-      max-width: 1100px;
-      margin: 0 auto;
-      display: grid;
-      grid-template-columns: repeat(4, 1fr);
-      gap: 1px;
-      background: var(--border);
-      border: 1px solid var(--border);
-      border-radius: 16px;
-      overflow: hidden;
-    }
-
-    .stat-item {
-      background: var(--near-black);
-      padding: 48px 40px;
-      text-align: center;
-    }
-
-    .stat-num {
-      font-family: var(--serif);
-      font-size: 52px;
-      font-weight: 400;
-      letter-spacing: -0.03em;
-      line-height: 1;
-      margin-bottom: 10px;
-      color: var(--white);
-    }
-
-    .stat-num span { color: var(--azure); }
-
-    .stat-desc {
-      font-size: 14px;
-      color: var(--muted);
-      font-weight: 300;
-    }
-
-    /* ─── TECH ─── */
-    .tech-band {
-      position: relative;
-      z-index: 1;
-      padding: 0 48px 120px;
-    }
-
-    .tech-inner {
-      max-width: 1100px;
-      margin: 0 auto;
-      background: var(--near-black);
-      border: 1px solid var(--border);
-      border-radius: 20px;
-      padding: 60px;
-      display: grid;
-      grid-template-columns: 1fr 1fr;
-      gap: 60px;
-      align-items: center;
-    }
-
-    .tech-left .eyebrow-tag { display: block; margin-bottom: 16px; }
-
-    .tech-left .section-h { font-size: clamp(28px, 3vw, 40px); text-align: left; }
-
-    .tech-left p {
-      font-size: 15px;
-      color: var(--muted);
-      line-height: 1.8;
-      font-weight: 300;
-      margin-top: 16px;
-    }
-
-    .tech-chips {
-      display: flex;
-      flex-wrap: wrap;
-      gap: 8px;
-    }
-
-    .tech-chip {
-      display: flex;
-      align-items: center;
-      gap: 6px;
-      font-size: 13px;
-      font-weight: 400;
-      color: var(--white);
-      background: rgba(255,255,255,0.04);
-      border: 1px solid var(--border-light);
-      padding: 8px 14px;
-      border-radius: 8px;
-      transition: border-color 0.2s, color 0.2s;
-    }
-
-    .tech-chip:hover {
-      border-color: rgba(96,165,250,0.3);
-      color: var(--azure-light);
-    }
-
-    .tech-chip .dot {
-      width: 5px; height: 5px;
-      background: var(--blue);
-      border-radius: 50%;
-      flex-shrink: 0;
-    }
-
-    /* ─── CTA ─── */
-    .cta-section {
-      position: relative;
-      z-index: 1;
-      padding: 0 48px 120px;
-    }
-
-    .cta-inner {
-      max-width: 1100px;
-      margin: 0 auto;
-      border-radius: 24px;
-      background: linear-gradient(135deg, #0d1733 0%, #0a0f20 60%, #06070a 100%);
-      border: 1px solid rgba(30,92,255,0.2);
-      padding: 100px 80px;
-      text-align: center;
-      position: relative;
-      overflow: hidden;
-    }
-
-    .cta-inner::before {
-      content: '';
-      position: absolute;
-      top: -40%;
-      left: 50%;
-      transform: translateX(-50%);
-      width: 700px;
-      height: 400px;
-      background: radial-gradient(ellipse, rgba(30,92,255,0.22) 0%, transparent 70%);
-      pointer-events: none;
-    }
-
-    .cta-inner .section-h {
-      font-size: clamp(36px, 4vw, 56px);
-      position: relative;
-    }
-
-    .cta-inner .section-h em {
-      font-style: italic;
-      color: var(--azure);
-    }
-
-    .cta-inner .section-sub {
-      margin-top: 16px;
-      position: relative;
-    }
-
-    .cta-actions {
-      display: flex;
-      gap: 12px;
-      justify-content: center;
-      margin-top: 44px;
-      position: relative;
-    }
-
-    /* ─── FOOTER ─── */
-    footer {
-      position: relative;
-      z-index: 1;
-      border-top: 1px solid var(--border);
-      padding: 36px 48px;
-      display: flex;
-      align-items: center;
-      justify-content: space-between;
-    }
-
-    .foot-logo {
-      display: flex;
-      align-items: center;
-      gap: 8px;
-      text-decoration: none;
-    }
-
-    .foot-logo-mark {
-      width: 24px; height: 24px;
-      background: var(--blue);
-      border-radius: 6px;
-    }
-
-    .foot-name {
-      font-size: 14px;
-      font-weight: 500;
-      color: var(--white);
-    }
-
-    .foot-copy {
-      font-size: 13px;
-      color: var(--muted);
-    }
-
-    .foot-links { display: flex; gap: 24px; }
-
-    .foot-links a {
-      font-size: 13px;
-      color: var(--muted);
-      text-decoration: none;
-      transition: color 0.15s;
-    }
-
-    .foot-links a:hover { color: var(--white); }
-
-    /* ─── ANIMATIONS ─── */
-    @keyframes fadeUp {
-      from { opacity: 0; transform: translateY(20px); }
-      to   { opacity: 1; transform: translateY(0); }
-    }
-
-    @media (max-width: 900px) {
-      nav .nav-center, nav .btn-ghost { display: none; }
-      .hero-headline { font-size: 48px; }
-      .feat-grid { grid-template-columns: 1fr; }
-      .stats-inner { grid-template-columns: repeat(2, 1fr); }
-      .dash-body { grid-template-columns: 1fr; }
-      .dash-sidebar { border-right: none; border-bottom: 1px solid var(--border); }
-      .kpi-grid { grid-template-columns: repeat(3, 1fr); }
-      .tech-inner { grid-template-columns: 1fr; }
-      footer { flex-direction: column; gap: 20px; text-align: center; }
+      position:fixed; top:0; left:0; right:0; z-index:100;
+      height:60px; display:flex; align-items:center; padding:0 40px;
+      border-bottom:1px solid var(--border);
+      background:rgba(6,7,10,0.85); backdrop-filter:blur(16px);
+    }
+    .nav-logo { display:flex; align-items:center; gap:10px; font-size:15px; font-weight:500; }
+    .nav-icon { width:30px; height:30px; background:var(--blue); border-radius:7px; display:flex; align-items:center; justify-content:center; }
+    .nav-cta { margin-left:auto; background:var(--blue); color:white; border:none; border-radius:8px; padding:8px 18px; font-size:14px; font-weight:500; transition:opacity .2s; }
+    .nav-cta:hover { opacity:.85; }
+    .hero { min-height:100vh; display:flex; flex-direction:column; align-items:center; justify-content:center; padding:100px 24px 80px; text-align:center; position:relative; overflow:hidden; }
+    .hero-glow { position:absolute; top:20%; left:50%; transform:translateX(-50%); width:600px; height:400px; background:radial-gradient(ellipse,rgba(30,92,255,0.18) 0%,transparent 70%); pointer-events:none; }
+    .hero-badge { display:inline-flex; align-items:center; gap:8px; font-size:12px; font-weight:500; color:var(--azure); letter-spacing:.06em; text-transform:uppercase; border:1px solid rgba(96,165,250,0.25); background:rgba(96,165,250,0.06); padding:6px 14px; border-radius:100px; margin-bottom:32px; animation:fadeUp .6s ease both; }
+    .hero-title { font-family:var(--serif); font-size:clamp(42px,7vw,88px); font-weight:400; line-height:1.02; letter-spacing:-.02em; max-width:820px; animation:fadeUp .6s .1s ease both; }
+    .hero-title em { font-style:italic; color:var(--azure); }
+    .hero-sub { font-size:clamp(16px,2vw,20px); color:var(--off-white); max-width:540px; line-height:1.65; margin-top:24px; font-weight:300; animation:fadeUp .6s .2s ease both; }
+    .hero-actions { display:flex; gap:12px; flex-wrap:wrap; justify-content:center; margin-top:44px; animation:fadeUp .6s .3s ease both; }
+    .btn-primary { background:var(--blue); color:white; border:none; padding:14px 28px; border-radius:10px; font-size:15px; font-weight:500; transition:transform .2s,box-shadow .2s; box-shadow:0 0 40px rgba(30,92,255,0.35); }
+    .btn-primary:hover { transform:translateY(-2px); box-shadow:0 4px 50px rgba(30,92,255,0.5); }
+    .btn-secondary { background:transparent; color:var(--off-white); border:1px solid var(--border); padding:14px 28px; border-radius:10px; font-size:15px; font-weight:400; transition:border-color .2s,color .2s; }
+    .btn-secondary:hover { border-color:rgba(255,255,255,0.2); color:white; }
+    .ticker-strip { margin-top:64px; display:flex; gap:20px; flex-wrap:wrap; justify-content:center; animation:fadeUp .6s .4s ease both; }
+    .ticker-pill { display:flex; align-items:center; gap:10px; padding:8px 14px; border-radius:8px; background:rgba(255,255,255,0.03); border:1px solid var(--border); font-size:13px; }
+    .t-sym { font-family:var(--mono); font-weight:500; font-size:12px; }
+    .t-score { font-size:12px; font-weight:600; }
+    .pos { color:var(--green); }
+    .neg { color:var(--red); }
+    section { padding:100px 24px; max-width:1100px; margin:0 auto; }
+    .s-label { font-size:11px; font-weight:500; letter-spacing:.1em; text-transform:uppercase; color:var(--azure); margin-bottom:16px; }
+    .s-title { font-family:var(--serif); font-size:clamp(30px,4vw,48px); font-weight:400; letter-spacing:-.02em; line-height:1.1; max-width:600px; }
+    .s-title em { font-style:italic; color:var(--azure); }
+    .steps { display:grid; grid-template-columns:repeat(auto-fit,minmax(220px,1fr)); gap:24px; margin-top:56px; }
+    .step { padding:28px; background:var(--near-black); border:1px solid var(--border); border-radius:14px; transition:border-color .2s; }
+    .step:hover { border-color:rgba(30,92,255,0.3); }
+    .step-num { font-family:var(--mono); font-size:11px; color:var(--muted); letter-spacing:.06em; margin-bottom:16px; }
+    .step-title { font-size:17px; font-weight:500; letter-spacing:-.01em; margin-bottom:10px; }
+    .step-desc { font-size:14px; color:var(--off-white); line-height:1.65; font-weight:300; }
+    .features { display:grid; grid-template-columns:repeat(auto-fit,minmax(300px,1fr)); gap:16px; margin-top:56px; }
+    .feature { padding:28px 28px 24px; background:var(--near-black); border:1px solid var(--border); border-radius:14px; transition:background .2s,border-color .2s; }
+    .feature:hover { background:rgba(30,92,255,0.04); border-color:rgba(30,92,255,0.2); }
+    .f-icon { width:40px; height:40px; border-radius:10px; background:rgba(30,92,255,0.12); border:1px solid rgba(30,92,255,0.2); display:flex; align-items:center; justify-content:center; margin-bottom:18px; font-size:18px; }
+    .f-title { font-size:16px; font-weight:500; margin-bottom:8px; }
+    .f-desc { font-size:14px; color:var(--off-white); line-height:1.65; font-weight:300; }
+    #pricing { text-align:center; }
+    #pricing .s-title { margin:0 auto 56px; }
+    .plans { display:grid; grid-template-columns:repeat(auto-fit,minmax(280px,1fr)); gap:20px; max-width:700px; margin:0 auto; }
+    .plan { padding:32px; background:var(--near-black); border:1px solid var(--border); border-radius:16px; text-align:left; }
+    .plan.pro { border-color:rgba(30,92,255,0.5); background:linear-gradient(160deg,rgba(30,92,255,0.08) 0%,var(--near-black) 60%); position:relative; }
+    .p-badge { position:absolute; top:-12px; left:50%; transform:translateX(-50%); background:var(--blue); color:white; font-size:11px; font-weight:600; letter-spacing:.06em; padding:4px 14px; border-radius:100px; text-transform:uppercase; white-space:nowrap; }
+    .p-name { font-size:14px; color:var(--muted); text-transform:uppercase; letter-spacing:.08em; margin-bottom:12px; }
+    .p-price { font-family:var(--serif); font-size:44px; font-weight:400; letter-spacing:-.02em; line-height:1; margin-bottom:6px; }
+    .p-period { font-size:13px; color:var(--muted); margin-bottom:28px; }
+    .p-list { list-style:none; display:flex; flex-direction:column; gap:10px; margin-bottom:28px; }
+    .p-list li { font-size:14px; color:var(--off-white); display:flex; align-items:center; gap:10px; }
+    .p-list li::before { content:'✓'; color:var(--green); font-weight:600; font-size:13px; flex-shrink:0; }
+    .p-list li.off { color:var(--muted); }
+    .p-list li.off::before { content:'—'; color:var(--muted); }
+    .p-btn { width:100%; padding:12px 0; border-radius:9px; font-size:14px; font-weight:500; border:none; transition:opacity .2s; }
+    .p-btn:hover { opacity:.85; }
+    .p-btn.free { background:rgba(255,255,255,0.07); color:var(--off-white); }
+    .p-btn.upgrade { background:var(--blue); color:white; box-shadow:0 4px 24px rgba(30,92,255,0.4); }
+    .cta-bottom { text-align:center; padding:80px 24px 120px; max-width:700px; margin:0 auto; }
+    .cta-bottom h2 { font-family:var(--serif); font-size:clamp(32px,5vw,56px); font-weight:400; letter-spacing:-.02em; margin-bottom:20px; }
+    .cta-bottom p { font-size:17px; color:var(--off-white); font-weight:300; margin-bottom:36px; }
+    footer { border-top:1px solid var(--border); padding:32px 40px; display:flex; align-items:center; justify-content:space-between; flex-wrap:wrap; gap:16px; font-size:13px; color:var(--muted); }
+    hr.div { border:none; border-top:1px solid var(--border); }
+    @keyframes fadeUp { from{opacity:0;transform:translateY(18px)} to{opacity:1;transform:translateY(0)} }
+    @media(max-width:640px){
+      nav{padding:0 20px;}
+      .hero{padding:90px 20px 60px;}
+      .hero-glow{width:320px;}
+      footer{flex-direction:column;align-items:flex-start;padding:24px 20px;}
     }
   </style>
 </head>
 <body>
 
-<!-- NAV -->
 <nav>
-  <a href="<a href="https://finsentinel-three.vercel.app/" class="logo">
-    <div class="logo-mark">
-      <svg viewBox="0 0 16 16" fill="none" xmlns="http://www.w3.org/2000/svg">
-        <path d="M2 12L6 7L9 10L14 4" stroke="white" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/>
-        <circle cx="14" cy="4" r="1.5" fill="white"/>
+  <div class="nav-logo">
+    <div class="nav-icon">
+      <svg width="14" height="14" viewBox="0 0 14 14" fill="none">
+        <path d="M1.5 10.5L5 6.5L8 9L12.5 4" stroke="white" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"/>
+        <circle cx="12.5" cy="4" r="1.2" fill="white"/>
       </svg>
     </div>
-    <span class="logo-name">FinSentinel</span>
+    FinSentinel
+  </div>
+  <a href="https://finsentinel-five.vercel.app" target="_blank">
+    <button class="nav-cta">Launch app →</button>
   </a>
-  <div class="nav-center">
-    <a href="#features" class="nav-link">Funzionalità</a>
-    <a href="#dashboard" class="nav-link">Dashboard</a>
-    <a href="#stack" class="nav-link">Tecnologia</a>
-  </div>
-  <div class="nav-right">
-    <a href="#" class="btn-ghost">Documentazione</a>
-    <a href="https://finsentinel-three.vercel.app/" target="_blank" class="btn-cta">
-      Apri l'app
-      <svg viewBox="0 0 14 14" fill="none"><path d="M2.5 7H11.5M7.5 3L11.5 7L7.5 11" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/></svg>
-    </a>
-  </div>
 </nav>
 
-<!-- HERO -->
-<section class="hero">
-  <div class="hero-eyebrow">
-    <span></span>
-    Aggiornamento automatico · Real-time
+<div class="hero">
+  <div class="hero-glow"></div>
+  <div class="hero-badge">
+    <svg width="8" height="8" viewBox="0 0 8 8"><circle cx="4" cy="4" r="4" fill="var(--green)"/></svg>
+    Live · Powered by FinBERT AI
   </div>
-
-  <h1 class="hero-headline">
-    Leggi il mercato<br>
-    prima degli altri.<br>
-    <em>Con l'intelligenza artificiale.</em>
-  </h1>
-
-  <p class="hero-sub">
-    FinBERT analizza migliaia di notizie finanziarie e correla il sentiment con i movimenti di prezzo su 1000+ ticker in tempo reale.
-  </p>
-
+  <h1 class="hero-title">Know the market's mood<br/><em>before it moves</em></h1>
+  <p class="hero-sub">FinSentinel aggregates thousands of financial news articles and Reddit posts, then scores them with AI to surface what the crowd is really thinking about any stock.</p>
   <div class="hero-actions">
-    <a href="https://finsentinel-three.vercel.app/" target="_blank" class="btn-primary-hero">
-      Inizia gratis
-      <svg width="14" height="14" viewBox="0 0 14 14" fill="none"><path d="M2.5 7H11.5M7.5 3L11.5 7L7.5 11" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/></svg>
-    </a>
-    <a href="#dashboard" class="btn-outline-hero">Vedi la demo</a>
+    <a href="https://finsentinel-five.vercel.app" target="_blank"><button class="btn-primary">Start for free →</button></a>
+    <a href="#how-it-works"><button class="btn-secondary">See how it works</button></a>
   </div>
-
-  <div class="social-proof">
-    <div class="avatars">
-      <div class="avatar">AL</div>
-      <div class="avatar">MR</div>
-      <div class="avatar">GF</div>
-      <div class="avatar">+</div>
-    </div>
-    <div class="social-text">Usato da <b>centinaia di trader</b> ogni giorno</div>
-  </div>
-</section>
-
-<!-- DASHBOARD PREVIEW -->
-<div id="dashboard" class="dashboard-wrap">
-  <div class="dashboard-outer">
-    <div class="win-bar">
-      <div class="win-dot r"></div>
-      <div class="win-dot y"></div>
-      <div class="win-dot g"></div>
-      <div class="win-title">FinSentinel — NVDA · NVIDIA Corporation</div>
-    </div>
-    <div class="dash-body">
-      <div class="dash-sidebar">
-        <div class="side-section">
-          <div class="side-label">Watchlist</div>
-          <div class="side-item active"><span class="sym">NVDA</span><span class="chg up">+2.4%</span></div>
-          <div class="side-item"><span class="sym">AAPL</span><span class="chg dn">−0.8%</span></div>
-          <div class="side-item"><span class="sym">TSLA</span><span class="chg up">+1.2%</span></div>
-          <div class="side-item"><span class="sym">MSFT</span><span class="chg up">+0.5%</span></div>
-          <div class="side-item"><span class="sym">GOOGL</span><span class="chg dn">−0.3%</span></div>
-          <div class="side-item"><span class="sym">META</span><span class="chg up">+1.9%</span></div>
-        </div>
-        <div class="side-section">
-          <div class="side-label">Periodo</div>
-          <div class="side-item active"><span>3 mesi</span></div>
-          <div class="side-item"><span style="color:var(--muted)">6 mesi</span></div>
-          <div class="side-item"><span style="color:var(--muted)">1 anno</span></div>
-        </div>
-      </div>
-      <div class="dash-main">
-        <div class="kpi-grid">
-          <div class="kpi-tile">
-            <div class="k-label">News totali</div>
-            <div class="k-value blue">847</div>
-          </div>
-          <div class="kpi-tile">
-            <div class="k-label">Sentiment medio</div>
-            <div class="k-value pos">+0.312</div>
-          </div>
-          <div class="kpi-tile">
-            <div class="k-label">Picco positivo</div>
-            <div class="k-value pos">+0.891</div>
-          </div>
-          <div class="kpi-tile">
-            <div class="k-label">Picco negativo</div>
-            <div class="k-value neg">−0.743</div>
-          </div>
-          <div class="kpi-tile">
-            <div class="k-label">Fonti attive</div>
-            <div class="k-value">12</div>
-          </div>
-        </div>
-        <div class="chart-container">
-          <div class="chart-top">
-            <div>
-              <div class="chart-ticker">NVDA — $924.58</div>
-              <div class="chart-sub">Prezzo + Sentiment giornaliero</div>
-            </div>
-            <div class="chart-pills">
-              <div class="chart-pill">1M</div>
-              <div class="chart-pill active">3M</div>
-              <div class="chart-pill">6M</div>
-              <div class="chart-pill">1A</div>
-            </div>
-          </div>
-          <svg class="chart-svg" id="main-chart" viewBox="0 0 820 260" preserveAspectRatio="none"></svg>
-        </div>
-      </div>
-    </div>
+  <div class="ticker-strip">
+    <div class="ticker-pill"><span class="t-sym">NVDA</span><span class="t-score pos">+0.421</span><span style="font-size:11px;color:var(--muted)">Bullish</span></div>
+    <div class="ticker-pill"><span class="t-sym">AAPL</span><span class="t-score pos">+0.187</span><span style="font-size:11px;color:var(--muted)">Neutral+</span></div>
+    <div class="ticker-pill"><span class="t-sym">TSLA</span><span class="t-score neg">−0.214</span><span style="font-size:11px;color:var(--muted)">Bearish</span></div>
+    <div class="ticker-pill"><span class="t-sym">META</span><span class="t-score pos">+0.339</span><span style="font-size:11px;color:var(--muted)">Bullish</span></div>
+    <div class="ticker-pill"><span class="t-sym">AMZN</span><span class="t-score pos">+0.092</span><span style="font-size:11px;color:var(--muted)">Neutral</span></div>
   </div>
 </div>
 
-<div class="divider-line"></div>
+<hr class="div"/>
 
-<!-- FEATURES -->
-<section id="features" class="features">
-  <div class="features-header">
-    <span class="eyebrow-tag">Funzionalità</span>
-    <h2 class="section-h">Tutto il necessario per decidere<br>con più chiarezza.</h2>
-    <p class="section-sub">Dall'acquisizione dei dati all'analisi AI, ogni componente è progettato per la precisione.</p>
+<section id="how-it-works">
+  <div class="s-label">How it works</div>
+  <h2 class="s-title">From raw news to <em>actionable signal</em> in seconds</h2>
+  <div class="steps">
+    <div class="step"><div class="step-num">01</div><div class="step-title">Enter any ticker</div><div class="step-desc">Type any US or European stock symbol. FinSentinel validates it and fetches its profile instantly.</div></div>
+    <div class="step"><div class="step-num">02</div><div class="step-title">AI scores the news</div><div class="step-desc">FinBERT — a transformer trained on financial language — reads every headline and assigns a sentiment score from −1 (very bearish) to +1 (very bullish).</div></div>
+    <div class="step"><div class="step-num">03</div><div class="step-title">See the full picture</div><div class="step-desc">Price chart overlaid with sentiment, top bullish/bearish headlines, source breakdown and a 30- or 90-day trend — all in one view.</div></div>
+    <div class="step"><div class="step-num">04</div><div class="step-title">React with confidence</div><div class="step-desc">Know whether the crowd is turning positive or negative before it shows in the price. Export to CSV for your own backtesting.</div></div>
   </div>
+</section>
 
-  <div class="feat-grid">
-    <div class="feat-card">
-      <div class="feat-icon-wrap">
-        <svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="9"/><path d="M12 8v4l3 3"/></svg>
-      </div>
-      <div class="feat-title">Sentiment in tempo reale</div>
-      <div class="feat-desc">FinBERT — addestrato su milioni di testi finanziari — assegna uno score da −1 a +1 ad ogni articolo. Più preciso di ogni approccio lessicale tradizionale.</div>
+<hr class="div"/>
+
+<section id="features">
+  <div class="s-label">Features</div>
+  <h2 class="s-title">Everything a <em>serious trader</em> needs</h2>
+  <div class="features">
+    <div class="feature"><div class="f-icon">📡</div><div class="f-title">Multi-source intelligence</div><div class="f-desc">NewsAPI, Financial Modeling Prep, Reddit, and Alpha Vantage combined into one unified feed. No single-source blind spots.</div></div>
+    <div class="feature"><div class="f-icon">🧠</div><div class="f-title">FinBERT sentiment</div><div class="f-desc">Not just positive/negative keywords — a domain-specific transformer model that understands financial context and nuance.</div></div>
+    <div class="feature"><div class="f-icon">📈</div><div class="f-title">Price + sentiment overlay</div><div class="f-desc">See candlestick OHLCV data alongside the sentiment curve to spot divergences before the market catches up.</div></div>
+    <div class="feature"><div class="f-icon">⚡</div><div class="f-title">Real-time refresh</div><div class="f-desc">Trigger on-demand news fetch for any ticker. Database updated by GitHub Actions every 6 hours automatically.</div></div>
+    <div class="feature"><div class="f-icon">📋</div><div class="f-title">CSV export <span style="font-size:11px;color:var(--azure);margin-left:4px">Pro</span></div><div class="f-desc">Download the full scored dataset for any ticker and date range to run your own quantitative analysis.</div></div>
+    <div class="feature"><div class="f-icon">🔔</div><div class="f-title">Email alerts <span style="font-size:11px;color:var(--azure);margin-left:4px">Pro</span></div><div class="f-desc">Get notified when sentiment crosses a threshold you set — without checking the dashboard every hour.</div></div>
+  </div>
+</section>
+
+<hr class="div"/>
+
+<section id="pricing">
+  <div class="s-label" style="text-align:center">Pricing</div>
+  <h2 class="s-title">Simple, honest pricing</h2>
+  <div class="plans">
+    <div class="plan">
+      <div class="p-name">Free</div>
+      <div class="p-price">€0</div>
+      <div class="p-period">forever</div>
+      <ul class="p-list">
+        <li>Any ticker, anytime</li>
+        <li>30-day sentiment window</li>
+        <li>Top 5 news headlines</li>
+        <li>Price chart overlay</li>
+        <li>Watchlist (3 tickers)</li>
+        <li class="off">CSV export</li>
+        <li class="off">90-day history</li>
+        <li class="off">Email alerts</li>
+        <li class="off">Advanced analytics</li>
+      </ul>
+      <a href="https://finsentinel-five.vercel.app" target="_blank"><button class="p-btn free">Get started free</button></a>
     </div>
-    <div class="feat-card">
-      <div class="feat-icon-wrap">
-        <svg viewBox="0 0 24 24"><path d="M3 12h4l3-9 4 18 3-9h4"/></svg>
-      </div>
-      <div class="feat-title">Correlazione prezzo–sentiment</div>
-      <div class="feat-desc">Grafico interattivo che sovrappone candlestick OHLCV e barre di sentiment sullo stesso asse temporale. Identifica i pattern prima che si manifestino nel prezzo.</div>
-    </div>
-    <div class="feat-card">
-      <div class="feat-icon-wrap">
-        <svg viewBox="0 0 24 24"><ellipse cx="12" cy="12" rx="10" ry="4"/><path d="M2 12c0 4 8.95 8 10 8s10-4 10-8"/><path d="M2 7c0-4 8.95-8 10-8s10 4 10 8"/></svg>
-      </div>
-      <div class="feat-title">4 sorgenti aggregate</div>
-      <div class="feat-desc">Alpha Vantage, NewsAPI, Financial Modeling Prep e Reddit (PRAW) confluiscono in un unico database PostgreSQL con deduplicazione automatica per ticker.</div>
-    </div>
-    <div class="feat-card">
-      <div class="feat-icon-wrap">
-        <svg viewBox="0 0 24 24"><rect x="3" y="3" width="7" height="7" rx="1"/><rect x="14" y="3" width="7" height="7" rx="1"/><rect x="3" y="14" width="7" height="7" rx="1"/><rect x="14" y="14" width="7" height="7" rx="1"/></svg>
-      </div>
-      <div class="feat-title">Dashboard KPI istantanea</div>
-      <div class="feat-desc">Numero di news, sentiment medio, picchi positivi e negativi, distribuzione per fonte. Tutto filtrabile da 7 a 90 giorni con un singolo slider.</div>
-    </div>
-    <div class="feat-card">
-      <div class="feat-icon-wrap">
-        <svg viewBox="0 0 24 24"><path d="M12 2L2 7l10 5 10-5-10-5z"/><path d="M2 17l10 5 10-5"/><path d="M2 12l10 5 10-5"/></svg>
-      </div>
-      <div class="feat-title">Aggiornamento automatico</div>
-      <div class="feat-desc">GitHub Actions aggiorna il database per tutti i ticker monitorati secondo uno schedule configurabile. Zero intervento manuale, massima freschezza dei dati.</div>
-    </div>
-    <div class="feat-card">
-      <div class="feat-icon-wrap">
-        <svg viewBox="0 0 24 24"><path d="M18 20V10M12 20V4M6 20v-6"/></svg>
-      </div>
-      <div class="feat-title">1000+ ticker supportati</div>
-      <div class="feat-desc">Validazione via yFinance su qualunque simbolo quotato: azioni USA, ETF, ADR. Nome, settore e dati storici disponibili automaticamente per ogni ticker inserito.</div>
+    <div class="plan pro">
+      <div class="p-badge">Most popular</div>
+      <div class="p-name">Pro</div>
+      <div class="p-price">€9</div>
+      <div class="p-period">per month · cancel anytime</div>
+      <ul class="p-list">
+        <li>Everything in Free</li>
+        <li>90-day sentiment window</li>
+        <li>Full news feed (unlimited)</li>
+        <li>CSV export</li>
+        <li>Unlimited watchlist</li>
+        <li>Email alerts</li>
+        <li>Advanced analytics</li>
+        <li>Priority support</li>
+      </ul>
+      <a href="https://finsentinel-five.vercel.app" target="_blank"><button class="p-btn upgrade">⚡ Upgrade to Pro →</button></a>
     </div>
   </div>
 </section>
 
-<!-- STATS -->
-<div class="stats-section">
-  <div class="stats-inner">
-    <div class="stat-item">
-      <div class="stat-num">1000<span>+</span></div>
-      <div class="stat-desc">Ticker supportati via yFinance</div>
-    </div>
-    <div class="stat-item">
-      <div class="stat-num">4</div>
-      <div class="stat-desc">Sorgenti news aggregate in real-time</div>
-    </div>
-    <div class="stat-item">
-      <div class="stat-num"><span>AI</span></div>
-      <div class="stat-desc">FinBERT — modello NLP specializzato in finanza</div>
-    </div>
-    <div class="stat-item">
-      <div class="stat-num">24<span>/7</span></div>
-      <div class="stat-desc">Aggiornamento automatico via CI/CD</div>
-    </div>
-  </div>
-</div>
+<hr class="div"/>
 
-<!-- TECH -->
-<div id="stack" class="tech-band">
-  <div class="tech-inner">
-    <div class="tech-left">
-      <span class="eyebrow-tag">Stack tecnologico</span>
-      <h2 class="section-h">Costruito su<br>tecnologie solide.</h2>
-      <p>Architettura production-ready con cloud database, deployment automatizzato e modelli AI all'avanguardia nel settore finanziario.</p>
-    </div>
-    <div class="tech-chips">
-      <span class="tech-chip"><span class="dot"></span>Python 3.11</span>
-      <span class="tech-chip"><span class="dot"></span>FinBERT · ProsusAI</span>
-      <span class="tech-chip"><span class="dot"></span>PyTorch</span>
-      <span class="tech-chip"><span class="dot"></span>React + Vite</span>
-      <span class="tech-chip"><span class="dot"></span>Supabase (PostgreSQL)</span>
-      <span class="tech-chip"><span class="dot"></span>Alpha Vantage API</span>
-      <span class="tech-chip"><span class="dot"></span>NewsAPI</span>
-      <span class="tech-chip"><span class="dot"></span>FMP · Reddit PRAW</span>
-      <span class="tech-chip"><span class="dot"></span>yFinance</span>
-      <span class="tech-chip"><span class="dot"></span>Plotly</span>
-      <span class="tech-chip"><span class="dot"></span>Pandas</span>
-      <span class="tech-chip"><span class="dot"></span>GitHub Actions</span>
-      <span class="tech-chip"><span class="dot"></span>feedparser · psycopg2</span>
-      <span class="tech-chip"><span class="dot"></span>FastApi · Render</span>
-    </div>
-  </div>
-</div>
-
-<!-- CTA -->
-<div class="cta-section">
-  <div class="cta-inner">
-    <h2 class="section-h">Pronto a leggere il<br>mercato in modo <em>diverso?</em></h2>
-    <p class="section-sub">Accesso immediato. Nessuna registrazione. Dati reali.</p>
-    <div class="cta-actions">
-      <a href="https://finsentinel-three.vercel.app/" target="_blank" class="btn-primary-hero">
-        Apri FinSentinel
-        <svg width="14" height="14" viewBox="0 0 14 14" fill="none"><path d="M2.5 7H11.5M7.5 3L11.5 7L7.5 11" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/></svg>
-      </a>
-      <a href="#features" class="btn-outline-hero">Scopri le funzionalità</a>
-    </div>
-  </div>
-</div>
-
-<!-- FOOTER -->
-<footer>
-  <a href="#" class="foot-logo">
-    <div class="foot-logo-mark"></div>
-    <span class="foot-name">FinSentinel</span>
+<div class="cta-bottom">
+  <h2>Start reading the market's mind</h2>
+  <p>Free to try. No credit card required. Up and running in 30 seconds.</p>
+  <a href="https://finsentinel-five.vercel.app" target="_blank">
+    <button class="btn-primary" style="padding:16px 36px;font-size:16px;">Launch FinSentinel →</button>
   </a>
-  <p class="foot-copy">© 2026 FinSentinel · Powered by FinBERT · Dati in tempo reale</p>
-  <div class="foot-links">
-    <a href="#features">Funzionalità</a>
-    <a href="#stack">Stack</a>
-    <a href="https://finsentinel-three.vercel.app/" target="_blank">App</a>
+</div>
+
+<footer>
+  <div style="display:flex;align-items:center;gap:9px;">
+    <div style="width:22px;height:22px;background:var(--blue);border-radius:5px;display:flex;align-items:center;justify-content:center;">
+      <svg width="11" height="11" viewBox="0 0 14 14" fill="none">
+        <path d="M1.5 10.5L5 6.5L8 9L12.5 4" stroke="white" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"/>
+        <circle cx="12.5" cy="4" r="1.2" fill="white"/>
+      </svg>
+    </div>
+    <span style="font-weight:500;color:var(--white);">FinSentinel</span>
   </div>
+  <span>© 2025 FinSentinel. For informational purposes only. Not financial advice.</span>
+  <a href="https://finsentinel-five.vercel.app" target="_blank" style="color:var(--azure);">Launch app →</a>
 </footer>
 
-<script>
-  // ── Candlestick + Sentiment chart ──
-  const svg = document.getElementById('main-chart');
-  const W = 820, H = 260;
-  const padL = 8, padR = 8, padT = 8, padB = 8;
-  const chartH = H * 0.68;
-  const sentH = H * 0.24;
-  const sentBase = chartH + 16;
-  const n = 60;
-
-  let price = 580;
-  const candles = Array.from({length: n}, () => {
-    const open = price + (Math.random() - 0.48) * 14;
-    const close = open + (Math.random() - 0.46) * 18;
-    const high = Math.max(open, close) + Math.random() * 9;
-    const low  = Math.min(open, close) - Math.random() * 9;
-    price = close;
-    return {open, close, high, low};
-  });
-
-  const allP = candles.flatMap(c => [c.high, c.low]);
-  const minP = Math.min(...allP), maxP = Math.max(...allP);
-  const sy = v => padT + chartH * (1 - (v - minP) / (maxP - minP));
-  const sx = i => padL + (i / (n - 1)) * (W - padL - padR);
-  const cw = (W - padL - padR) / n * 0.55;
-
-  let out = '';
-
-  // Grid
-  for (let j = 0; j <= 3; j++) {
-    const y = padT + chartH * j / 3;
-    out += `<line x1="${padL}" y1="${y}" x2="${W - padR}" y2="${y}" stroke="rgba(255,255,255,0.04)" stroke-width="1"/>`;
-  }
-
-  // Sentiment bars
-  candles.forEach((c, i) => {
-    const raw = (c.close - c.open) / c.open * 9 + (Math.random() - 0.38) * 0.5;
-    const norm = Math.max(-1, Math.min(1, raw));
-    const bh = Math.abs(norm) * sentH * 0.75;
-    const x = sx(i) - cw / 2;
-    const y = norm >= 0 ? sentBase - bh : sentBase;
-    const col = norm >= 0 ? '#34d399' : '#f87171';
-    out += `<rect x="${x}" y="${y}" width="${cw}" height="${bh}" fill="${col}" opacity="0.55" rx="1"/>`;
-  });
-
-  // Divider
-  out += `<line x1="${padL}" y1="${sentBase - 1}" x2="${W - padR}" y2="${sentBase - 1}" stroke="rgba(255,255,255,0.06)" stroke-width="1"/>`;
-
-  // Candles
-  candles.forEach((c, i) => {
-    const x = sx(i);
-    const o = sy(c.open), cl = sy(c.close);
-    const hi = sy(c.high), lo = sy(c.low);
-    const col = c.close >= c.open ? '#34d399' : '#f87171';
-    const top = Math.min(o, cl), ht = Math.max(2, Math.abs(cl - o));
-    out += `<line x1="${x}" y1="${hi}" x2="${x}" y2="${lo}" stroke="${col}" stroke-width="1" opacity="0.5"/>`;
-    out += `<rect x="${x - cw/2}" y="${top}" width="${cw}" height="${ht}" fill="${col}" rx="1"/>`;
-  });
-
-  // Area under price line
-  let path = '', aPath = '';
-  candles.forEach((c, i) => {
-    const x = sx(i), y = sy(c.close);
-    path  += i === 0 ? `M${x},${y}` : ` L${x},${y}`;
-    aPath += i === 0 ? `M${x},${y}` : ` L${x},${y}`;
-  });
-  aPath += ` L${sx(n-1)},${padT + chartH} L${padL},${padT + chartH} Z`;
-
-  out += `<defs><linearGradient id="ag" x1="0" y1="0" x2="0" y2="1"><stop offset="0%" stop-color="#1e5cff" stop-opacity="0.18"/><stop offset="100%" stop-color="#1e5cff" stop-opacity="0"/></linearGradient></defs>`;
-  out += `<path d="${aPath}" fill="url(#ag)"/>`;
-  out += `<path d="${path}" fill="none" stroke="#3b7bff" stroke-width="1.5" opacity="0.8"/>`;
-
-  svg.innerHTML = out;
-</script>
 </body>
 </html>

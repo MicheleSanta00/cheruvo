@@ -15,14 +15,12 @@ const CustomTooltip = ({ active, payload }) => {
 export default function Stats({ news }) {
   if (!news.length) return null
 
-  // Sources pie
   const sourceCounts = {}
   news.forEach(n => { sourceCounts[n.source] = (sourceCounts[n.source] || 0) + 1 })
   const pieData = Object.entries(sourceCounts)
     .sort((a, b) => b[1] - a[1]).slice(0, 8)
     .map(([name, value]) => ({ name, value }))
 
-  // Sentiment histogram
   const buckets = Array.from({ length: 20 }, (_, i) => ({
     range: (-1 + i * 0.1).toFixed(1),
     count: 0,
@@ -35,13 +33,13 @@ export default function Stats({ news }) {
   return (
     <div>
       <h3 style={{ fontFamily: 'var(--serif)', fontSize: 22, fontWeight: 400, letterSpacing: '-0.02em', marginBottom: 20 }}>
-        Statistiche
+        Analytics
       </h3>
-      <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 20 }}>
+      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(280px, 1fr))', gap: 20 }}>
 
-        {/* Pie */}
+        {/* Source distribution */}
         <div style={{ background: 'rgba(255,255,255,0.02)', border: '1px solid var(--border)', borderRadius: 12, padding: 20 }}>
-          <div style={{ fontSize: 12, color: 'var(--muted)', letterSpacing: '0.08em', textTransform: 'uppercase', marginBottom: 16 }}>Distribuzione fonti</div>
+          <div style={{ fontSize: 12, color: 'var(--muted)', letterSpacing: '0.08em', textTransform: 'uppercase', marginBottom: 16 }}>Source distribution</div>
           <ResponsiveContainer width="100%" height={240}>
             <PieChart>
               <Pie data={pieData} cx="50%" cy="50%" innerRadius={55} outerRadius={90}
@@ -61,9 +59,9 @@ export default function Stats({ news }) {
           </div>
         </div>
 
-        {/* Histogram */}
+        {/* Sentiment histogram */}
         <div style={{ background: 'rgba(255,255,255,0.02)', border: '1px solid var(--border)', borderRadius: 12, padding: 20 }}>
-          <div style={{ fontSize: 12, color: 'var(--muted)', letterSpacing: '0.08em', textTransform: 'uppercase', marginBottom: 16 }}>Distribuzione sentiment</div>
+          <div style={{ fontSize: 12, color: 'var(--muted)', letterSpacing: '0.08em', textTransform: 'uppercase', marginBottom: 16 }}>Sentiment distribution</div>
           <ResponsiveContainer width="100%" height={240}>
             <BarChart data={buckets} barSize={12}>
               <XAxis dataKey="range" tick={{ fontSize: 9, fill: 'var(--muted)' }} interval={4} axisLine={false} tickLine={false}/>
