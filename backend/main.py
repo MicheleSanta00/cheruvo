@@ -27,7 +27,7 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
-app.include_router(stripe_router)
+app.include_router(stripe_router, prefix="/api")
 
 API_KEY = {
     "ALPHA_VANTAGE": os.environ.get("ALPHA_VANTAGE", ""),

@@ -34,7 +34,7 @@ def init_subscriptions_table():
     conn.close()
 
 
-@router.post("/api/checkout")
+@router.post("/checkout")
 async def create_checkout(request: Request):
     body = await request.json()
     email = body.get("email")
@@ -58,7 +58,7 @@ async def create_checkout(request: Request):
         raise HTTPException(status_code=500, detail=str(e))
 
 
-@router.post("/api/webhook")
+@router.post("/webhook")
 async def stripe_webhook(request: Request):
     payload = await request.body()
     sig_header = request.headers.get("stripe-signature")
@@ -102,7 +102,7 @@ async def stripe_webhook(request: Request):
     return {"status": "ok"}
 
 
-@router.get("/api/subscription/{user_id}")
+@router.get("/subscription/{user_id}")
 def get_subscription(user_id: str):
     conn = get_connection()
     cur = conn.cursor()
