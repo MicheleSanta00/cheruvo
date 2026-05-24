@@ -14,6 +14,8 @@ import pandas as pd
 from database import SuperNewsAnalyzer, init_database
 from prices import get_prices, validate_ticker
 from stripe_routes import router as stripe_router, init_subscriptions_table
+from quick_fetch import quick_fetch
+
 
 app = FastAPI(title="FinSentinel API", version="2.0.0")
 
@@ -122,10 +124,9 @@ def sentiment_daily(ticker: str):
 
 
 @app.post("/api/fetch/{ticker}")
-def fetch_news(ticker: str, background_tasks: BackgroundTasks):
-    """Avvia il mega_fetch in background per un ticker."""
-    analyzer = SuperNewsAnalyzer(ticker.upper(), API_KEY)
-    background_tasks.add_task(analyzer.mega_fetch_silent)
+async def fetch_news(ticker: str, background_tasks: BackgroundTasks):
+    """Fetch immediato con VADER in background."""
+    background_tasks.add_task(quick_fetch, ticker.upper())
     return {"status": "started", "ticker": ticker.upper(),
             "message": "Fetching news in background..."}
 

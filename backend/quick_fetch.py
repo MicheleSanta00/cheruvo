@@ -1,0 +1,180 @@
+"""
+quick_fetch.py — Fetch veloce senza FinBERT per Render.
+Usa VADER per il sentiment — leggero e istantaneo.
+"""
+import os
+import requests
+import psycopg2
+import psycopg2.extras
+from datetime import datetime, timedelta
+from vaderSentiment.vaderSentiment import SentimentIntensityAnalyzer
+from dateutil import parser as dateparser
+
+analyzer = SentimentIntensityAnalyzer()
+
+
+def get_connection():
+    return psycopg2.connect(os.environ["DATABASE_URL"])
+
+
+def vader_sentiment(text: str) -> float:
+    if not text:
+        return 0.0
+    score = analyzer.polarity_scores(text)["compound"]
+    return round(max(-1.0, min(1.0, score)), 4)
+
+
+def format_date(date_str):
+    if not date_str:
+        return ""
+    try:
+        return dateparser.parse(str(date_str)).strftime("%Y-%m-%d")
+    except Exception:
+        s = str(date_str)
+        return s[:10] if len(s) >= 10 else ""
+
+
+def fetch_alpha_vantage(ticker: str) -> list:
+    news_list = []
+    try:
+        api_key = os.environ.get("ALPHA_VANTAGE", "").strip()
+        if not api_key:
+            return []
+        r = requests.get(
+            "https://www.alphavantage.co/query",
+            params={
+                "function": "NEWS_SENTIMENT",
+                "tickers": ticker,
+                "limit": 50,
+                "apikey": api_key,
+                "sort": "LATEST",
+            },
+            timeout=15,
+        )
+        for item in r.json().get("feed", [])[:30]:
+            title = item.get("title", "").strip()
+            if not title:
+                continue
+            summary = item.get("summary", "").strip()
+            news_list.append({
+                "source": item.get("source", "Alpha Vantage"),
+                "title": title,
+                "summary": summary[:250],
+                "published_date": format_date(item.get("time_published")),
+                "url": item.get("url", ""),
+                "sentiment": vader_sentiment(f"{title} {summary}"),
+            })
+        print(f"QuickFetch Alpha Vantage: {len(news_list)} news")
+    except Exception as e:
+        print(f"QuickFetch AV error: {e}")
+    return news_list
+
+
+def fetch_newsapi(ticker: str) -> list:
+    news_list = []
+    try:
+        api_key = os.environ.get("NEWSAPI", "").strip()
+        if not api_key:
+            return []
+        from newsapi import NewsApiClient
+        api = NewsApiClient(api_key=api_key)
+        articles = api.get_everything(
+            q=f"{ticker} stock", language="en",
+            sort_by="publishedAt", page_size=20
+        ).get("articles", [])
+        for a in articles[:15]:
+            title = (a.get("title") or "").strip()
+            desc = (a.get("description") or "").strip()
+            if not title or len(title) < 10:
+                continue
+            news_list.append({
+                "source": (a.get("source") or {}).get("name", "NewsAPI"),
+                "title": title,
+                "summary": desc[:250],
+                "published_date": format_date(a.get("publishedAt")),
+                "url": a.get("url", ""),
+                "sentiment": vader_sentiment(f"{title} {desc}"),
+            })
+        print(f"QuickFetch NewsAPI: {len(news_list)} news")
+    except Exception as e:
+        print(f"QuickFetch NewsAPI error: {e}")
+    return news_list
+
+
+def fetch_google_rss(ticker: str) -> list:
+    news_list = []
+    try:
+        import feedparser
+        feed = feedparser.parse(
+            f"https://news.google.com/rss/search?q={ticker}+stock&hl=en-US&gl=US&ceid=US:en"
+        )
+        for entry in feed.entries[:20]:
+            title = entry.get("title", "").strip()
+            if not title:
+                continue
+            summary = entry.get("summary", "")
+            news_list.append({
+                "source": "Google News",
+                "title": title,
+                "summary": summary[:250],
+                "published_date": format_date(entry.get("published", "")),
+                "url": entry.get("link", ""),
+                "sentiment": vader_sentiment(f"{title} {summary}"),
+            })
+        print(f"QuickFetch Google News: {len(news_list)} news")
+    except Exception as e:
+        print(f"QuickFetch RSS error: {e}")
+    return news_list
+
+
+def save_news(ticker: str, news_list: list) -> int:
+    if not news_list:
+        return 0
+    conn = get_connection()
+    cur = conn.cursor()
+    cur.execute(
+        "SELECT lower(trim(title)), lower(trim(source)) FROM news WHERE ticker = %s",
+        (ticker,),
+    )
+    existing = set(cur.fetchall())
+    new_entries = []
+    for n in news_list:
+        tk = n["title"].lower().strip()
+        sk = n["source"].lower().strip()
+        if (tk, sk) not in existing:
+            new_entries.append((
+                ticker, n["source"], n["title"],
+                n.get("summary", ""), n["published_date"],
+                n["url"], float(n["sentiment"]),
+            ))
+            existing.add((tk, sk))
+    if new_entries:
+        psycopg2.extras.execute_values(cur, """
+            INSERT INTO news (ticker, source, title, summary, published_date, url, sentiment)
+            VALUES %s
+            ON CONFLICT (ticker, title, source) DO NOTHING
+        """, new_entries)
+        conn.commit()
+    cur.close()
+    conn.close()
+    return len(new_entries)
+
+
+def quick_fetch(ticker: str) -> int:
+    """Fetch veloce con VADER — nessun FinBERT, gira su Render."""
+    print(f"QuickFetch {ticker}...")
+    all_news = []
+    all_news.extend(fetch_alpha_vantage(ticker))
+    all_news.extend(fetch_newsapi(ticker))
+    all_news.extend(fetch_google_rss(ticker))
+
+    # Deduplicazione per URL
+    seen, unique = set(), []
+    for n in all_news:
+        if n.get("url") and n["url"] not in seen:
+            seen.add(n["url"])
+            unique.append(n)
+
+    count = save_news(ticker, unique)
+    print(f"QuickFetch {ticker}: {count} nuove news salvate")
+    return count
