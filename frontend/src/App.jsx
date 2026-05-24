@@ -40,7 +40,27 @@ export default function App() {
 
   if (authLoading) return null
   if (!user) return <Auth onLogin={setUser} />
-  
+
+  const [isPro, setIsPro] = useState(false)
+
+  useEffect(() => {
+    if (user) {
+      fetch(`${import.meta.env.VITE_API_BASE}/api/subscription/${user.id}`)
+        .then(r => r.json())
+        .then(data => setIsPro(data.status === 'pro'))
+    }
+  }, [user])
+
+  const handleUpgrade = async () => {
+    const res = await fetch(`${import.meta.env.VITE_API_BASE}/api/checkout`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ email: user.email, user_id: user.id }),
+    })
+    const data = await res.json()
+    if (data.url) window.location.href = data.url
+  }
+    
   return (
     <div style={{ display: 'flex', height: '100vh', overflow: 'hidden', background: 'var(--black)' }}>
 
@@ -102,6 +122,30 @@ export default function App() {
                 <Spinner color="var(--azure)" /> Aggiornando news...
               </span>
             )}
+
+            {isPro ? (
+              <span style={{
+                fontSize: 12, color: '#4ade80',
+                border: '1px solid rgba(74,222,128,0.3)',
+                borderRadius: 6, padding: '4px 10px',
+              }}>
+                ✓ Pro
+              </span>
+            ) : (
+              <button
+                onClick={handleUpgrade}
+                style={{
+                  fontSize: 12, color: 'white',
+                  background: 'var(--blue)',
+                  border: 'none', borderRadius: 6,
+                  padding: '4px 12px', cursor: 'pointer',
+                  fontWeight: 500,
+                }}
+              >
+                ⚡ Passa a Pro
+              </button>
+            )}
+            
             <button
               onClick={() => supabase.auth.signOut()}
               style={{
