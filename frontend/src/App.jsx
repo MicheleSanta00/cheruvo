@@ -17,6 +17,11 @@ export default function App() {
 
   const [user, setUser] = useState(null)
   const [authLoading, setAuthLoading] = useState(true)
+  const [ticker, setTicker] = useState(DEFAULT_TICKER)
+  const [days, setDays]     = useState(DEFAULT_DAYS)
+  const [period, setPeriod] = useState(DEFAULT_PERIOD)
+
+  const { tickerInfo, news, stats, prices, sentiment, loading, fetching, error, load, triggerFetch } = useFinData()
 
   useEffect(() => {
     supabase.auth.getSession().then(({ data: { session } }) => {
@@ -28,20 +33,14 @@ export default function App() {
     })
   }, [])
 
-  if (authLoading) return null
-  if (!user) return <Auth onLogin={setUser} />
-
-  const [ticker, setTicker]   = useState(DEFAULT_TICKER)
-  const [days,   setDays]     = useState(DEFAULT_DAYS)
-  const [period, setPeriod]   = useState(DEFAULT_PERIOD)
-
-  const { tickerInfo, news, stats, prices, sentiment, loading, fetching, error, load, triggerFetch } = useFinData()
-
   const handleFetch = async (t) => {
     await triggerFetch(t)
     setTimeout(() => load(t, days, period), 3000)
   }
 
+  if (authLoading) return null
+  if (!user) return <Auth onLogin={setUser} />
+  
   return (
     <div style={{ display: 'flex', height: '100vh', overflow: 'hidden', background: 'var(--black)' }}>
 
