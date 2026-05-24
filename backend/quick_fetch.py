@@ -126,6 +126,42 @@ def fetch_google_rss(ticker: str) -> list:
         print(f"QuickFetch RSS error: {e}")
     return news_list
 
+def fetch_european_rss(ticker: str) -> list:
+    news_list = []
+    try:
+        import feedparser, re
+        base = ticker.split('.')[0]
+        exchange = ticker.split('.')[-1] if '.' in ticker else ''
+        
+        urls = [
+            f"https://news.google.com/rss/search?q={base}+stock&hl=en&gl=US&ceid=US:en",
+            f"https://feeds.finance.yahoo.com/rss/2.0/headline?s={ticker}&region=US&lang=en-US",
+        ]
+        
+        if exchange == 'MI':
+            urls.append(f"https://news.google.com/rss/search?q={base}+borsa&hl=it&gl=IT&ceid=IT:it")
+            urls.append("https://www.ilsole24ore.com/rss/finanza-e-mercati.xml")
+        
+        for url in urls:
+            feed = feedparser.parse(url)
+            for entry in feed.entries[:15]:
+                title = entry.get("title", "").strip()
+                if not title:
+                    continue
+                summary = re.sub(r'<[^>]+>', '', entry.get("summary", ""))[:250]
+                news_list.append({
+                    "source": "European News",
+                    "title": title,
+                    "summary": summary,
+                    "published_date": format_date(entry.get("published", "")),
+                    "url": entry.get("link", ""),
+                    "sentiment": vader_sentiment(f"{title} {summary}"),
+                })
+        print(f"QuickFetch European RSS: {len(news_list)} news")
+    except Exception as e:
+        print(f"QuickFetch European RSS error: {e}")
+    return news_list
+
 
 def save_news(ticker: str, news_list: list) -> int:
     if not news_list:
@@ -161,14 +197,16 @@ def save_news(ticker: str, news_list: list) -> int:
 
 
 def quick_fetch(ticker: str) -> int:
-    """Fetch veloce con VADER — nessun FinBERT, gira su Render."""
     print(f"QuickFetch {ticker}...")
     all_news = []
     all_news.extend(fetch_alpha_vantage(ticker))
     all_news.extend(fetch_newsapi(ticker))
     all_news.extend(fetch_google_rss(ticker))
+    
+    # Aggiungi fonti europee se ticker europeo
+    if '.' in ticker:
+        all_news.extend(fetch_european_rss(ticker))
 
-    # Deduplicazione per URL
     seen, unique = set(), []
     for n in all_news:
         if n.get("url") and n["url"] not in seen:

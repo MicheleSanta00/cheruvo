@@ -7,7 +7,14 @@ sys.path.insert(0, os.path.dirname(__file__))
 from data.database import SuperNewsAnalyzer
 from backend.alerts import check_and_send_alerts
 
-DEFAULT_TICKERS = ['NVDA', 'AAPL', 'TSLA', 'MSFT', 'GOOGL', 'META', 'AMD', 'AMZN']
+DEFAULT_TICKERS = [
+    # USA
+    'NVDA', 'AAPL', 'TSLA', 'MSFT', 'GOOGL', 'META', 'AMD', 'AMZN',
+    # Italia
+    'ENI.MI', 'ENEL.MI', 'ISP.MI', 'UCG.MI', 'STM.MI', 'RACE.MI', 'TIT.MI', 'BAMI.MI',
+    # Europa top
+    'LVMH.PA', 'SAP.DE', 'ASML.AS', 'NESN.SW', 'SHEL.L', 'NOVN.SW',
+]
 
 def get_all_tickers():
     conn = psycopg2.connect(os.environ["DATABASE_URL"])

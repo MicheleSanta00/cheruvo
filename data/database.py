@@ -269,6 +269,79 @@ class SuperNewsAnalyzer:
         print(f"RSS totale: {len(news_list)} news")
         return news_list
     
+    def fetch_european_news(self):
+        """Fonti specifiche per azioni europee."""
+        news_list = []
+        finbert = get_finbert()
+        
+        # Estrai il nome base del ticker (es. ENI da ENI.MI)
+        base = self.ticker.split('.')[0]
+        exchange = self.ticker.split('.')[-1] if '.' in self.ticker else ''
+        
+        # Mappa exchange → lingua/paese per Google News
+        lang_map = {
+            'MI': ('it', 'IT', 'it'),
+            'PA': ('fr', 'FR', 'fr'),
+            'DE': ('de', 'DE', 'de'),
+            'L':  ('en', 'GB', 'en'),
+            'AS': ('nl', 'NL', 'nl'),
+            'MC': ('es', 'ES', 'es'),
+        }
+        lang, country, hl = lang_map.get(exchange, ('en', 'US', 'en'))
+        
+        sources = {
+            # Google News in lingua locale
+            f"https://news.google.com/rss/search?q={base}+azione&hl={hl}&gl={country}&ceid={country}:{hl}": f"Google News {country}",
+            # Google News in inglese (sempre utile)
+            f"https://news.google.com/rss/search?q={base}+stock&hl=en&gl=US&ceid=US:en": "Google News EN",
+            # Yahoo Finance ticker-specifico
+            f"https://feeds.finance.yahoo.com/rss/2.0/headline?s={self.ticker}&region=US&lang=en-US": "Yahoo Finance",
+        }
+        
+        # Fonti italiane se .MI
+        if exchange == 'MI':
+            sources.update({
+                "https://www.ilsole24ore.com/rss/finanza-e-mercati.xml": "Il Sole 24 Ore",
+                "https://www.milanofinanza.it/rss": "Milano Finanza",
+                f"https://news.google.com/rss/search?q={base}+borsa+italiana&hl=it&gl=IT&ceid=IT:it": "Google News Borsa IT",
+            })
+        
+        # Fonti pan-europee
+        sources.update({
+            "https://feeds.reuters.com/reuters/businessNews": "Reuters Business",
+            f"https://news.google.com/rss/search?q={base}+Europa+finanza&hl=it&gl=IT&ceid=IT:it": "Google News Europa",
+        })
+        
+        for url, name in sources.items():
+            try:
+                import feedparser, re
+                feed = feedparser.parse(url)
+                count = 0
+                for entry in feed.entries[:20]:
+                    title = entry.get("title", "").strip()
+                    if not title or len(title) < 10:
+                        continue
+                    # Per fonti generiche filtra per nome ticker
+                    if name in ["Reuters Business"] and base.lower() not in title.lower():
+                        continue
+                    summary = entry.get("summary", "") or entry.get("description", "")
+                    summary = re.sub(r'<[^>]+>', '', summary)[:250]
+                    news_list.append({
+                        "source": name,
+                        "title": title,
+                        "summary": summary,
+                        "published_date": self._format_date(entry.get("published", "")),
+                        "url": entry.get("link", ""),
+                        "sentiment": finbert.predict(f"{title} {summary}"),
+                    })
+                    count += 1
+                if count:
+                    print(f"  EU RSS {name}: {count} news")
+            except Exception as e:
+                print(f"  EU RSS {name}: {str(e)[:60]}")
+        
+        return news_list
+
     def fetch_sec(self):
         """SEC EDGAR — comunicati ufficiali (earnings, acquisizioni, ecc.)"""
         news_list = []
@@ -375,19 +448,29 @@ class SuperNewsAnalyzer:
     def mega_fetch_silent(self):
         print(f"[{datetime.now():%H:%M:%S}] Aggiornamento {self.ticker}...")
         all_news = []
-        for nome, fn in [
+        
+        # Determina se è un ticker europeo
+        is_european = '.' in self.ticker and self.ticker.split('.')[-1] in ['MI', 'PA', 'DE', 'L', 'AS', 'MC']
+        
+        sources = [
             ("Alpha Vantage", self.fetch_alpha_vantage),
             ("NewsAPI",       self.fetch_newsapi),
             ("FMP",           self.fetch_fmp_news),
             ("RSS",           self.fetch_rss),
             ("SEC EDGAR",     self.fetch_sec),
-        ]:
+        ]
+        
+        if is_european:
+            sources.append(("European News", self.fetch_european_news))
+        
+        for nome, fn in sources:
             print(f"  → {nome}")
             try:
                 all_news.extend(fn())
             except Exception as e:
                 print(f"  ✗ {nome}: {e}")
             time.sleep(0.5)
+        
         seen, uniche = set(), []
         for n in all_news:
             if n.get("url") and n["url"] not in seen:
