@@ -1,16 +1,19 @@
 import { useState, useEffect } from 'react'
 import { supabase } from '../supabase.js'
+import { useLang } from '../LangContext.jsx'
 
 export default function Profile({ user, isPro, onClose, onUpgrade }) {
+  const { t, lang } = useLang()
   const [createdAt, setCreatedAt] = useState('')
 
   useEffect(() => {
     if (user?.created_at) {
-      setCreatedAt(new Date(user.created_at).toLocaleDateString('en-US', {
-        day: '2-digit', month: 'long', year: 'numeric'
-      }))
+      setCreatedAt(new Date(user.created_at).toLocaleDateString(
+        lang === 'it' ? 'it-IT' : 'en-US',
+        { day: '2-digit', month: 'long', year: 'numeric' }
+      ))
     }
-  }, [user])
+  }, [user, lang])
 
   return (
     <div style={{
@@ -46,17 +49,17 @@ export default function Profile({ user, isPro, onClose, onUpgrade }) {
         </div>
 
         <h2 style={{ fontSize: 18, fontWeight: 500, margin: '0 0 4px', letterSpacing: '-0.01em' }}>
-          Your profile
+          {t.profile.title}
         </h2>
         <p style={{ fontSize: 13, color: 'var(--muted)', margin: '0 0 28px' }}>
-          Manage your FinSentinel account
+          {t.profile.subtitle}
         </p>
 
         <div style={{ display: 'flex', flexDirection: 'column', gap: 12, marginBottom: 28 }}>
-          <Row label="Email" value={user?.email} />
-          <Row label="Member since" value={createdAt} />
+          <Row label={t.profile.email} value={user?.email} />
+          <Row label={t.profile.joinedAt} value={createdAt} />
           <Row
-            label="Plan"
+            label={t.profile.plan}
             value={
               <span style={{
                 fontSize: 12, padding: '3px 10px', borderRadius: 6,
@@ -64,7 +67,7 @@ export default function Profile({ user, isPro, onClose, onUpgrade }) {
                 border: `1px solid ${isPro ? 'rgba(74,222,128,0.3)' : 'var(--border)'}`,
                 color: isPro ? '#4ade80' : 'var(--muted)',
               }}>
-                {isPro ? '✓ Pro' : 'Free'}
+                {isPro ? t.profile.planPro : t.profile.planFree}
               </span>
             }
           />
@@ -79,9 +82,22 @@ export default function Profile({ user, isPro, onClose, onUpgrade }) {
               fontWeight: 500, marginBottom: 12, cursor: 'pointer',
             }}
           >
-            ⚡ Upgrade to Pro — €9/month
+            {t.profile.upgradePro}
           </button>
         )}
+
+        <a
+          href="https://finsentinel-five.vercel.app"
+          style={{
+            display: 'block', width: '100%', textAlign: 'center',
+            background: 'transparent', color: 'var(--muted)',
+            border: '1px solid var(--border)', borderRadius: 8,
+            padding: '10px 0', fontSize: 13, textDecoration: 'none',
+            marginBottom: 8,
+          }}
+        >
+          {t.profile.homepage}
+        </a>
 
         <button
           onClick={() => supabase.auth.signOut()}
@@ -91,7 +107,7 @@ export default function Profile({ user, isPro, onClose, onUpgrade }) {
             padding: '10px 0', fontSize: 13, cursor: 'pointer',
           }}
         >
-          Sign out
+          {t.profile.logout}
         </button>
       </div>
     </div>

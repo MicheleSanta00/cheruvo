@@ -1,7 +1,9 @@
 import { useState } from 'react'
 import { supabase } from '../supabase'
+import { useLang } from '../LangContext.jsx'
 
 export default function Auth({ onLogin }) {
+  const { lang, t, toggleLang } = useLang()
   const [email, setEmail]       = useState('')
   const [password, setPassword] = useState('')
   const [isLogin, setIsLogin]   = useState(true)
@@ -21,7 +23,7 @@ export default function Auth({ onLogin }) {
     } else {
       const { error } = await supabase.auth.signUp({ email, password })
       if (error) setError(error.message)
-      else setMessage('Check your email to confirm your registration!')
+      else setMessage(t.auth.confirmEmail)
     }
     setLoading(false)
   }
@@ -34,7 +36,23 @@ export default function Auth({ onLogin }) {
       <div style={{
         width: '100%', maxWidth: 360, background: 'var(--near-black)',
         border: '1px solid var(--border)', borderRadius: 16, padding: 32,
+        position: 'relative',
       }}>
+
+        {/* Switch lingua */}
+        <button
+          onClick={toggleLang}
+          style={{
+            position: 'absolute', top: 16, right: 16,
+            fontSize: 16, background: 'transparent',
+            border: '1px solid var(--border)', borderRadius: 6,
+            padding: '4px 8px', cursor: 'pointer', lineHeight: 1,
+          }}
+          title={lang === 'it' ? 'Switch to English' : "Passa all'italiano"}
+        >
+          {lang === 'it' ? '🇮🇹' : '🇬🇧'}
+        </button>
+
         {/* Logo */}
         <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 28 }}>
           <div style={{
@@ -50,16 +68,16 @@ export default function Auth({ onLogin }) {
         </div>
 
         <h2 style={{ fontSize: 20, fontWeight: 500, marginBottom: 6, letterSpacing: '-0.02em' }}>
-          {isLogin ? 'Sign in' : 'Create account'}
+          {isLogin ? t.auth.login : t.auth.register}
         </h2>
         <p style={{ fontSize: 13, color: 'var(--muted)', marginBottom: 24 }}>
-          {isLogin ? 'Welcome back to FinSentinel' : 'Start for free, no credit card required'}
+          {isLogin ? t.auth.welcome : t.auth.noCard}
         </p>
 
         <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
           <input
             type="email"
-            placeholder="Email"
+            placeholder={t.auth.email}
             value={email}
             onChange={e => setEmail(e.target.value)}
             onKeyDown={e => e.key === 'Enter' && handle()}
@@ -71,7 +89,7 @@ export default function Auth({ onLogin }) {
           />
           <input
             type="password"
-            placeholder="Password"
+            placeholder={t.auth.password}
             value={password}
             onChange={e => setPassword(e.target.value)}
             onKeyDown={e => e.key === 'Enter' && handle()}
@@ -83,12 +101,8 @@ export default function Auth({ onLogin }) {
           />
         </div>
 
-        {error && (
-          <p style={{ fontSize: 13, color: '#f87171', marginTop: 12 }}>{error}</p>
-        )}
-        {message && (
-          <p style={{ fontSize: 13, color: '#4ade80', marginTop: 12 }}>{message}</p>
-        )}
+        {error && <p style={{ fontSize: 13, color: '#f87171', marginTop: 12 }}>{error}</p>}
+        {message && <p style={{ fontSize: 13, color: '#4ade80', marginTop: 12 }}>{message}</p>}
 
         <button
           onClick={handle}
@@ -100,16 +114,16 @@ export default function Auth({ onLogin }) {
             cursor: loading ? 'default' : 'pointer',
           }}
         >
-          {loading ? 'Loading...' : isLogin ? 'Sign in' : 'Sign up'}
+          {loading ? t.auth.loading : isLogin ? t.auth.login : t.auth.register}
         </button>
 
         <p style={{ fontSize: 13, color: 'var(--muted)', textAlign: 'center', marginTop: 16 }}>
-          {isLogin ? "Don't have an account?" : 'Already have an account?'}{' '}
+          {isLogin ? t.auth.noAccount : t.auth.hasAccount}{' '}
           <span
             onClick={() => { setIsLogin(!isLogin); setError(''); setMessage('') }}
             style={{ color: 'var(--azure)', cursor: 'pointer' }}
           >
-            {isLogin ? 'Sign up' : 'Sign in'}
+            {isLogin ? t.auth.register : t.auth.login}
           </span>
         </p>
       </div>

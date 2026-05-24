@@ -1,12 +1,15 @@
+import { useLang } from '../LangContext.jsx'
+
 export default function KPIGrid({ stats }) {
+  const { t } = useLang()
   if (!stats) return null
 
   const items = [
-    { label: 'Total news',       value: stats.total?.toLocaleString(),             cls: 'blue' },
-    { label: 'Avg sentiment',    value: fmt(stats.avg), cls: stats.avg >= 0 ? 'pos' : 'neg' },
-    { label: 'Positive peak',    value: fmt(stats.max), cls: 'pos' },
-    { label: 'Negative peak',    value: fmt(stats.min), cls: 'neg' },
-    { label: 'Active sources',   value: stats.sources,                             cls: '' },
+    { label: t.kpi.total,   value: stats.total?.toLocaleString(), cls: 'blue' },
+    { label: t.kpi.avg,     value: fmt(stats.avg),                cls: stats.avg >= 0 ? 'pos' : 'neg' },
+    { label: t.kpi.max,     value: fmt(stats.max),                cls: 'pos' },
+    { label: t.kpi.min,     value: fmt(stats.min),                cls: 'neg' },
+    { label: t.kpi.sources, value: stats.sources,                 cls: '' },
   ]
 
   return (

@@ -1,15 +1,17 @@
 import { useState, useEffect, useRef } from 'react'
 import { supabase } from '../supabase.js'
 import { TICKERS } from '../data/tickers.js'
+import { useLang } from '../LangContext.jsx'
 
 const PERIODS_FREE = [{ v: '1mo', l: '1M' }, { v: '3mo', l: '3M' }]
-const PERIODS_PRO  = [{ v: '1mo', l: '1M' }, { v: '3mo', l: '3M' }, { v: '6mo', l: '6M' }, { v: '1y', l: '1Y' }]
+const PERIODS_PRO  = [{ v: '1mo', l: '1M' }, { v: '3mo', l: '3M' }, { v: '6mo', l: '6M' }, { v: '1y', l: '1A' }]
 
 const MAX_WATCHLIST_FREE = 3
 const MAX_DAYS_FREE = 30
 const MAX_DAYS_PRO = 90
 
 export default function Sidebar({ ticker, days, period, onLoad, onFetch, loading, fetching, onTickerChange, onDaysChange, onPeriodChange, isPro, onUpgrade }) {
+  const { t } = useLang()
   const [input, setInput] = useState(ticker)
   const [watchlist, setWatchlist] = useState(['NVDA', 'AAPL', 'TSLA'])
   const [saving, setSaving] = useState(false)
@@ -19,14 +21,13 @@ export default function Sidebar({ ticker, days, period, onLoad, onFetch, loading
 
   const PERIODS = isPro ? PERIODS_PRO : PERIODS_FREE
   const maxDays = isPro ? MAX_DAYS_PRO : MAX_DAYS_FREE
-  const maxWatchlist = isPro ? Infinity : MAX_WATCHLIST_FREE
 
   const handleInputChange = (e) => {
     const val = e.target.value.toUpperCase()
     setInput(val)
     if (val.length >= 1) {
-      const filtered = TICKERS.filter(t =>
-        t.symbol.startsWith(val) || t.name.toUpperCase().includes(val)
+      const filtered = TICKERS.filter(tk =>
+        tk.symbol.startsWith(val) || tk.name.toUpperCase().includes(val)
       ).slice(0, 6)
       setSuggestions(filtered)
       setShowSuggestions(filtered.length > 0)
@@ -35,10 +36,10 @@ export default function Sidebar({ ticker, days, period, onLoad, onFetch, loading
     }
   }
 
-  const selectSuggestion = (t) => {
-    setInput(t.symbol)
+  const selectSuggestion = (tk) => {
+    setInput(tk.symbol)
     setShowSuggestions(false)
-    submit(t.symbol)
+    submit(tk.symbol)
   }
 
   useEffect(() => { loadWatchlist() }, [])
@@ -49,13 +50,10 @@ export default function Sidebar({ ticker, days, period, onLoad, onFetch, loading
     if (!error && data?.length > 0) setWatchlist(data.map(r => r.ticker))
   }
 
-  const addTicker = async (t) => {
-    const v = t.toUpperCase().trim()
+  const addTicker = async (tk) => {
+    const v = tk.toUpperCase().trim()
     if (!v || watchlist.includes(v)) return
-    if (!isPro && watchlist.length >= MAX_WATCHLIST_FREE) {
-      onUpgrade()
-      return
-    }
+    if (!isPro && watchlist.length >= MAX_WATCHLIST_FREE) { onUpgrade(); return }
     setSaving(true)
     const { data: { user } } = await supabase.auth.getUser()
     await supabase.from('watchlist').insert({ user_id: user.id, ticker: v })
@@ -63,28 +61,24 @@ export default function Sidebar({ ticker, days, period, onLoad, onFetch, loading
     setSaving(false)
   }
 
-  const removeTicker = async (t) => {
-    await supabase.from('watchlist').delete().eq('ticker', t)
-    setWatchlist(prev => prev.filter(x => x !== t))
+  const removeTicker = async (tk) => {
+    await supabase.from('watchlist').delete().eq('ticker', tk)
+    setWatchlist(prev => prev.filter(x => x !== tk))
   }
 
-  const submit = (t) => {
-    const v = (t || input).toUpperCase()
+  const submit = (tk) => {
+    const v = (tk || input).toUpperCase()
     setInput(v)
     onTickerChange(v)
     onLoad(v, days, period)
   }
 
   const handleDaysChange = (val) => {
-    const capped = Math.min(val, maxDays)
-    onDaysChange(capped)
+    onDaysChange(Math.min(val, maxDays))
   }
 
   const handlePeriodChange = (p) => {
-    if (!isPro && !PERIODS_FREE.find(x => x.v === p.v)) {
-      onUpgrade()
-      return
-    }
+    if (!isPro && !PERIODS_FREE.find(x => x.v === p.v)) { onUpgrade(); return }
     onPeriodChange(p.v)
     onLoad(ticker, days, p.v)
   }
@@ -115,7 +109,7 @@ export default function Sidebar({ ticker, days, period, onLoad, onFetch, loading
 
       {/* Search */}
       <div style={{ position: 'relative' }}>
-        <Label>Ticker</Label>
+        <Label>{t.sidebar.ticker}</Label>
         <div style={{ display: 'flex', gap: 6, marginTop: 6 }}>
           <input
             ref={inputRef}
@@ -127,7 +121,7 @@ export default function Sidebar({ ticker, days, period, onLoad, onFetch, loading
             }}
             onBlur={() => setTimeout(() => setShowSuggestions(false), 150)}
             onFocus={() => input.length >= 1 && setShowSuggestions(suggestions.length > 0)}
-            placeholder="NVDA, AAPL..."
+            placeholder="NVDA, ENI.MI..."
             style={{
               flex: 1, background: 'var(--dark)',
               border: '1px solid var(--border-br)',
@@ -149,10 +143,10 @@ export default function Sidebar({ ticker, days, period, onLoad, onFetch, loading
             borderRadius: 8, marginTop: 4, zIndex: 100,
             overflow: 'hidden', boxShadow: '0 8px 24px rgba(0,0,0,0.4)',
           }}>
-            {suggestions.map(t => (
+            {suggestions.map(tk => (
               <div
-                key={t.symbol}
-                onMouseDown={() => selectSuggestion(t)}
+                key={tk.symbol}
+                onMouseDown={() => selectSuggestion(tk)}
                 style={{
                   padding: '8px 12px', cursor: 'pointer',
                   display: 'flex', justifyContent: 'space-between',
@@ -163,15 +157,15 @@ export default function Sidebar({ ticker, days, period, onLoad, onFetch, loading
                 onMouseLeave={e => e.currentTarget.style.background = 'transparent'}
               >
                 <div>
-                  <span style={{ fontWeight: 500, color: 'var(--white)' }}>{t.symbol}</span>
-                  <span style={{ fontSize: 11, color: 'var(--muted)', marginLeft: 8 }}>{t.name}</span>
+                  <span style={{ fontWeight: 500, color: 'var(--white)' }}>{tk.symbol}</span>
+                  <span style={{ fontSize: 11, color: 'var(--muted)', marginLeft: 8 }}>{tk.name}</span>
                 </div>
                 <span style={{
                   fontSize: 10, color: 'var(--azure)',
                   background: 'rgba(96,165,250,0.08)',
                   border: '1px solid rgba(96,165,250,0.15)',
                   padding: '2px 6px', borderRadius: 4,
-                }}>{t.exchange}</span>
+                }}>{tk.exchange}</span>
               </div>
             ))}
           </div>
@@ -181,28 +175,26 @@ export default function Sidebar({ ticker, days, period, onLoad, onFetch, loading
       {/* Watchlist */}
       <div>
         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '0 8px', marginBottom: 8 }}>
-          <Label style={{ padding: 0 }}>Watchlist</Label>
-          {!isPro && (
-            <span style={{ fontSize: 10, color: 'var(--muted)' }}>{watchlist.length}/{MAX_WATCHLIST_FREE}</span>
-          )}
+          <Label style={{ padding: 0 }}>{t.sidebar.watchlist}</Label>
+          {!isPro && <span style={{ fontSize: 10, color: 'var(--muted)' }}>{watchlist.length}/{MAX_WATCHLIST_FREE}</span>}
         </div>
         <div style={{ display: 'flex', flexDirection: 'column', gap: 2 }}>
-          {watchlist.map(t => (
-            <div key={t} style={{
+          {watchlist.map(tk => (
+            <div key={tk} style={{
               display: 'flex', justifyContent: 'space-between', alignItems: 'center',
               padding: '8px 10px', borderRadius: 7,
-              background: ticker === t ? 'rgba(30,92,255,0.15)' : 'transparent',
+              background: ticker === tk ? 'rgba(30,92,255,0.15)' : 'transparent',
             }}>
               <button
-                onClick={() => submit(t)}
+                onClick={() => submit(tk)}
                 style={{
                   fontSize: 13, fontWeight: 500, flex: 1, textAlign: 'left',
-                  color: ticker === t ? 'var(--azure)' : 'var(--white)',
+                  color: ticker === tk ? 'var(--azure)' : 'var(--white)',
                   background: 'transparent',
                 }}
-              >{t}</button>
+              >{tk}</button>
               <button
-                onClick={() => removeTicker(t)}
+                onClick={() => removeTicker(tk)}
                 style={{ fontSize: 11, color: 'var(--muted)', background: 'transparent', padding: '2px 4px', opacity: 0.5 }}
               >✕</button>
             </div>
@@ -218,7 +210,7 @@ export default function Sidebar({ ticker, days, period, onLoad, onFetch, loading
                 background: 'rgba(96,165,250,0.05)', textAlign: 'left',
               }}
             >
-              ⚡ Pro for unlimited watchlist
+              {t.sidebar.proWatchlist}
             </button>
           ) : (
             <button
@@ -232,7 +224,7 @@ export default function Sidebar({ ticker, days, period, onLoad, onFetch, loading
                 opacity: saving ? 0.5 : 1,
               }}
             >
-              {saving ? 'Saving...' : '+ Add to watchlist'}
+              {saving ? t.sidebar.saving : t.sidebar.addWatchlist}
             </button>
           )}
         </div>
@@ -241,8 +233,8 @@ export default function Sidebar({ ticker, days, period, onLoad, onFetch, loading
       {/* Days slider */}
       <div>
         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '0 8px', marginBottom: 4 }}>
-          <Label style={{ padding: 0 }}>Last {days}d of news</Label>
-          {!isPro && <span style={{ fontSize: 10, color: 'var(--muted)' }}>🔒 max 30d</span>}
+          <Label style={{ padding: 0 }}>{t.sidebar.daysLabel(days)}</Label>
+          {!isPro && <span style={{ fontSize: 10, color: 'var(--muted)' }}>🔒 {t.sidebar.maxDays}</span>}
         </div>
         <input
           type="range" min={7} max={maxDays} value={Math.min(days, maxDays)}
@@ -251,14 +243,14 @@ export default function Sidebar({ ticker, days, period, onLoad, onFetch, loading
           style={{ width: '100%', marginTop: 4, accentColor: 'var(--blue)' }}
         />
         <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: 11, color: 'var(--muted)', marginTop: 4 }}>
-          <span>7d</span>
-          <span>{maxDays}d {!isPro && '(Pro: 90d)'}</span>
+          <span>{t.sidebar.daysMin}</span>
+          <span>{t.sidebar.daysMax(maxDays)} {!isPro && t.sidebar.daysProHint}</span>
         </div>
       </div>
 
       {/* Periods */}
       <div>
-        <Label>Price range</Label>
+        <Label>{t.sidebar.priceRange}</Label>
         <div style={{ display: 'flex', gap: 4, marginTop: 6, flexWrap: 'wrap' }}>
           {PERIODS_PRO.map(p => {
             const isLocked = !isPro && !PERIODS_FREE.find(x => x.v === p.v)
@@ -274,9 +266,8 @@ export default function Sidebar({ ticker, days, period, onLoad, onFetch, loading
                   background: isActive ? 'rgba(30,92,255,0.15)' : 'transparent',
                   color: isActive ? 'var(--azure)' : isLocked ? 'rgba(255,255,255,0.2)' : 'var(--muted)',
                   cursor: isLocked ? 'default' : 'pointer',
-                  position: 'relative',
                 }}
-                title={isLocked ? 'Available with Pro' : ''}
+                title={isLocked ? t.sidebar.locked : ''}
               >
                 {isLocked ? '🔒' : ''}{p.l}
               </button>
@@ -299,14 +290,13 @@ export default function Sidebar({ ticker, days, period, onLoad, onFetch, loading
           }}
         >
           <div style={{ fontSize: 12, fontWeight: 500, color: 'var(--azure)', marginBottom: 4 }}>
-            ⚡ Upgrade to Pro
+            {t.sidebar.upgradeBanner.title}
           </div>
-          <div style={{ fontSize: 11, color: 'var(--muted)', lineHeight: 1.5 }}>
-            Unlimited watchlist · 90 days<br/>
-            Email alerts · CSV export
+          <div style={{ fontSize: 11, color: 'var(--muted)', lineHeight: 1.5, whiteSpace: 'pre-line' }}>
+            {t.sidebar.upgradeBanner.desc}
           </div>
           <div style={{ fontSize: 12, color: 'var(--white)', marginTop: 8, fontWeight: 500 }}>
-            €9/month →
+            {t.sidebar.upgradeBanner.price}
           </div>
         </button>
       )}
@@ -322,7 +312,7 @@ export default function Sidebar({ ticker, days, period, onLoad, onFetch, loading
           opacity: fetching ? 0.6 : 1,
         }}
       >
-        {fetching ? 'Updating...' : '↻  Refresh news'}
+        {fetching ? t.sidebar.updating : t.sidebar.refreshNews}
       </button>
     </aside>
   )

@@ -2,6 +2,7 @@ import { useState, useEffect } from 'react'
 import Auth from './components/Auth.jsx'
 import Profile from './components/Profile.jsx'
 import { supabase } from './supabase.js'
+import { useLang } from './LangContext.jsx'
 
 import Sidebar  from './components/Sidebar.jsx'
 import KPIGrid  from './components/KPIGrid.jsx'
@@ -15,6 +16,8 @@ const DEFAULT_DAYS   = 30
 const DEFAULT_PERIOD = '3mo'
 
 export default function App() {
+  const { lang, t, toggleLang } = useLang()
+
   const [user, setUser]               = useState(null)
   const [authLoading, setAuthLoading] = useState(true)
   const [ticker, setTicker]           = useState(DEFAULT_TICKER)
@@ -45,9 +48,9 @@ export default function App() {
     }
   }, [user])
 
-  const handleFetch = async (t) => {
-    await triggerFetch(t)
-    setTimeout(() => load(t, days, period), 3000)
+  const handleFetch = async (tk) => {
+    await triggerFetch(tk)
+    setTimeout(() => load(tk, days, period), 3000)
   }
 
   const handleUpgrade = async () => {
@@ -79,16 +82,13 @@ export default function App() {
   return (
     <div style={{ display: 'flex', height: '100dvh', overflow: 'hidden', background: 'var(--black)', position: 'relative' }}>
 
-      {/* Mobile overlay */}
       {sidebarOpen && (
         <div
           onClick={() => setSidebarOpen(false)}
           style={{
             position: 'fixed', inset: 0, zIndex: 40,
             background: 'rgba(0,0,0,0.5)', backdropFilter: 'blur(2px)',
-            display: 'none',
           }}
-          className="mobile-overlay"
         />
       )}
 
@@ -100,23 +100,19 @@ export default function App() {
         />
       )}
 
-      {/* Sidebar — hidden on mobile unless open */}
-      <div style={{
-        position: 'relative', zIndex: 50,
-        transform: 'none',
-      }} className={`sidebar-wrapper ${sidebarOpen ? 'sidebar-open' : ''}`}>
+      <div style={{ position: 'relative', zIndex: 50 }}
+        className={`sidebar-wrapper ${sidebarOpen ? 'sidebar-open' : ''}`}>
         <Sidebar
           ticker={ticker} days={days} period={period}
           loading={loading} fetching={fetching} isPro={isPro}
           onTickerChange={setTicker} onDaysChange={setDays} onPeriodChange={setPeriod}
-          onLoad={(t, d, p) => { load(t, d, p); setSidebarOpen(false) }}
+          onLoad={(tk, d, p) => { load(tk, d, p); setSidebarOpen(false) }}
           onFetch={handleFetch} onUpgrade={handleUpgrade}
         />
       </div>
 
       <main style={{ flex: 1, display: 'flex', flexDirection: 'column', overflow: 'hidden', height: '100dvh', minWidth: 0 }}>
 
-        {/* Header */}
         <header style={{
           height: 56, flexShrink: 0,
           borderBottom: '1px solid var(--border)',
@@ -125,7 +121,6 @@ export default function App() {
           background: 'var(--near-black)',
         }}>
 
-          {/* Mobile menu button */}
           <button
             onClick={() => setSidebarOpen(!sidebarOpen)}
             className="mobile-menu-btn"
@@ -152,7 +147,7 @@ export default function App() {
             </>
           ) : (
             <span style={{ fontSize: 14, color: 'var(--muted)', fontFamily: 'var(--serif)', fontStyle: 'italic' }}>
-              Enter a ticker to start
+              {t.header.enterTicker}
             </span>
           )}
 
@@ -161,7 +156,6 @@ export default function App() {
             {news.length > 0 && (
               <button
                 onClick={handleExport}
-                title={isPro ? 'Export CSV' : 'Pro: Export CSV'}
                 style={{
                   fontSize: 12, color: isPro ? 'var(--muted)' : 'rgba(255,255,255,0.2)',
                   border: '1px solid var(--border)', borderRadius: 6,
@@ -170,7 +164,7 @@ export default function App() {
                 }}
                 className="hide-mobile"
               >
-                {isPro ? '↓ CSV' : '🔒 CSV'}
+                {isPro ? t.header.csv : t.header.csvLocked}
               </button>
             )}
 
@@ -182,7 +176,7 @@ export default function App() {
                 fontSize: 12, color: '#4ade80',
                 border: '1px solid rgba(74,222,128,0.3)',
                 borderRadius: 6, padding: '4px 10px',
-              }}>✓ Pro</span>
+              }}>{t.header.pro}</span>
             ) : (
               <button
                 onClick={handleUpgrade}
@@ -190,8 +184,21 @@ export default function App() {
                   fontSize: 12, color: 'white', background: 'var(--blue)',
                   border: 'none', borderRadius: 6, padding: '4px 12px',
                   cursor: 'pointer', fontWeight: 500,
-                }}>⚡ Pro</button>
+                }}>{t.header.upgradePro}</button>
             )}
+
+            <button
+              onClick={toggleLang}
+              style={{
+                fontSize: 14, background: 'transparent',
+                border: '1px solid var(--border)',
+                borderRadius: 6, padding: '4px 8px',
+                cursor: 'pointer', lineHeight: 1,
+              }}
+              title={lang === 'it' ? 'Switch to English' : "Passa all'italiano"}
+            >
+              {lang === 'it' ? '🇮🇹' : '🇬🇧'}
+            </button>
 
             <div
               onClick={() => setShowProfile(true)}
@@ -208,7 +215,6 @@ export default function App() {
           </div>
         </header>
 
-        {/* Content */}
         <div style={{ flex: 1, overflowY: 'auto', padding: '20px 16px', display: 'flex', flexDirection: 'column', gap: 20 }}>
 
           {error && (
@@ -220,15 +226,17 @@ export default function App() {
 
           {stats && <KPIGrid stats={stats} />}
 
-          {!loading && !tickerInfo && !error && <EmptyState />}
+          {!loading && !tickerInfo && !error && <EmptyState t={t} />}
 
           {tickerInfo && !loading && !news.length && !error && (
             <div style={{
               background: 'rgba(96,165,250,0.06)', border: '1px solid rgba(96,165,250,0.15)',
               borderRadius: 12, padding: '24px 28px', textAlign: 'center',
             }}>
-              <div style={{ fontSize: 15, color: 'var(--azure)', marginBottom: 8 }}>No news in the database</div>
-              <div style={{ fontSize: 13, color: 'var(--muted)' }}>Click <b style={{ color: 'var(--white)' }}>Refresh news</b> in the sidebar.</div>
+              <div style={{ fontSize: 15, color: 'var(--azure)', marginBottom: 8 }}>{t.main.noNews}</div>
+              <div style={{ fontSize: 13, color: 'var(--muted)' }}>
+                {t.main.noNewsHint} <b style={{ color: 'var(--white)' }}>{t.main.refreshNews}</b> {t.main.noNewsHint2}
+              </div>
             </div>
           )}
 
@@ -236,13 +244,13 @@ export default function App() {
             <div style={{ background: 'rgba(255,255,255,0.02)', border: '1px solid var(--border)', borderRadius: 12, padding: 20 }}>
               <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: 16, flexWrap: 'wrap', gap: 8 }}>
                 <div>
-                  <div style={{ fontSize: 15, fontWeight: 500, letterSpacing: '-0.01em' }}>{ticker} — Price & Sentiment</div>
-                  <div style={{ fontSize: 12, color: 'var(--muted)', marginTop: 2 }}>Candlestick OHLCV + FinBERT Sentiment</div>
+                  <div style={{ fontSize: 15, fontWeight: 500, letterSpacing: '-0.01em' }}>{t.main.chartTitle(ticker)}</div>
+                  <div style={{ fontSize: 12, color: 'var(--muted)', marginTop: 2 }}>{t.main.chartSub}</div>
                 </div>
                 <div style={{ display: 'flex', gap: 6 }}>
-                  <Legend color="var(--azure)" label="Price" />
-                  <Legend color="var(--green)" label="Positive" />
-                  <Legend color="var(--red)" label="Negative" />
+                  <Legend color="var(--azure)" label={t.main.price} />
+                  <Legend color="var(--green)" label={t.main.positive} />
+                  <Legend color="var(--red)" label={t.main.negative} />
                 </div>
               </div>
               <div style={{ height: 300 }}>
@@ -260,10 +268,10 @@ export default function App() {
               borderRadius: 12, padding: '28px', textAlign: 'center',
             }}>
               <div style={{ fontSize: 15, color: 'var(--white)', marginBottom: 8, fontWeight: 500 }}>
-                🔒 Advanced analytics
+                {t.main.advancedTitle}
               </div>
               <div style={{ fontSize: 13, color: 'var(--muted)', marginBottom: 16 }}>
-                Source breakdown, sentiment histogram and detailed analysis available with Pro.
+                {t.main.advancedDesc}
               </div>
               <button
                 onClick={handleUpgrade}
@@ -271,7 +279,7 @@ export default function App() {
                   background: 'var(--blue)', color: 'white', border: 'none',
                   borderRadius: 8, padding: '10px 24px', fontSize: 14,
                   fontWeight: 500, cursor: 'pointer',
-                }}>⚡ Upgrade to Pro — €9/month</button>
+                }}>{t.main.upgradeBtn}</button>
             </div>
           )}
 
@@ -300,7 +308,7 @@ function Legend({ color, label }) {
   )
 }
 
-function EmptyState() {
+function EmptyState({ t }) {
   return (
     <div style={{
       flex: 1, display: 'flex', flexDirection: 'column',
@@ -317,10 +325,10 @@ function EmptyState() {
         </svg>
       </div>
       <h2 style={{ fontFamily: 'var(--serif)', fontSize: 28, fontWeight: 400, letterSpacing: '-0.02em' }}>
-        Welcome to FinSentinel
+        {t.empty.title}
       </h2>
       <p style={{ fontSize: 14, color: 'var(--muted)', maxWidth: 400, lineHeight: 1.7 }}>
-        Search for a ticker in the sidebar or pick one from your watchlist to view sentiment, prices and news.
+        {t.empty.desc}
       </p>
     </div>
   )

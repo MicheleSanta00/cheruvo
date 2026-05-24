@@ -1,4 +1,7 @@
+import { useLang } from '../LangContext.jsx'
+
 export default function TopNews({ news, isPro, onUpgrade }) {
+  const { t } = useLang()
   const sorted   = [...news].sort((a, b) => b.sentiment - a.sentiment)
   const positive = sorted.slice(0, isPro ? 10 : 3)
   const negative = [...news].sort((a, b) => a.sentiment - b.sentiment).slice(0, isPro ? 5 : 2)
@@ -7,28 +10,28 @@ export default function TopNews({ news, isPro, onUpgrade }) {
     <div>
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'baseline', marginBottom: 20, flexWrap: 'wrap', gap: 8 }}>
         <h3 style={{ fontFamily: 'var(--serif)', fontSize: 22, fontWeight: 400, letterSpacing: '-0.02em' }}>
-          Top News
+          {t.topNews.title}
         </h3>
         {!isPro && (
           <span style={{ fontSize: 12, color: 'var(--muted)' }}>
-            Showing {positive.length + negative.length} of {news.length} —{' '}
+            {positive.length + negative.length} / {news.length} —{' '}
             <span
               onClick={onUpgrade}
               style={{ color: 'var(--azure)', cursor: 'pointer', textDecoration: 'underline' }}
-            >Pro to see all</span>
+            >{t.topNews.upgradeBtn}</span>
           </span>
         )}
       </div>
 
       <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(280px, 1fr))', gap: 20 }}>
-        <NewsColumn title="Bullish" items={positive} positive onUpgrade={onUpgrade} isPro={isPro} total={sorted.length} />
-        <NewsColumn title="Bearish" items={negative} positive={false} onUpgrade={onUpgrade} isPro={isPro} total={news.length} />
+        <NewsColumn title="Bullish" items={positive} positive onUpgrade={onUpgrade} isPro={isPro} total={sorted.length} t={t} />
+        <NewsColumn title="Bearish" items={negative} positive={false} onUpgrade={onUpgrade} isPro={isPro} total={news.length} t={t} />
       </div>
     </div>
   )
 }
 
-function NewsColumn({ title, items, positive, onUpgrade, isPro, total }) {
+function NewsColumn({ title, items, positive, onUpgrade, isPro, total, t }) {
   const color = positive ? 'var(--green)' : 'var(--red)'
   const hiddenCount = total - items.length
 
@@ -76,15 +79,15 @@ function NewsColumn({ title, items, positive, onUpgrade, isPro, total }) {
               padding: '12px 14px', borderRadius: '0 8px 8px 0',
               background: 'rgba(30,92,255,0.04)',
               border: '1px solid rgba(30,92,255,0.15)',
-              borderLeft: `3px solid rgba(30,92,255,0.3)`,
+              borderLeft: '3px solid rgba(30,92,255,0.3)',
               cursor: 'pointer', textAlign: 'left',
             }}
           >
             <div style={{ fontSize: 13, color: 'var(--muted)' }}>
-              🔒 +{hiddenCount} hidden articles
+              🔒 +{hiddenCount} {t.topNews.lockedTitle}
             </div>
             <div style={{ fontSize: 12, color: 'var(--azure)', marginTop: 4 }}>
-              Upgrade to Pro to unlock →
+              {t.topNews.lockedDesc}
             </div>
           </button>
         )}
