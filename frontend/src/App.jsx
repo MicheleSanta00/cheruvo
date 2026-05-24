@@ -2,7 +2,6 @@ import { useState, useEffect } from 'react'
 import Auth from './components/Auth.jsx'
 import { supabase } from './supabase.js'
 
-import { useState } from 'react'
 import Sidebar  from './components/Sidebar.jsx'
 import KPIGrid  from './components/KPIGrid.jsx'
 import Chart    from './components/Chart.jsx'
