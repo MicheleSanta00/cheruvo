@@ -43,7 +43,7 @@ def startup():
 
 # ── Endpoints ──────────────────────────────────────────────────────────────
 
-@app.get("/validate/{ticker}")
+@app.get("/api/validate/{ticker}")
 def ticker_info(ticker: str):
     """Valida ticker e restituisce nome + settore via yFinance."""
     info = validate_ticker(ticker.upper())
@@ -52,7 +52,7 @@ def ticker_info(ticker: str):
     return info
 
 
-@app.get("/news/{ticker}")
+@app.get("/api/news/{ticker}")
 def get_news(ticker: str, days: int = 30):
     """Restituisce le news con sentiment per un ticker."""
     analyzer = SuperNewsAnalyzer(ticker.upper(), API_KEY)
@@ -75,7 +75,7 @@ def get_news(ticker: str, days: int = 30):
     }
 
 
-@app.get("/prices/{ticker}")
+@app.get("/api/prices/{ticker}")
 def prices_endpoint(ticker: str, period: str = "3mo"):
     """OHLCV da yFinance."""
     df = get_prices(ticker.upper(), period)
@@ -86,7 +86,7 @@ def prices_endpoint(ticker: str, period: str = "3mo"):
     return {"prices": records}
 
 
-@app.get("/sentiment/{ticker}")
+@app.get("/api/sentiment/{ticker}")
 def sentiment_daily(ticker: str):
     """Sentiment medio giornaliero aggregato (per il grafico)."""
     analyzer = SuperNewsAnalyzer(ticker.upper(), API_KEY)
@@ -106,7 +106,7 @@ def sentiment_daily(ticker: str):
     return {"sentiment": daily.to_dict(orient="records")}
 
 
-@app.post("/fetch/{ticker}")
+@app.post("/api/fetch/{ticker}")
 def fetch_news(ticker: str, background_tasks: BackgroundTasks):
     """Avvia il mega_fetch in background per un ticker."""
     analyzer = SuperNewsAnalyzer(ticker.upper(), API_KEY)
@@ -115,7 +115,7 @@ def fetch_news(ticker: str, background_tasks: BackgroundTasks):
             "message": "Fetching news in background..."}
 
 
-@app.get("/tickers")
+@app.get("/api/tickers")
 def list_tickers():
     """Lista tutti i ticker già nel database."""
     conn = psycopg2.connect(os.environ["DATABASE_URL"])
