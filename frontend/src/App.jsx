@@ -1,5 +1,6 @@
 import { useState, useEffect } from 'react'
 import Auth from './components/Auth.jsx'
+import Profile from './components/Profile.jsx'
 import { supabase } from './supabase.js'
 
 import Sidebar  from './components/Sidebar.jsx'
@@ -15,12 +16,13 @@ const DEFAULT_PERIOD = '3mo'
 
 export default function App() {
 
-  const [user, setUser] = useState(null)
+  const [user, setUser]           = useState(null)
   const [authLoading, setAuthLoading] = useState(true)
-  const [ticker, setTicker] = useState(DEFAULT_TICKER)
-  const [days, setDays]     = useState(DEFAULT_DAYS)
-  const [period, setPeriod] = useState(DEFAULT_PERIOD)
-  const [isPro, setIsPro]   = useState(false)
+  const [ticker, setTicker]       = useState(DEFAULT_TICKER)
+  const [days, setDays]           = useState(DEFAULT_DAYS)
+  const [period, setPeriod]       = useState(DEFAULT_PERIOD)
+  const [isPro, setIsPro]         = useState(false)
+  const [showProfile, setShowProfile] = useState(false)
 
   const { tickerInfo, news, stats, prices, sentiment, loading, fetching, error, load, triggerFetch } = useFinData()
 
@@ -59,9 +61,19 @@ export default function App() {
 
   if (authLoading) return null
   if (!user) return <Auth onLogin={setUser} />
-    
+
   return (
     <div style={{ display: 'flex', height: '100vh', overflow: 'hidden', background: 'var(--black)' }}>
+
+      {/* Profilo modal */}
+      {showProfile && (
+        <Profile
+          user={user}
+          isPro={isPro}
+          onClose={() => setShowProfile(false)}
+          onUpgrade={() => { setShowProfile(false); handleUpgrade() }}
+        />
+      )}
 
       {/* Sidebar */}
       <Sidebar
@@ -145,16 +157,20 @@ export default function App() {
               </button>
             )}
 
-            <button
-              onClick={() => supabase.auth.signOut()}
+            {/* Avatar — apre profilo */}
+            <div
+              onClick={() => setShowProfile(true)}
+              title={user?.email}
               style={{
-                fontSize: 12, color: 'var(--muted)', background: 'transparent',
-                border: '1px solid var(--border)', borderRadius: 6, padding: '4px 10px',
-                cursor: 'pointer',
+                width: 30, height: 30, borderRadius: '50%',
+                background: 'var(--blue)', display: 'flex',
+                alignItems: 'center', justifyContent: 'center',
+                fontSize: 13, fontWeight: 500, cursor: 'pointer',
+                flexShrink: 0, userSelect: 'none',
               }}
             >
-              Esci
-            </button>
+              {user?.email?.[0].toUpperCase()}
+            </div>
           </div>
         </header>
 
