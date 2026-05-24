@@ -20,6 +20,7 @@ export default function App() {
   const [ticker, setTicker] = useState(DEFAULT_TICKER)
   const [days, setDays]     = useState(DEFAULT_DAYS)
   const [period, setPeriod] = useState(DEFAULT_PERIOD)
+  const [isPro, setIsPro]   = useState(false)
 
   const { tickerInfo, news, stats, prices, sentiment, loading, fetching, error, load, triggerFetch } = useFinData()
 
@@ -33,16 +34,6 @@ export default function App() {
     })
   }, [])
 
-  const handleFetch = async (t) => {
-    await triggerFetch(t)
-    setTimeout(() => load(t, days, period), 3000)
-  }
-
-  if (authLoading) return null
-  if (!user) return <Auth onLogin={setUser} />
-
-  const [isPro, setIsPro] = useState(false)
-
   useEffect(() => {
     if (user) {
       fetch(`${import.meta.env.VITE_API_BASE}/api/subscription/${user.id}`)
@@ -50,6 +41,11 @@ export default function App() {
         .then(data => setIsPro(data.status === 'pro'))
     }
   }, [user])
+
+  const handleFetch = async (t) => {
+    await triggerFetch(t)
+    setTimeout(() => load(t, days, period), 3000)
+  }
 
   const handleUpgrade = async () => {
     const res = await fetch(`${import.meta.env.VITE_API_BASE}/api/checkout`, {
@@ -60,6 +56,9 @@ export default function App() {
     const data = await res.json()
     if (data.url) window.location.href = data.url
   }
+
+  if (authLoading) return null
+  if (!user) return <Auth onLogin={setUser} />
     
   return (
     <div style={{ display: 'flex', height: '100vh', overflow: 'hidden', background: 'var(--black)' }}>
@@ -145,7 +144,7 @@ export default function App() {
                 ⚡ Passa a Pro
               </button>
             )}
-            
+
             <button
               onClick={() => supabase.auth.signOut()}
               style={{
