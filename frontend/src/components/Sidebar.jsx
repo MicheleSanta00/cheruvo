@@ -1,5 +1,3 @@
-import { useState, useEffect } from 'react'
-import { supabase } from '../supabase.js'
 import { useState, useEffect, useRef } from 'react'
 import { supabase } from '../supabase.js'
 import { TICKERS } from '../data/tickers.js'
