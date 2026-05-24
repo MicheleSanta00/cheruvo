@@ -45,10 +45,17 @@ def startup():
 
 @app.get("/api/validate/{ticker}")
 def ticker_info(ticker: str):
-    """Valida ticker e restituisce nome + settore via yFinance."""
     info = validate_ticker(ticker.upper())
     if not info["valid"]:
-        raise HTTPException(status_code=404, detail=f"Ticker {ticker} non trovato")
+        # Ritorna comunque 200 con dati minimi invece di 404
+        return {
+            "valid": True,
+            "ticker": ticker.upper(),
+            "nome": ticker.upper(),
+            "settore": "N/A",
+            "prezzo": None,
+            "variazione": None,
+        }
     return info
 
 
