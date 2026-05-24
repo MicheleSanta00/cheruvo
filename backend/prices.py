@@ -48,7 +48,7 @@ def _try_alpha_vantage(ticker: str, period: str) -> pd.DataFrame:
         r = requests.get(
             "https://www.alphavantage.co/query",
             params={
-                "function": "TIME_SERIES_DAILY_ADJUSTED",
+                "function": "TIME_SERIES_DAILY",
                 "symbol": ticker,
                 "outputsize": outputsize,
                 "apikey": api_key,
@@ -69,7 +69,7 @@ def _try_alpha_vantage(ticker: str, period: str) -> pd.DataFrame:
                 "Open":   float(values["1. open"]),
                 "High":   float(values["2. high"]),
                 "Low":    float(values["3. low"]),
-                "Close":  float(values["5. adjusted close"]),
+                "Close":  float(values["4. close"]),
                 "Volume": float(values["6. volume"]),
             })
 
