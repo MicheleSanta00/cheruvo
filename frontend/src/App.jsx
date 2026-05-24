@@ -123,6 +123,17 @@ export default function App() {
           )}
 
           <div style={{ marginLeft: 'auto', display: 'flex', alignItems: 'center', gap: 12 }}>
+  
+              <a href="https://finsentinel-five.vercel.app"
+              style={{
+                fontSize: 12, color: 'var(--muted)', textDecoration: 'none',
+                border: '1px solid var(--border)', borderRadius: 6,
+                padding: '4px 10px', transition: 'color 0.2s',
+              }}
+            >
+              ← Home
+            </a>
+
             {loading && (
               <span style={{ fontSize: 12, color: 'var(--muted)', display: 'flex', alignItems: 'center', gap: 6 }}>
                 <Spinner /> Caricamento...
