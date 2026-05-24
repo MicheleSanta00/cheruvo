@@ -1,10 +1,42 @@
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
+import { supabase } from '../supabase.js'
 
-const WATCHLIST = ['NVDA', 'AAPL', 'TSLA', 'MSFT', 'GOOGL', 'META', 'AMD', 'AMZN']
-const PERIODS   = [{ v: '1mo', l: '1M' }, { v: '3mo', l: '3M' }, { v: '6mo', l: '6M' }, { v: '1y', l: '1A' }]
+const DEFAULT_WATCHLIST = ['NVDA', 'AAPL', 'TSLA', 'MSFT', 'GOOGL']
+const PERIODS = [{ v: '1mo', l: '1M' }, { v: '3mo', l: '3M' }, { v: '6mo', l: '6M' }, { v: '1y', l: '1A' }]
 
 export default function Sidebar({ ticker, days, period, onLoad, onFetch, loading, fetching, onTickerChange, onDaysChange, onPeriodChange }) {
   const [input, setInput] = useState(ticker)
+  const [watchlist, setWatchlist] = useState(DEFAULT_WATCHLIST)
+  const [saving, setSaving] = useState(false)
+
+  useEffect(() => {
+    loadWatchlist()
+  }, [])
+
+  const loadWatchlist = async () => {
+    const { data, error } = await supabase
+      .from('watchlist')
+      .select('ticker')
+      .order('created_at', { ascending: true })
+    if (!error && data.length > 0) {
+      setWatchlist(data.map(r => r.ticker))
+    }
+  }
+
+  const addTicker = async (t) => {
+    const v = t.toUpperCase().trim()
+    if (!v || watchlist.includes(v)) return
+    setSaving(true)
+    const { data: { user } } = await supabase.auth.getUser()
+    await supabase.from('watchlist').insert({ user_id: user.id, ticker: v })
+    setWatchlist(prev => [...prev, v])
+    setSaving(false)
+  }
+
+  const removeTicker = async (t) => {
+    await supabase.from('watchlist').delete().eq('ticker', t)
+    setWatchlist(prev => prev.filter(x => x !== t))
+  }
 
   const submit = (t) => {
     const v = (t || input).toUpperCase()
@@ -60,7 +92,7 @@ export default function Sidebar({ ticker, days, period, onLoad, onFetch, loading
             style={{
               background: 'var(--blue)', color: 'white',
               borderRadius: 7, padding: '0 12px', fontSize: 13,
-              fontWeight: 500, transition: 'opacity .2s',
+              fontWeight: 500,
             }}
           >→</button>
         </div>
@@ -70,23 +102,49 @@ export default function Sidebar({ ticker, days, period, onLoad, onFetch, loading
       <div>
         <Label>Watchlist</Label>
         <div style={{ marginTop: 6, display: 'flex', flexDirection: 'column', gap: 2 }}>
-          {WATCHLIST.map(t => (
-            <button
+          {watchlist.map(t => (
+            <div
               key={t}
-              onClick={() => submit(t)}
               style={{
                 display: 'flex', justifyContent: 'space-between', alignItems: 'center',
-                padding: '8px 10px', borderRadius: 7, fontSize: 13, fontWeight: 500,
+                padding: '8px 10px', borderRadius: 7,
                 background: ticker === t ? 'rgba(30,92,255,0.15)' : 'transparent',
-                color: ticker === t ? 'var(--azure)' : 'var(--white)',
-                transition: 'background .15s',
               }}
-              onMouseEnter={e => { if (ticker !== t) e.currentTarget.style.background = 'rgba(255,255,255,0.05)' }}
-              onMouseLeave={e => { if (ticker !== t) e.currentTarget.style.background = 'transparent' }}
             >
-              <span>{t}</span>
-            </button>
+              <button
+                onClick={() => submit(t)}
+                style={{
+                  fontSize: 13, fontWeight: 500, flex: 1, textAlign: 'left',
+                  color: ticker === t ? 'var(--azure)' : 'var(--white)',
+                  background: 'transparent',
+                }}
+              >{t}</button>
+              <button
+                onClick={() => removeTicker(t)}
+                style={{
+                  fontSize: 11, color: 'var(--muted)',
+                  background: 'transparent', padding: '2px 4px',
+                  opacity: 0.5,
+                }}
+                title="Rimuovi"
+              >✕</button>
+            </div>
           ))}
+
+          {/* Aggiungi ticker */}
+          <button
+            onClick={() => { if (input) addTicker(input) }}
+            disabled={saving}
+            style={{
+              marginTop: 6, padding: '7px 10px', borderRadius: 7,
+              fontSize: 12, color: 'var(--muted)',
+              border: '1px dashed rgba(255,255,255,0.1)',
+              background: 'transparent', textAlign: 'left',
+              opacity: saving ? 0.5 : 1,
+            }}
+          >
+            {saving ? 'Salvando...' : '+ Aggiungi alla watchlist'}
+          </button>
         </div>
       </div>
 
@@ -118,14 +176,12 @@ export default function Sidebar({ ticker, days, period, onLoad, onFetch, loading
                 borderColor: period === p.v ? 'rgba(30,92,255,0.5)' : 'var(--border-br)',
                 background: period === p.v ? 'rgba(30,92,255,0.15)' : 'transparent',
                 color: period === p.v ? 'var(--azure)' : 'var(--muted)',
-                transition: 'all .15s',
               }}
             >{p.l}</button>
           ))}
         </div>
       </div>
 
-      {/* Spacer */}
       <div style={{ flex: 1 }} />
 
       {/* Fetch button */}
@@ -137,10 +193,7 @@ export default function Sidebar({ ticker, days, period, onLoad, onFetch, loading
           borderRadius: 8, padding: '11px 0',
           fontSize: 13, fontWeight: 500,
           opacity: fetching ? 0.6 : 1,
-          transition: 'opacity .2s, transform .15s',
         }}
-        onMouseEnter={e => { e.currentTarget.style.transform = 'translateY(-1px)' }}
-        onMouseLeave={e => { e.currentTarget.style.transform = 'translateY(0)' }}
       >
         {fetching ? 'Aggiornamento...' : '↻  Aggiorna news'}
       </button>
