@@ -18,7 +18,10 @@ app = FastAPI(title="FinSentinel API", version="2.0.0")
 
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["*"],   # in produzione: ["https://tuodominio.com"]
+    allow_origins=[
+        "https://finsentinel-three.vercel.app",
+        "https://finsentinel-five.vercel.app",
+    ],
     allow_methods=["*"],
     allow_headers=["*"],
 )
