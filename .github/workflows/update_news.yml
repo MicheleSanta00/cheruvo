@@ -24,4 +24,5 @@ jobs:
           NEWSAPI: ${{ secrets.NEWSAPI }}
           FMP: ${{ secrets.FMP }}
           DATABASE_URL: ${{ secrets.DATABASE_URL }}
+          PYTHONPATH: ${{ github.workspace }}
         run: python updater.py
