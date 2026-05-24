@@ -1,3 +1,7 @@
+import { useState, useEffect } from 'react'
+import Auth from './components/Auth.jsx'
+import { supabase } from './supabase.js'
+
 import { useState } from 'react'
 import Sidebar  from './components/Sidebar.jsx'
 import KPIGrid  from './components/KPIGrid.jsx'
@@ -11,6 +15,23 @@ const DEFAULT_DAYS   = 30
 const DEFAULT_PERIOD = '3mo'
 
 export default function App() {
+
+  const [user, setUser] = useState(null)
+  const [authLoading, setAuthLoading] = useState(true)
+
+  useEffect(() => {
+    supabase.auth.getSession().then(({ data: { session } }) => {
+      setUser(session?.user ?? null)
+      setAuthLoading(false)
+    })
+    supabase.auth.onAuthStateChange((_event, session) => {
+      setUser(session?.user ?? null)
+    })
+  }, [])
+
+  if (authLoading) return null
+  if (!user) return <Auth onLogin={setUser} />
+
   const [ticker, setTicker]   = useState(DEFAULT_TICKER)
   const [days,   setDays]     = useState(DEFAULT_DAYS)
   const [period, setPeriod]   = useState(DEFAULT_PERIOD)
@@ -83,6 +104,16 @@ export default function App() {
                 <Spinner color="var(--azure)" /> Aggiornando news...
               </span>
             )}
+            <button
+              onClick={() => supabase.auth.signOut()}
+              style={{
+                fontSize: 12, color: 'var(--muted)', background: 'transparent',
+                border: '1px solid var(--border)', borderRadius: 6, padding: '4px 10px',
+                cursor: 'pointer',
+              }}
+            >
+              Esci
+            </button>
           </div>
         </header>
 
