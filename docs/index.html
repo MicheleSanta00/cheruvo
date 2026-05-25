@@ -36,8 +36,13 @@
     .nav-link { font-size:14px; color:var(--muted); padding:6px 12px; border-radius:6px; transition:color .15s,background .15s; }
     .nav-link:hover { color:var(--white); background:rgba(255,255,255,0.05); }
     .lang-btn {
-      font-size:16px; background:transparent; border:1px solid var(--border);
-      border-radius:6px; padding:5px 9px; line-height:1; transition:border-color .2s;
+      font-size:16px; background:transparent;
+      border:1px solid rgba(255,255,255,0.2);
+      border-radius:6px; padding:5px 9px; line-height:1;
+      transition:border-color .2s;
+      cursor: pointer;
+      flex-shrink: 0;
+      color: var(--white);
     }
     .lang-btn:hover { border-color:rgba(255,255,255,0.2); }
     .nav-cta { background:var(--blue); color:white; border:none; border-radius:8px; padding:8px 18px; font-size:14px; font-weight:500; transition:opacity .2s; }
