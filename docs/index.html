@@ -1,10 +1,10 @@
 <!DOCTYPE html>
-<html lang="en">
+<html lang="it">
 <head>
   <meta charset="UTF-8"/>
   <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
   <title>FinSentinel — AI Stock Sentiment Intelligence</title>
-  <meta name="description" content="Real-time AI-powered sentiment analysis for stocks. Track market mood from thousands of news sources and Reddit. Built for serious traders."/>
+  <meta name="description" content="Analisi del sentiment AI in tempo reale per azioni. Monitora l'umore del mercato da migliaia di fonti. Per trader seri."/>
   <link rel="preconnect" href="https://fonts.googleapis.com"/>
   <link href="https://fonts.googleapis.com/css2?family=DM+Serif+Display:ital@0;1&family=DM+Sans:wght@300;400;500;600&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet"/>
   <style>
@@ -22,16 +22,28 @@
     body { background:var(--black); color:var(--white); font-family:var(--sans); -webkit-font-smoothing:antialiased; overflow-x:hidden; }
     a { color:inherit; text-decoration:none; }
     button { cursor:pointer; font-family:var(--sans); }
+
+    /* NAV */
     nav {
       position:fixed; top:0; left:0; right:0; z-index:100;
-      height:60px; display:flex; align-items:center; padding:0 40px;
+      height:60px; display:flex; align-items:center; padding:0 40px; gap:12px;
       border-bottom:1px solid var(--border);
       background:rgba(6,7,10,0.85); backdrop-filter:blur(16px);
     }
     .nav-logo { display:flex; align-items:center; gap:10px; font-size:15px; font-weight:500; flex:1; }
     .nav-icon { width:30px; height:30px; background:var(--blue); border-radius:7px; display:flex; align-items:center; justify-content:center; }
+    .nav-links { display:flex; gap:4px; }
+    .nav-link { font-size:14px; color:var(--muted); padding:6px 12px; border-radius:6px; transition:color .15s,background .15s; }
+    .nav-link:hover { color:var(--white); background:rgba(255,255,255,0.05); }
+    .lang-btn {
+      font-size:16px; background:transparent; border:1px solid var(--border);
+      border-radius:6px; padding:5px 9px; line-height:1; transition:border-color .2s;
+    }
+    .lang-btn:hover { border-color:rgba(255,255,255,0.2); }
     .nav-cta { background:var(--blue); color:white; border:none; border-radius:8px; padding:8px 18px; font-size:14px; font-weight:500; transition:opacity .2s; }
     .nav-cta:hover { opacity:.85; }
+
+    /* HERO */
     .hero { min-height:100vh; display:flex; flex-direction:column; align-items:center; justify-content:center; padding:100px 24px 80px; text-align:center; position:relative; overflow:hidden; }
     .hero-glow { position:absolute; top:20%; left:50%; transform:translateX(-50%); width:600px; height:400px; background:radial-gradient(ellipse,rgba(30,92,255,0.18) 0%,transparent 70%); pointer-events:none; }
     .hero-badge { display:inline-flex; align-items:center; gap:8px; font-size:12px; font-weight:500; color:var(--azure); letter-spacing:.06em; text-transform:uppercase; border:1px solid rgba(96,165,250,0.25); background:rgba(96,165,250,0.06); padding:6px 14px; border-radius:100px; margin-bottom:32px; animation:fadeUp .6s ease both; }
@@ -49,22 +61,30 @@
     .t-score { font-size:12px; font-weight:600; }
     .pos { color:var(--green); }
     .neg { color:var(--red); }
+
+    /* SECTIONS */
     section { padding:100px 24px; max-width:1100px; margin:0 auto; }
     .s-label { font-size:11px; font-weight:500; letter-spacing:.1em; text-transform:uppercase; color:var(--azure); margin-bottom:16px; }
     .s-title { font-family:var(--serif); font-size:clamp(30px,4vw,48px); font-weight:400; letter-spacing:-.02em; line-height:1.1; max-width:600px; }
     .s-title em { font-style:italic; color:var(--azure); }
+
+    /* STEPS */
     .steps { display:grid; grid-template-columns:repeat(auto-fit,minmax(220px,1fr)); gap:24px; margin-top:56px; }
     .step { padding:28px; background:var(--near-black); border:1px solid var(--border); border-radius:14px; transition:border-color .2s; }
     .step:hover { border-color:rgba(30,92,255,0.3); }
     .step-num { font-family:var(--mono); font-size:11px; color:var(--muted); letter-spacing:.06em; margin-bottom:16px; }
     .step-title { font-size:17px; font-weight:500; letter-spacing:-.01em; margin-bottom:10px; }
     .step-desc { font-size:14px; color:var(--off-white); line-height:1.65; font-weight:300; }
+
+    /* FEATURES */
     .features { display:grid; grid-template-columns:repeat(auto-fit,minmax(300px,1fr)); gap:16px; margin-top:56px; }
     .feature { padding:28px 28px 24px; background:var(--near-black); border:1px solid var(--border); border-radius:14px; transition:background .2s,border-color .2s; }
     .feature:hover { background:rgba(30,92,255,0.04); border-color:rgba(30,92,255,0.2); }
     .f-icon { width:40px; height:40px; border-radius:10px; background:rgba(30,92,255,0.12); border:1px solid rgba(30,92,255,0.2); display:flex; align-items:center; justify-content:center; margin-bottom:18px; font-size:18px; }
     .f-title { font-size:16px; font-weight:500; margin-bottom:8px; }
     .f-desc { font-size:14px; color:var(--off-white); line-height:1.65; font-weight:300; }
+
+    /* PRICING */
     #pricing { text-align:center; }
     #pricing .s-title { margin:0 auto 56px; }
     .plans { display:grid; grid-template-columns:repeat(auto-fit,minmax(280px,1fr)); gap:20px; max-width:700px; margin:0 auto; }
@@ -83,22 +103,30 @@
     .p-btn:hover { opacity:.85; }
     .p-btn.free { background:rgba(255,255,255,0.07); color:var(--off-white); }
     .p-btn.upgrade { background:var(--blue); color:white; box-shadow:0 4px 24px rgba(30,92,255,0.4); }
+
+    /* CTA BOTTOM */
     .cta-bottom { text-align:center; padding:80px 24px 120px; max-width:700px; margin:0 auto; }
     .cta-bottom h2 { font-family:var(--serif); font-size:clamp(32px,5vw,56px); font-weight:400; letter-spacing:-.02em; margin-bottom:20px; }
     .cta-bottom p { font-size:17px; color:var(--off-white); font-weight:300; margin-bottom:36px; }
+
+    /* FOOTER */
     footer { border-top:1px solid var(--border); padding:32px 40px; display:flex; align-items:center; justify-content:space-between; flex-wrap:wrap; gap:16px; font-size:13px; color:var(--muted); }
     hr.div { border:none; border-top:1px solid var(--border); }
+
     @keyframes fadeUp { from{opacity:0;transform:translateY(18px)} to{opacity:1;transform:translateY(0)} }
-    @media(max-width:640px){
-      nav{padding:0 20px;}
-      .hero{padding:90px 20px 60px;}
-      .hero-glow{width:320px;}
-      footer{flex-direction:column;align-items:flex-start;padding:24px 20px;}
+
+    @media(max-width:768px){
+      nav { padding:0 16px; }
+      .nav-links { display:none; }
+      .hero { padding:90px 20px 60px; }
+      .hero-glow { width:320px; }
+      footer { flex-direction:column; align-items:flex-start; padding:24px 20px; }
     }
   </style>
 </head>
 <body>
 
+<!-- NAV -->
 <nav>
   <div class="nav-logo">
     <div class="nav-icon">
@@ -109,113 +137,165 @@
     </div>
     FinSentinel
   </div>
+  <div class="nav-links">
+    <a href="#how-it-works" class="nav-link" data-i18n="navHow">Come funziona</a>
+    <a href="#features" class="nav-link" data-i18n="navFeatures">Funzionalità</a>
+    <a href="#pricing" class="nav-link" data-i18n="navPricing">Prezzi</a>
+  </div>
+  <button class="lang-btn" id="lang-btn" onclick="toggleLang()">🇬🇧</button>
   <a href="https://finsentinel-three.vercel.app" target="_blank">
-    <button class="nav-cta">Launch app →</button>
+    <button class="nav-cta" data-i18n="navCta">Apri l'app →</button>
   </a>
 </nav>
 
+<!-- HERO -->
 <div class="hero">
   <div class="hero-glow"></div>
   <div class="hero-badge">
     <svg width="8" height="8" viewBox="0 0 8 8"><circle cx="4" cy="4" r="4" fill="var(--green)"/></svg>
-    Live · Powered by FinBERT AI
+    <span data-i18n="heroBadge">Live · Powered by FinBERT AI</span>
   </div>
-  <h1 class="hero-title">Know the market's mood<br/><em>before it moves</em></h1>
-  <p class="hero-sub">FinSentinel aggregates thousands of financial news articles and Reddit posts, then scores them with AI to surface what the crowd is really thinking about any stock.</p>
+  <h1 class="hero-title" data-i18n="heroTitle">Leggi l'umore del mercato<br/><em>prima che si muova</em></h1>
+  <p class="hero-sub" data-i18n="heroSub">FinSentinel aggrega migliaia di notizie finanziarie e post Reddit, poi le analizza con l'AI per mostrare cosa pensa davvero il mercato su qualsiasi azione.</p>
   <div class="hero-actions">
-    <a href="https://finsentinel-three.vercel.app" target="_blank"><button class="btn-primary">Start for free →</button></a>
-    <a href="#how-it-works"><button class="btn-secondary">See how it works</button></a>
+    <a href="https://finsentinel-three.vercel.app" target="_blank"><button class="btn-primary" data-i18n="heroBtn">Inizia gratis →</button></a>
+    <a href="#how-it-works"><button class="btn-secondary" data-i18n="heroHow">Scopri come funziona</button></a>
   </div>
   <div class="ticker-strip">
-    <div class="ticker-pill"><span class="t-sym">NVDA</span><span class="t-score pos">+0.421</span><span style="font-size:11px;color:var(--muted)">Bullish</span></div>
-    <div class="ticker-pill"><span class="t-sym">AAPL</span><span class="t-score pos">+0.187</span><span style="font-size:11px;color:var(--muted)">Neutral+</span></div>
-    <div class="ticker-pill"><span class="t-sym">TSLA</span><span class="t-score neg">−0.214</span><span style="font-size:11px;color:var(--muted)">Bearish</span></div>
-    <div class="ticker-pill"><span class="t-sym">META</span><span class="t-score pos">+0.339</span><span style="font-size:11px;color:var(--muted)">Bullish</span></div>
-    <div class="ticker-pill"><span class="t-sym">AMZN</span><span class="t-score pos">+0.092</span><span style="font-size:11px;color:var(--muted)">Neutral</span></div>
+    <div class="ticker-pill"><span class="t-sym">NVDA</span><span class="t-score pos">+0.421</span><span style="font-size:11px;color:var(--muted)" data-i18n="bullish">Rialzista</span></div>
+    <div class="ticker-pill"><span class="t-sym">ENI.MI</span><span class="t-score pos">+0.187</span><span style="font-size:11px;color:var(--muted)" data-i18n="neutral">Neutro+</span></div>
+    <div class="ticker-pill"><span class="t-sym">TSLA</span><span class="t-score neg">−0.214</span><span style="font-size:11px;color:var(--muted)" data-i18n="bearish">Ribassista</span></div>
+    <div class="ticker-pill"><span class="t-sym">RACE.MI</span><span class="t-score pos">+0.339</span><span style="font-size:11px;color:var(--muted)" data-i18n="bullish">Rialzista</span></div>
+    <div class="ticker-pill"><span class="t-sym">AMZN</span><span class="t-score pos">+0.092</span><span style="font-size:11px;color:var(--muted)" data-i18n="neutral">Neutro</span></div>
   </div>
 </div>
 
 <hr class="div"/>
 
+<!-- HOW IT WORKS -->
 <section id="how-it-works">
-  <div class="s-label">How it works</div>
-  <h2 class="s-title">From raw news to <em>actionable signal</em> in seconds</h2>
+  <div class="s-label" data-i18n="howLabel">Come funziona</div>
+  <h2 class="s-title" data-i18n="howTitle">Dal flusso grezzo di notizie al <em>segnale azionabile</em> in secondi</h2>
   <div class="steps">
-    <div class="step"><div class="step-num">01</div><div class="step-title">Enter any ticker</div><div class="step-desc">Type any US or European stock symbol. FinSentinel validates it and fetches its profile instantly.</div></div>
-    <div class="step"><div class="step-num">02</div><div class="step-title">AI scores the news</div><div class="step-desc">FinBERT — a transformer trained on financial language — reads every headline and assigns a sentiment score from −1 (very bearish) to +1 (very bullish).</div></div>
-    <div class="step"><div class="step-num">03</div><div class="step-title">See the full picture</div><div class="step-desc">Price chart overlaid with sentiment, top bullish/bearish headlines, source breakdown and a 30- or 90-day trend — all in one view.</div></div>
-    <div class="step"><div class="step-num">04</div><div class="step-title">React with confidence</div><div class="step-desc">Know whether the crowd is turning positive or negative before it shows in the price. Export to CSV for your own backtesting.</div></div>
+    <div class="step">
+      <div class="step-num">01</div>
+      <div class="step-title" data-i18n="step1Title">Inserisci un ticker</div>
+      <div class="step-desc" data-i18n="step1Desc">Scrivi qualsiasi simbolo di azione USA o europea. FinSentinel lo valida e carica il profilo istantaneamente.</div>
+    </div>
+    <div class="step">
+      <div class="step-num">02</div>
+      <div class="step-title" data-i18n="step2Title">L'AI analizza le notizie</div>
+      <div class="step-desc" data-i18n="step2Desc">FinBERT — un transformer addestrato sul linguaggio finanziario — legge ogni titolo e assegna uno score da −1 (molto ribassista) a +1 (molto rialzista).</div>
+    </div>
+    <div class="step">
+      <div class="step-num">03</div>
+      <div class="step-title" data-i18n="step3Title">Vedi il quadro completo</div>
+      <div class="step-desc" data-i18n="step3Desc">Grafico prezzo sovrapposto al sentiment, top titoli rialzisti/ribassisti, distribuzione per fonte e trend fino a 90 giorni — tutto in una schermata.</div>
+    </div>
+    <div class="step">
+      <div class="step-num">04</div>
+      <div class="step-title" data-i18n="step4Title">Agisci con più certezza</div>
+      <div class="step-desc" data-i18n="step4Desc">Sappi se il mercato sta diventando positivo o negativo prima che si rifletta nel prezzo. Esporta in CSV per il tuo backtesting.</div>
+    </div>
   </div>
 </section>
 
 <hr class="div"/>
 
+<!-- FEATURES -->
 <section id="features">
-  <div class="s-label">Features</div>
-  <h2 class="s-title">Everything a <em>serious trader</em> needs</h2>
+  <div class="s-label" data-i18n="featLabel">Funzionalità</div>
+  <h2 class="s-title" data-i18n="featTitle">Tutto ciò di cui un <em>trader serio</em> ha bisogno</h2>
   <div class="features">
-    <div class="feature"><div class="f-icon">📡</div><div class="f-title">Multi-source intelligence</div><div class="f-desc">NewsAPI, Financial Modeling Prep, Reddit, and Alpha Vantage combined into one unified feed. No single-source blind spots.</div></div>
-    <div class="feature"><div class="f-icon">🧠</div><div class="f-title">FinBERT sentiment</div><div class="f-desc">Not just positive/negative keywords — a domain-specific transformer model that understands financial context and nuance.</div></div>
-    <div class="feature"><div class="f-icon">📈</div><div class="f-title">Price + sentiment overlay</div><div class="f-desc">See candlestick OHLCV data alongside the sentiment curve to spot divergences before the market catches up.</div></div>
-    <div class="feature"><div class="f-icon">⚡</div><div class="f-title">Real-time refresh</div><div class="f-desc">Trigger on-demand news fetch for any ticker. Database updated by GitHub Actions every 6 hours automatically.</div></div>
-    <div class="feature"><div class="f-icon">📋</div><div class="f-title">CSV export <span style="font-size:11px;color:var(--azure);margin-left:4px">Pro</span></div><div class="f-desc">Download the full scored dataset for any ticker and date range to run your own quantitative analysis.</div></div>
-    <div class="feature"><div class="f-icon">🔔</div><div class="f-title">Email alerts <span style="font-size:11px;color:var(--azure);margin-left:4px">Pro</span></div><div class="f-desc">Get notified when sentiment crosses a threshold you set — without checking the dashboard every hour.</div></div>
+    <div class="feature">
+      <div class="f-icon">📡</div>
+      <div class="f-title" data-i18n="f1Title">Intelligence multi-fonte</div>
+      <div class="f-desc" data-i18n="f1Desc">NewsAPI, Alpha Vantage, RSS europei e Google News combinati in un unico feed. Nessun punto cieco da fonte singola.</div>
+    </div>
+    <div class="feature">
+      <div class="f-icon">🧠</div>
+      <div class="f-title" data-i18n="f2Title">Sentiment FinBERT</div>
+      <div class="f-desc" data-i18n="f2Desc">Non semplici keyword positivo/negativo — un transformer domain-specific che capisce il contesto e le sfumature finanziarie.</div>
+    </div>
+    <div class="feature">
+      <div class="f-icon">📈</div>
+      <div class="f-title" data-i18n="f3Title">Overlay prezzo + sentiment</div>
+      <div class="f-desc" data-i18n="f3Desc">Candlestick OHLCV affiancati alla curva del sentiment per individuare divergenze prima che il mercato le colga.</div>
+    </div>
+    <div class="feature">
+      <div class="f-icon">⚡</div>
+      <div class="f-title" data-i18n="f4Title">Aggiornamento in tempo reale</div>
+      <div class="f-desc" data-i18n="f4Desc">Fetch on-demand per qualsiasi ticker. Database aggiornato automaticamente da GitHub Actions ogni 6 ore.</div>
+    </div>
+    <div class="feature">
+      <div class="f-icon">📋</div>
+      <div class="f-title" data-i18n="f5Title">Export CSV <span style="font-size:11px;color:var(--azure);margin-left:4px">Pro</span></div>
+      <div class="f-desc" data-i18n="f5Desc">Scarica il dataset completo con score per qualsiasi ticker e intervallo di date per la tua analisi quantitativa.</div>
+    </div>
+    <div class="feature">
+      <div class="f-icon">🔔</div>
+      <div class="f-title" data-i18n="f6Title">Alert email <span style="font-size:11px;color:var(--azure);margin-left:4px">Pro</span></div>
+      <div class="f-desc" data-i18n="f6Desc">Ricevi una notifica quando il sentiment supera una soglia — senza dover controllare la dashboard ogni ora.</div>
+    </div>
   </div>
 </section>
 
 <hr class="div"/>
 
+<!-- PRICING -->
 <section id="pricing">
-  <div class="s-label" style="text-align:center">Pricing</div>
-  <h2 class="s-title">Simple, honest pricing</h2>
+  <div class="s-label" data-i18n="pricingLabel">Prezzi</div>
+  <h2 class="s-title" data-i18n="pricingTitle">Semplice e trasparente</h2>
   <div class="plans">
     <div class="plan">
       <div class="p-name">Free</div>
       <div class="p-price">€0</div>
-      <div class="p-period">forever</div>
+      <div class="p-period" data-i18n="freePeriod">per sempre</div>
       <ul class="p-list">
-        <li>Any ticker, anytime</li>
-        <li>30-day sentiment window</li>
-        <li>Top 5 news headlines</li>
-        <li>Price chart overlay</li>
-        <li>Watchlist (3 tickers)</li>
-        <li class="off">CSV export</li>
-        <li class="off">90-day history</li>
-        <li class="off">Email alerts</li>
-        <li class="off">Advanced analytics</li>
+        <li data-i18n="free1">Qualsiasi ticker, sempre</li>
+        <li data-i18n="free2">Finestra sentiment 30 giorni</li>
+        <li data-i18n="free3">Top 5 titoli di notizie</li>
+        <li data-i18n="free4">Grafico prezzo overlay</li>
+        <li data-i18n="free5">Watchlist (3 ticker)</li>
+        <li class="off" data-i18n="free6">Export CSV</li>
+        <li class="off" data-i18n="free7">Storico 90 giorni</li>
+        <li class="off" data-i18n="free8">Alert email</li>
+        <li class="off" data-i18n="free9">Analytics avanzate</li>
       </ul>
-      <a href="https://finsentinel-three.vercel.app" target="_blank"><button class="p-btn free">Get started free</button></a>
+      <a href="https://finsentinel-three.vercel.app" target="_blank"><button class="p-btn free" data-i18n="freeCta">Inizia gratis</button></a>
     </div>
     <div class="plan pro">
-      <div class="p-badge">Most popular</div>
+      <div class="p-badge" data-i18n="proBadge">Più popolare</div>
       <div class="p-name">Pro</div>
       <div class="p-price">€9</div>
-      <div class="p-period">per month · cancel anytime</div>
+      <div class="p-period" data-i18n="proPeriod">al mese · disdici quando vuoi</div>
       <ul class="p-list">
-        <li>Everything in Free</li>
-        <li>90-day sentiment window</li>
-        <li>Full news feed (unlimited)</li>
-        <li>CSV export</li>
-        <li>Unlimited watchlist</li>
-        <li>Email alerts</li>
-        <li>Advanced analytics</li>
-        <li>Priority support</li>
+        <li data-i18n="pro1">Tutto il piano Free</li>
+        <li data-i18n="pro2">Finestra sentiment 90 giorni</li>
+        <li data-i18n="pro3">Feed notizie completo (illimitato)</li>
+        <li data-i18n="pro4">Export CSV</li>
+        <li data-i18n="pro5">Watchlist illimitata</li>
+        <li data-i18n="pro6">Alert email</li>
+        <li data-i18n="pro7">Analytics avanzate</li>
+        <li data-i18n="pro8">Supporto prioritario</li>
       </ul>
-      <a href="https://finsentinel-three.vercel.app" target="_blank"><button class="p-btn upgrade">⚡ Upgrade to Pro →</button></a>
+      <a href="https://finsentinel-three.vercel.app" target="_blank"><button class="p-btn upgrade" data-i18n="proCta">⚡ Passa a Pro →</button></a>
     </div>
   </div>
 </section>
 
 <hr class="div"/>
 
+<!-- CTA BOTTOM -->
 <div class="cta-bottom">
-  <h2>Start reading the market's mind</h2>
-  <p>Free to try. No credit card required. Up and running in 30 seconds.</p>
+  <h2 data-i18n="ctaTitle">Inizia a leggere la mente del mercato</h2>
+  <p data-i18n="ctaSub">Gratis da subito. Nessuna carta di credito. Operativo in 30 secondi.</p>
   <a href="https://finsentinel-three.vercel.app" target="_blank">
-    <button class="btn-primary" style="padding:16px 36px;font-size:16px;">Launch FinSentinel →</button>
+    <button class="btn-primary" style="padding:16px 36px;font-size:16px;" data-i18n="ctaBtn">Apri FinSentinel →</button>
   </a>
 </div>
 
+<!-- FOOTER -->
 <footer>
   <div style="display:flex;align-items:center;gap:9px;">
     <div style="width:22px;height:22px;background:var(--blue);border-radius:5px;display:flex;align-items:center;justify-content:center;">
@@ -226,9 +306,80 @@
     </div>
     <span style="font-weight:500;color:var(--white);">FinSentinel</span>
   </div>
-  <span>© 2025 FinSentinel. For informational purposes only. Not financial advice.</span>
-  <a href="https://finsentinel-three.vercel.app" target="_blank" style="color:var(--azure);">Launch app →</a>
+  <span data-i18n="footerCopy">© 2025 FinSentinel. Solo a scopo informativo. Non è consulenza finanziaria.</span>
+  <a href="https://finsentinel-three.vercel.app" target="_blank" style="color:var(--azure);" data-i18n="footerLink">Apri l'app →</a>
 </footer>
 
+<script>
+const tr = {
+  it: {
+    navHow: 'Come funziona', navFeatures: 'Funzionalità', navPricing: 'Prezzi', navCta: "Apri l'app →",
+    heroBadge: 'Live · Powered by FinBERT AI',
+    heroTitle: "Leggi l'umore del mercato<br/><em>prima che si muova</em>",
+    heroSub: 'FinSentinel aggrega migliaia di notizie finanziarie e post Reddit, poi le analizza con l\'AI per mostrare cosa pensa davvero il mercato su qualsiasi azione.',
+    heroBtn: 'Inizia gratis →', heroHow: 'Scopri come funziona',
+    bullish: 'Rialzista', bearish: 'Ribassista', neutral: 'Neutro',
+    howLabel: 'Come funziona', howTitle: "Dal flusso grezzo di notizie al <em>segnale azionabile</em> in secondi",
+    step1Title: 'Inserisci un ticker', step1Desc: 'Scrivi qualsiasi simbolo di azione USA o europea. FinSentinel lo valida e carica il profilo istantaneamente.',
+    step2Title: "L'AI analizza le notizie", step2Desc: 'FinBERT — un transformer addestrato sul linguaggio finanziario — legge ogni titolo e assegna uno score da −1 (molto ribassista) a +1 (molto rialzista).',
+    step3Title: 'Vedi il quadro completo', step3Desc: 'Grafico prezzo sovrapposto al sentiment, top titoli rialzisti/ribassisti, distribuzione per fonte e trend fino a 90 giorni — tutto in una schermata.',
+    step4Title: 'Agisci con più certezza', step4Desc: 'Sappi se il mercato sta diventando positivo o negativo prima che si rifletta nel prezzo. Esporta in CSV per il tuo backtesting.',
+    featLabel: 'Funzionalità', featTitle: 'Tutto ciò di cui un <em>trader serio</em> ha bisogno',
+    f1Title: 'Intelligence multi-fonte', f1Desc: 'NewsAPI, Alpha Vantage, RSS europei e Google News combinati in un unico feed. Nessun punto cieco da fonte singola.',
+    f2Title: 'Sentiment FinBERT', f2Desc: 'Non semplici keyword positivo/negativo — un transformer domain-specific che capisce il contesto e le sfumature finanziarie.',
+    f3Title: 'Overlay prezzo + sentiment', f3Desc: 'Candlestick OHLCV affiancati alla curva del sentiment per individuare divergenze prima che il mercato le colga.',
+    f4Title: 'Aggiornamento in tempo reale', f4Desc: 'Fetch on-demand per qualsiasi ticker. Database aggiornato automaticamente da GitHub Actions ogni 6 ore.',
+    f5Title: 'Export CSV', f5Desc: 'Scarica il dataset completo con score per qualsiasi ticker e intervallo di date per la tua analisi quantitativa.',
+    f6Title: 'Alert email', f6Desc: 'Ricevi una notifica quando il sentiment supera una soglia — senza dover controllare la dashboard ogni ora.',
+    pricingLabel: 'Prezzi', pricingTitle: 'Semplice e trasparente',
+    freePeriod: 'per sempre', free1: 'Qualsiasi ticker, sempre', free2: 'Finestra sentiment 30 giorni', free3: 'Top 5 titoli di notizie', free4: 'Grafico prezzo overlay', free5: 'Watchlist (3 ticker)', free6: 'Export CSV', free7: 'Storico 90 giorni', free8: 'Alert email', free9: 'Analytics avanzate', freeCta: 'Inizia gratis',
+    proBadge: 'Più popolare', proPeriod: 'al mese · disdici quando vuoi', pro1: 'Tutto il piano Free', pro2: 'Finestra sentiment 90 giorni', pro3: 'Feed notizie completo (illimitato)', pro4: 'Export CSV', pro5: 'Watchlist illimitata', pro6: 'Alert email', pro7: 'Analytics avanzate', pro8: 'Supporto prioritario', proCta: '⚡ Passa a Pro →',
+    ctaTitle: 'Inizia a leggere la mente del mercato', ctaSub: 'Gratis da subito. Nessuna carta di credito. Operativo in 30 secondi.', ctaBtn: 'Apri FinSentinel →',
+    footerCopy: '© 2025 FinSentinel. Solo a scopo informativo. Non è consulenza finanziaria.', footerLink: "Apri l'app →",
+  },
+  en: {
+    navHow: 'How it works', navFeatures: 'Features', navPricing: 'Pricing', navCta: 'Launch app →',
+    heroBadge: 'Live · Powered by FinBERT AI',
+    heroTitle: "Know the market's mood<br/><em>before it moves</em>",
+    heroSub: "FinSentinel aggregates thousands of financial news articles and Reddit posts, then scores them with AI to surface what the crowd is really thinking about any stock.",
+    heroBtn: 'Start for free →', heroHow: 'See how it works',
+    bullish: 'Bullish', bearish: 'Bearish', neutral: 'Neutral',
+    howLabel: 'How it works', howTitle: 'From raw news to <em>actionable signal</em> in seconds',
+    step1Title: 'Enter any ticker', step1Desc: 'Type any US or European stock symbol. FinSentinel validates it and fetches its profile instantly.',
+    step2Title: 'AI scores the news', step2Desc: 'FinBERT — a transformer trained on financial language — reads every headline and assigns a sentiment score from −1 (very bearish) to +1 (very bullish).',
+    step3Title: 'See the full picture', step3Desc: 'Price chart overlaid with sentiment, top bullish/bearish headlines, source breakdown and a 30- or 90-day trend — all in one view.',
+    step4Title: 'React with confidence', step4Desc: 'Know whether the crowd is turning positive or negative before it shows in the price. Export to CSV for your own backtesting.',
+    featLabel: 'Features', featTitle: 'Everything a <em>serious trader</em> needs',
+    f1Title: 'Multi-source intelligence', f1Desc: 'NewsAPI, Alpha Vantage, European RSS and Google News combined into one unified feed. No single-source blind spots.',
+    f2Title: 'FinBERT sentiment', f2Desc: "Not just positive/negative keywords — a domain-specific transformer model that understands financial context and nuance.",
+    f3Title: 'Price + sentiment overlay', f3Desc: 'Candlestick OHLCV data alongside the sentiment curve to spot divergences before the market catches up.',
+    f4Title: 'Real-time refresh', f4Desc: 'Trigger on-demand news fetch for any ticker. Database updated by GitHub Actions every 6 hours automatically.',
+    f5Title: 'CSV export', f5Desc: 'Download the full scored dataset for any ticker and date range to run your own quantitative analysis.',
+    f6Title: 'Email alerts', f6Desc: 'Get notified when sentiment crosses a threshold — without checking the dashboard every hour.',
+    pricingLabel: 'Pricing', pricingTitle: 'Simple, honest pricing',
+    freePeriod: 'forever', free1: 'Any ticker, anytime', free2: '30-day sentiment window', free3: 'Top 5 news headlines', free4: 'Price chart overlay', free5: 'Watchlist (3 tickers)', free6: 'CSV export', free7: '90-day history', free8: 'Email alerts', free9: 'Advanced analytics', freeCta: 'Get started free',
+    proBadge: 'Most popular', proPeriod: 'per month · cancel anytime', pro1: 'Everything in Free', pro2: '90-day sentiment window', pro3: 'Full news feed (unlimited)', pro4: 'CSV export', pro5: 'Unlimited watchlist', pro6: 'Email alerts', pro7: 'Advanced analytics', pro8: 'Priority support', proCta: '⚡ Upgrade to Pro →',
+    ctaTitle: "Start reading the market's mind", ctaSub: 'Free to try. No credit card required. Up and running in 30 seconds.', ctaBtn: 'Launch FinSentinel →',
+    footerCopy: '© 2025 FinSentinel. For informational purposes only. Not financial advice.', footerLink: 'Launch app →',
+  }
+}
+
+let lang = localStorage.getItem('fs-lang') || 'en'
+
+function applyLang(l) {
+  lang = l
+  localStorage.setItem('fs-lang', l)
+  document.documentElement.lang = l
+  document.getElementById('lang-btn').textContent = l === 'it' ? '🇮🇹' : '🇬🇧'
+  document.querySelectorAll('[data-i18n]').forEach(el => {
+    const k = el.getAttribute('data-i18n')
+    if (tr[l][k] !== undefined) el.innerHTML = tr[l][k]
+  })
+}
+
+function toggleLang() { applyLang(lang === 'it' ? 'en' : 'it') }
+
+applyLang(lang)
+</script>
 </body>
 </html>
