@@ -49,12 +49,12 @@ def check_and_send_alerts():
                 resend.Emails.send({
                     "from": "onboarding@resend.dev",
                     "to": email,
-                    "subject": f"⚠️ FinSentinel Alert — {ticker} sentiment negativo",
+                    "subject": f"⚠️ Cheruvo Alert — {ticker} sentiment negativo",
                     "html": f"""
                     <div style="font-family: sans-serif; max-width: 480px; margin: 0 auto; padding: 32px;">
                         <div style="display: flex; align-items: center; gap: 10px; margin-bottom: 24px;">
                             <div style="width: 32px; height: 32px; background: #1e5cff; border-radius: 8px;"></div>
-                            <span style="font-size: 16px; font-weight: 500;">FinSentinel</span>
+                            <span style="font-size: 16px; font-weight: 500;">Cheruvo</span>
                         </div>
                         <h2 style="font-size: 20px; margin-bottom: 8px;">Sentiment negativo su {ticker}</h2>
                         <p style="color: #666; margin-bottom: 24px;">
@@ -68,10 +68,10 @@ def check_and_send_alerts():
                         <a href="https://finsentinel-three.vercel.app" 
                            style="background: #1e5cff; color: white; padding: 12px 24px; 
                                   border-radius: 8px; text-decoration: none; font-weight: 500;">
-                            Apri FinSentinel
+                            Apri Cheruvo
                         </a>
                         <p style="color: #999; font-size: 12px; margin-top: 32px;">
-                            Stai ricevendo questa email perché sei registrato su FinSentinel.
+                            Stai ricevendo questa email perché sei registrato su Cheruvo.
                         </p>
                     </div>
                     """,

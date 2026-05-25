@@ -6,7 +6,7 @@ export const translations = {
       register: 'Registrati',
       email: 'Email',
       password: 'Password',
-      welcome: 'Bentornato su FinSentinel',
+      welcome: 'Bentornato su Cheruvo',
       noAccount: 'Non hai un account?',
       hasAccount: 'Hai già un account?',
       noCard: 'Inizia gratis, nessuna carta richiesta',
@@ -63,13 +63,13 @@ export const translations = {
     },
     // Empty state
     empty: {
-      title: 'Benvenuto in FinSentinel',
+      title: 'Benvenuto in Cheruvo',
       desc: 'Cerca un ticker nella sidebar oppure selezionane uno dalla watchlist per visualizzare sentiment, prezzi e notizie in tempo reale.',
     },
     // Profile
     profile: {
       title: 'Il tuo profilo',
-      subtitle: 'Gestisci il tuo account FinSentinel',
+      subtitle: 'Gestisci il tuo account Cheruvo',
       email: 'Email',
       joinedAt: 'Iscritto il',
       plan: 'Piano',
@@ -110,7 +110,7 @@ export const translations = {
       register: 'Sign up',
       email: 'Email',
       password: 'Password',
-      welcome: 'Welcome back to FinSentinel',
+      welcome: 'Welcome back to Cheruvo',
       noAccount: "Don't have an account?",
       hasAccount: 'Already have an account?',
       noCard: 'Start free, no card required',
@@ -167,13 +167,13 @@ export const translations = {
     },
     // Empty state
     empty: {
-      title: 'Welcome to FinSentinel',
+      title: 'Welcome to Cheruvo',
       desc: 'Search for a ticker in the sidebar or pick one from your watchlist to view sentiment, prices and real-time news.',
     },
     // Profile
     profile: {
       title: 'Your profile',
-      subtitle: 'Manage your FinSentinel account',
+      subtitle: 'Manage your Cheruvo account',
       email: 'Email',
       joinedAt: 'Joined on',
       plan: 'Plan',

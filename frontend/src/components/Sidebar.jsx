@@ -95,16 +95,8 @@ export default function Sidebar({ ticker, days, period, onLoad, onFetch, loading
 
       {/* Logo */}
       <div style={{ display: 'flex', alignItems: 'center', gap: 9, padding: '0 8px', marginBottom: 4 }}>
-        <div style={{
-          width: 28, height: 28, background: 'var(--blue)',
-          borderRadius: 7, display: 'flex', alignItems: 'center', justifyContent: 'center',
-        }}>
-          <svg width="14" height="14" viewBox="0 0 14 14" fill="none">
-            <path d="M1.5 10.5L5 6.5L8 9L12.5 4" stroke="white" strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round"/>
-            <circle cx="12.5" cy="4" r="1.2" fill="white"/>
-          </svg>
-        </div>
-        <span style={{ fontSize: 14, fontWeight: 500, letterSpacing: '-0.01em' }}>FinSentinel</span>
+        <img src="/logo.svg" alt="Cheruvo" style={{ width: 28, height: 28, borderRadius: 7 }} />
+        <span style={{ fontSize: 14, fontWeight: 500, letterSpacing: '-0.01em' }}>Cheruvo</span>
       </div>
 
       {/* Search */}

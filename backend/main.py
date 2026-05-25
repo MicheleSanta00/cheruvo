@@ -1,5 +1,5 @@
 """
-FinSentinel — FastAPI Backend
+Cheruvo — FastAPI Backend
 Sostituisce Streamlit con un'API REST pura.
 """
 from dotenv import load_dotenv
@@ -17,7 +17,7 @@ from stripe_routes import router as stripe_router, init_subscriptions_table
 from quick_fetch import quick_fetch
 
 
-app = FastAPI(title="FinSentinel API", version="2.0.0")
+app = FastAPI(title="Cheruvo API", version="2.0.0")
 
 app.add_middleware(
     CORSMiddleware,
