@@ -1,23 +1,29 @@
 """
 Cheruvo — FastAPI Backend
-Sostituisce Streamlit con un'API REST pura.
 """
 from dotenv import load_dotenv
 load_dotenv()
 
-from fastapi import FastAPI, HTTPException, BackgroundTasks
+from fastapi import FastAPI, HTTPException, BackgroundTasks, Request
 from fastapi.middleware.cors import CORSMiddleware
+from slowapi import Limiter, _rate_limit_exceeded_handler
+from slowapi.util import get_remote_address
+from slowapi.errors import RateLimitExceeded
 import os
-import psycopg2
 import pandas as pd
+import time
 
-from database import SuperNewsAnalyzer, init_database
+from database import SuperNewsAnalyzer, init_database, get_pool
 from prices import get_prices, validate_ticker
 from stripe_routes import router as stripe_router, init_subscriptions_table
 from quick_fetch import quick_fetch
 
+# ── Rate limiter ───────────────────────────────────────────────────────────
+limiter = Limiter(key_func=get_remote_address, default_limits=["60/minute"])
 
-app = FastAPI(title="Cheruvo API", version="2.0.0")
+app = FastAPI(title="Cheruvo API", version="2.1.0")
+app.state.limiter = limiter
+app.add_exception_handler(RateLimitExceeded, _rate_limit_exceeded_handler)
 
 app.add_middleware(
     CORSMiddleware,
@@ -44,23 +50,39 @@ API_KEY = {
     },
 }
 
+# ── In-memory cache ────────────────────────────────────────────────────────
+_cache: dict = {}
+CACHE_TTL = 300  # 5 minuti
+
+def cache_get(key: str):
+    entry = _cache.get(key)
+    if entry and time.time() - entry["ts"] < CACHE_TTL:
+        return entry["data"]
+    return None
+
+def cache_set(key: str, data):
+    _cache[key] = {"data": data, "ts": time.time()}
+
 
 # ── Startup ────────────────────────────────────────────────────────────────
-
 @app.on_event("startup")
 def startup():
     init_database()
     init_subscriptions_table()
+    get_pool()  # inizializza il pool di connessioni
 
 
 # ── Endpoints ──────────────────────────────────────────────────────────────
 
 @app.get("/api/validate/{ticker}")
-def ticker_info(ticker: str):
+@limiter.limit("30/minute")
+def ticker_info(ticker: str, request: Request):
+    cached = cache_get(f"validate:{ticker}")
+    if cached:
+        return cached
     info = validate_ticker(ticker.upper())
     if not info["valid"]:
-        # Ritorna comunque 200 con dati minimi invece di 404
-        return {
+        result = {
             "valid": True,
             "ticker": ticker.upper(),
             "nome": ticker.upper(),
@@ -68,46 +90,69 @@ def ticker_info(ticker: str):
             "prezzo": None,
             "variazione": None,
         }
+        cache_set(f"validate:{ticker}", result)
+        return result
+    cache_set(f"validate:{ticker}", info)
     return info
 
 
 @app.get("/api/news/{ticker}")
-def get_news(ticker: str, days: int = 30):
-    """Restituisce le news con sentiment per un ticker."""
+@limiter.limit("20/minute")
+def get_news(ticker: str, request: Request, days: int = 30):
+    cache_key = f"news:{ticker}:{days}"
+    cached = cache_get(cache_key)
+    if cached:
+        return cached
+
     analyzer = SuperNewsAnalyzer(ticker.upper(), API_KEY)
     df = analyzer.get_data(days)
     if df.empty:
-        return {"news": [], "total": 0, "avg_sentiment": 0,
-                "max_sentiment": 0, "min_sentiment": 0, "sources_count": 0}
+        result = {"news": [], "total": 0, "avg_sentiment": 0,
+                  "max_sentiment": 0, "min_sentiment": 0, "sources_count": 0}
+        cache_set(cache_key, result)
+        return result
 
     df["published_date"] = pd.to_datetime(
         df["published_date"], errors="coerce"
     ).dt.strftime("%Y-%m-%d").fillna("")
 
-    return {
-        "news":           df.to_dict(orient="records"),
-        "total":          len(df),
-        "avg_sentiment":  round(float(df["sentiment"].mean()), 4),
-        "max_sentiment":  round(float(df["sentiment"].max()), 4),
-        "min_sentiment":  round(float(df["sentiment"].min()), 4),
-        "sources_count":  int(df["source"].nunique()),
+    result = {
+        "news":          df.to_dict(orient="records"),
+        "total":         len(df),
+        "avg_sentiment": round(float(df["sentiment"].mean()), 4),
+        "max_sentiment": round(float(df["sentiment"].max()), 4),
+        "min_sentiment": round(float(df["sentiment"].min()), 4),
+        "sources_count": int(df["source"].nunique()),
     }
+    cache_set(cache_key, result)
+    return result
 
 
 @app.get("/api/prices/{ticker}")
-def prices_endpoint(ticker: str, period: str = "3mo"):
-    """OHLCV da yFinance."""
+@limiter.limit("20/minute")
+def prices_endpoint(ticker: str, request: Request, period: str = "3mo"):
+    cache_key = f"prices:{ticker}:{period}"
+    cached = cache_get(cache_key)
+    if cached:
+        return cached
     df = get_prices(ticker.upper(), period)
     if df.empty:
         raise HTTPException(status_code=404, detail="Dati prezzi non disponibili")
     df.index = df.index.strftime("%Y-%m-%d")
     records = df.reset_index().rename(columns={"index": "date"}).to_dict(orient="records")
-    return {"prices": records}
+    result = {"prices": records}
+    cache_set(cache_key, result)
+    return result
 
 
 @app.get("/api/sentiment/{ticker}")
-def sentiment_daily(ticker: str):
-    """Sentiment medio giornaliero aggregato (per il grafico)."""
+@limiter.limit("20/minute")
+def sentiment_daily(ticker: str, request: Request):
+    cache_key = f"sentiment:{ticker}"
+    cached = cache_get(cache_key)
+    if cached:
+        return cached
+
     analyzer = SuperNewsAnalyzer(ticker.upper(), API_KEY)
     df = analyzer.get_all_data()
     if df.empty:
@@ -122,28 +167,43 @@ def sentiment_daily(ticker: str):
     daily.columns = ["date", "sentiment"]
     daily["date"] = daily["date"].dt.strftime("%Y-%m-%d")
     daily["sentiment"] = daily["sentiment"].round(4)
-    return {"sentiment": daily.to_dict(orient="records")}
+    result = {"sentiment": daily.to_dict(orient="records")}
+    cache_set(cache_key, result)
+    return result
 
 
 @app.post("/api/fetch/{ticker}")
-async def fetch_news(ticker: str, background_tasks: BackgroundTasks):
-    """Fetch immediato con VADER in background."""
+@limiter.limit("5/minute")
+async def fetch_news(ticker: str, request: Request, background_tasks: BackgroundTasks):
+    # Invalida la cache per questo ticker dopo il fetch
+    for key in list(_cache.keys()):
+        if f":{ticker.upper()}:" in key or f":{ticker.upper()}" in key:
+            _cache.pop(key, None)
     background_tasks.add_task(quick_fetch, ticker.upper())
     return {"status": "started", "ticker": ticker.upper(),
             "message": "Fetching news in background..."}
 
 
 @app.get("/api/tickers")
-def list_tickers():
-    """Lista tutti i ticker già nel database."""
-    conn = psycopg2.connect(os.environ["DATABASE_URL"])
-    cur = conn.cursor()
-    cur.execute("SELECT DISTINCT ticker FROM news ORDER BY ticker")
-    tickers = [r[0] for r in cur.fetchall()]
-    cur.close(); conn.close()
-    return {"tickers": tickers}
+@limiter.limit("10/minute")
+def list_tickers(request: Request):
+    cached = cache_get("tickers:all")
+    if cached:
+        return cached
+    pool = get_pool()
+    conn = pool.getconn()
+    try:
+        cur = conn.cursor()
+        cur.execute("SELECT DISTINCT ticker FROM news ORDER BY ticker")
+        tickers = [r[0] for r in cur.fetchall()]
+        cur.close()
+    finally:
+        pool.putconn(conn)
+    result = {"tickers": tickers}
+    cache_set("tickers:all", result)
+    return result
 
 
 @app.get("/health")
 def health():
-    return {"status": "ok"}
+    return {"status": "ok", "cache_entries": len(_cache)}

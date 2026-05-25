@@ -1,48 +1,59 @@
+"""
+updater.py — Eseguito da GitHub Actions ogni 6 ore.
+Aggiorna le news e manda gli alert agli utenti PRO.
+"""
 import os
 import sys
-import psycopg2
+import random
 
 sys.path.insert(0, os.path.dirname(__file__))
 
-from data.database import SuperNewsAnalyzer
+# Usa il quick_fetch del backend (VADER, leggero)
+from backend.quick_fetch import quick_fetch
 from backend.alerts import check_and_send_alerts
+from backend.database import get_pool, init_database
 
 DEFAULT_TICKERS = [
     # USA
     'NVDA', 'AAPL', 'TSLA', 'MSFT', 'GOOGL', 'META', 'AMD', 'AMZN',
     # Italia
     'ENI.MI', 'ENEL.MI', 'ISP.MI', 'UCG.MI', 'STM.MI', 'RACE.MI', 'TIT.MI', 'BAMI.MI',
-    # Europa top
+    # Europa
     'LVMH.PA', 'SAP.DE', 'ASML.AS', 'NESN.SW', 'SHEL.L', 'NOVN.SW',
 ]
 
-def get_all_tickers():
-    conn = psycopg2.connect(os.environ["DATABASE_URL"])
-    cur = conn.cursor()
-    cur.execute("SELECT DISTINCT ticker FROM news")
-    tickers = [row[0] for row in cur.fetchall()]
-    cur.close()
-    conn.close()
+
+def get_all_tickers() -> list[str]:
+    pool = get_pool()
+    conn = pool.getconn()
+    try:
+        cur = conn.cursor()
+        cur.execute("SELECT DISTINCT ticker FROM news")
+        tickers = [row[0] for row in cur.fetchall()]
+        cur.close()
+    finally:
+        pool.putconn(conn)
     return tickers
 
+
 if __name__ == "__main__":
-    import random
+    init_database()
+
     tickers_db = get_all_tickers()
     tickers = list(set(DEFAULT_TICKERS + tickers_db))
-    
-    # Aggiorna solo 3 ticker per run per evitare timeout
-    tickers = random.sample(tickers, min(3, len(tickers)))
-    print(f"Ticker selezionati: {tickers}")
 
-    for ticker in tickers:
+    # 3 ticker per run per evitare timeout GitHub Actions
+    selected = random.sample(tickers, min(3, len(tickers)))
+    print(f"Ticker selezionati: {selected}")
+
+    for ticker in selected:
         print(f"Aggiornando {ticker}...")
         try:
-            analyzer = SuperNewsAnalyzer(ticker, os.environ["ALPHA_VANTAGE"])
-            analyzer.mega_fetch_silent()
-            print(f"  ✓ {ticker} aggiornato")
+            count = quick_fetch(ticker)
+            print(f"  ✓ {ticker}: {count} nuove news")
         except Exception as e:
             print(f"  ✗ Errore su {ticker}: {e}")
 
-    # Controlla e manda alert
-    print("\nControllo alert...")
+    print("\nControllo alert PRO...")
     check_and_send_alerts()
+    print("Done.")

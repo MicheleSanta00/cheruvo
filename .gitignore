@@ -1,17 +1,33 @@
-# Chiavi API — MAI su GitHub
-.streamlit/
+# ── Secrets — MAI su GitHub ────────────────────────────────────────────────
 backend/.env
+.env
+.env.*
+!.env.example
 
-# Cache Python
+# ── Python ─────────────────────────────────────────────────────────────────
 __pycache__/
 *.pyc
 *.pyo
-data/__pycache__/
-app/__pycache__/
+*.pyd
+.Python
+*.egg-info/
+dist/
+build/
+.venv/
+venv/
 
-# Node
+# ── Node ────────────────────────────────────────────────────────────────────
 frontend/node_modules/
 frontend/dist/
+frontend/.env.local
 
-# Database locale
+# ── Database locale ─────────────────────────────────────────────────────────
 data/news.db
+*.db
+*.sqlite
+
+# ── Editor ──────────────────────────────────────────────────────────────────
+.DS_Store
+.idea/
+.vscode/
+*.swp
