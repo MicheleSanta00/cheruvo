@@ -1,682 +1,389 @@
 <!DOCTYPE html>
-<html lang="en">
+<html lang="it">
 <head>
   <meta charset="UTF-8"/>
   <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
-  <title>CHERUVO — AI Market Intelligence</title>
-  <meta name="description" content="AI-powered sentiment analysis for stocks and European equities. FinBERT reads the market so you can act before it moves."/>
+  <title>FinSentinel — AI Stock Sentiment Intelligence</title>
+  <meta name="description" content="Analisi del sentiment AI in tempo reale per azioni. Monitora l'umore del mercato da migliaia di fonti. Per trader seri."/>
   <link rel="preconnect" href="https://fonts.googleapis.com"/>
-  <link href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:ital,wght@0,300;0,400;0,500;1,300;1,400&family=DM+Sans:wght@300;400;500&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet"/>
+  <link href="https://fonts.googleapis.com/css2?family=DM+Serif+Display:ital@0;1&family=DM+Sans:wght@300;400;500;600&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet"/>
   <style>
     *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
     :root {
-      --black:     #04050a;
-      --void:      #08090f;
-      --dark:      #0e1018;
-      --cream:     #e8d9b5;
-      --cream-dim: #b0a17a;
-      --gold:      #c8a45a;
-      --gold-dim:  #8a6e38;
-      --white:     #f2ece0;
-      --muted:     #484c60;
-      --border:    rgba(232,217,181,0.07);
-      --border-md: rgba(232,217,181,0.13);
-      --border-lg: rgba(232,217,181,0.22);
-      --green:     #5ddb8e;
-      --red:       #e86060;
-      --serif:     'Cormorant Garamond', Georgia, serif;
-      --sans:      'DM Sans', system-ui, sans-serif;
-      --mono:      'JetBrains Mono', monospace;
+      --black:#06070a; --near-black:#0d0f14; --dark:#12151c;
+      --blue:#1e5cff; --azure:#60a5fa; --white:#ffffff;
+      --off-white:#c8d0de; --muted:#5a6478; --border:rgba(255,255,255,0.07);
+      --green:#34d399; --red:#f87171;
+      --serif:'DM Serif Display',Georgia,serif;
+      --sans:'DM Sans',system-ui,sans-serif;
+      --mono:'JetBrains Mono',monospace;
     }
+    html { scroll-behavior:smooth; }
+    body { background:var(--black); color:var(--white); font-family:var(--sans); -webkit-font-smoothing:antialiased; overflow-x:hidden; }
+    a { color:inherit; text-decoration:none; }
+    button { cursor:pointer; font-family:var(--sans); }
 
-    html { scroll-behavior: smooth; }
-    body {
-      background: var(--black);
-      color: var(--white);
-      font-family: var(--sans);
-      -webkit-font-smoothing: antialiased;
-      overflow-x: hidden;
-    }
-    a { color: inherit; text-decoration: none; }
-    button { cursor: pointer; font-family: var(--sans); }
-
-    /* ─── NAV ─────────────────────────────────────────────── */
+    /* NAV */
     nav {
-      position: fixed; top: 0; left: 0; right: 0; z-index: 100;
-      height: 62px; display: flex; align-items: center;
-      padding: 0 48px; gap: 16px;
-      border-bottom: 1px solid var(--border);
-      background: rgba(4,5,10,0.92); backdrop-filter: blur(24px);
+      position:fixed; top:0; left:0; right:0; z-index:100;
+      height:60px; display:flex; align-items:center; padding:0 40px; gap:12px;
+      border-bottom:1px solid var(--border);
+      background:rgba(6,7,10,0.85); backdrop-filter:blur(16px);
     }
-    .nav-brand {
-      display: flex; align-items: center; gap: 12px; flex: 1;
-      text-decoration: none;
-    }
-    .nav-logo-wrap {
-      width: 32px; height: 32px; display: flex;
-      align-items: center; justify-content: center; flex-shrink: 0;
-    }
-    .nav-logo-wrap img { width: 32px; height: 32px; object-fit: contain; }
-    .nav-wordmark {
-      font-family: var(--serif);
-      font-size: 20px; font-weight: 400;
-      letter-spacing: 0.12em; color: var(--cream);
-      text-transform: uppercase;
-    }
-    .nav-links { display: flex; gap: 2px; }
-    .nav-link {
-      font-size: 13px; color: var(--muted); padding: 6px 14px;
-      border-radius: 6px; transition: color .15s, background .15s;
-      letter-spacing: 0.01em;
-    }
-    .nav-link:hover { color: var(--cream); background: rgba(232,217,181,0.05); }
+    .nav-logo { display:flex; align-items:center; gap:10px; font-size:15px; font-weight:500; flex:1; }
+    .nav-icon { width:30px; height:30px; background:var(--blue); border-radius:7px; display:flex; align-items:center; justify-content:center; }
+    .nav-links { display:flex; gap:4px; }
+    .nav-link { font-size:14px; color:var(--muted); padding:6px 12px; border-radius:6px; transition:color .15s,background .15s; }
+    .nav-link:hover { color:var(--white); background:rgba(255,255,255,0.05); }
     .lang-btn {
-      font-size: 15px; background: transparent;
-      border: 1px solid var(--border-md); border-radius: 6px;
-      padding: 5px 9px; line-height: 1; color: var(--muted);
-      transition: border-color .2s, color .2s;
+      font-size:16px; background:transparent;
+      border:1px solid rgba(255,255,255,0.2);
+      border-radius:6px; padding:5px 9px; line-height:1;
+      transition:border-color .2s;
+      cursor: pointer;
+      flex-shrink: 0;
+      color: var(--white);
     }
-    .lang-btn:hover { border-color: var(--border-lg); color: var(--cream); }
-    .nav-cta {
-      background: var(--cream); color: var(--black);
-      border: none; border-radius: 8px; padding: 9px 22px;
-      font-size: 13px; font-weight: 500; letter-spacing: 0.02em;
-      transition: opacity .2s, transform .15s;
-    }
-    .nav-cta:hover { opacity: .88; transform: translateY(-1px); }
+    .lang-btn:hover { border-color:rgba(255,255,255,0.2); }
+    .nav-cta { background:var(--blue); color:white; border:none; border-radius:8px; padding:8px 18px; font-size:14px; font-weight:500; transition:opacity .2s; }
+    .nav-cta:hover { opacity:.85; }
 
-    /* ─── HERO ─────────────────────────────────────────────── */
-    .hero {
-      min-height: 100vh;
-      display: flex; flex-direction: column;
-      align-items: center; justify-content: center;
-      padding: 120px 24px 80px;
-      text-align: center; position: relative; overflow: hidden;
-    }
-    .hero-orb {
-      position: absolute; top: -10%; left: 50%;
-      transform: translateX(-50%);
-      width: 800px; height: 600px;
-      background: radial-gradient(ellipse at center,
-        rgba(200,164,90,0.07) 0%,
-        rgba(200,164,90,0.02) 35%,
-        transparent 65%);
-      pointer-events: none; z-index: 0;
-    }
-    .hero-orb-2 {
-      position: absolute; bottom: -20%; right: -10%;
-      width: 500px; height: 500px;
-      background: radial-gradient(ellipse at center,
-        rgba(200,164,90,0.04) 0%, transparent 60%);
-      pointer-events: none; z-index: 0;
-    }
-    .hero-content { position: relative; z-index: 1; }
+    /* HERO */
+    .hero { min-height:100vh; display:flex; flex-direction:column; align-items:center; justify-content:center; padding:100px 24px 80px; text-align:center; position:relative; overflow:hidden; }
+    .hero-glow { position:absolute; top:20%; left:50%; transform:translateX(-50%); width:600px; height:400px; background:radial-gradient(ellipse,rgba(30,92,255,0.18) 0%,transparent 70%); pointer-events:none; }
+    .hero-badge { display:inline-flex; align-items:center; gap:8px; font-size:12px; font-weight:500; color:var(--azure); letter-spacing:.06em; text-transform:uppercase; border:1px solid rgba(96,165,250,0.25); background:rgba(96,165,250,0.06); padding:6px 14px; border-radius:100px; margin-bottom:32px; animation:fadeUp .6s ease both; }
+    .hero-title { font-family:var(--serif); font-size:clamp(42px,7vw,88px); font-weight:400; line-height:1.02; letter-spacing:-.02em; max-width:820px; animation:fadeUp .6s .1s ease both; }
+    .hero-title em { font-style:italic; color:var(--azure); }
+    .hero-sub { font-size:clamp(16px,2vw,20px); color:var(--off-white); max-width:540px; line-height:1.65; margin-top:24px; font-weight:300; animation:fadeUp .6s .2s ease both; }
+    .hero-actions { display:flex; gap:12px; flex-wrap:wrap; justify-content:center; margin-top:44px; animation:fadeUp .6s .3s ease both; }
+    .btn-primary { background:var(--blue); color:white; border:none; padding:14px 28px; border-radius:10px; font-size:15px; font-weight:500; transition:transform .2s,box-shadow .2s; box-shadow:0 0 40px rgba(30,92,255,0.35); }
+    .btn-primary:hover { transform:translateY(-2px); box-shadow:0 4px 50px rgba(30,92,255,0.5); }
+    .btn-secondary { background:transparent; color:var(--off-white); border:1px solid var(--border); padding:14px 28px; border-radius:10px; font-size:15px; font-weight:400; transition:border-color .2s,color .2s; }
+    .btn-secondary:hover { border-color:rgba(255,255,255,0.2); color:white; }
+    .ticker-strip { margin-top:64px; display:flex; gap:20px; flex-wrap:wrap; justify-content:center; animation:fadeUp .6s .4s ease both; }
+    .ticker-pill { display:flex; align-items:center; gap:10px; padding:8px 14px; border-radius:8px; background:rgba(255,255,255,0.03); border:1px solid var(--border); font-size:13px; }
+    .t-sym { font-family:var(--mono); font-weight:500; font-size:12px; }
+    .t-score { font-size:12px; font-weight:600; }
+    .pos { color:var(--green); }
+    .neg { color:var(--red); }
 
-    /* Logo hero */
-    .hero-logo-wrap {
-      margin-bottom: 52px;
-      animation: fadeUp .8s ease both;
-    }
-    .hero-logo-wrap img {
-      width: 140px; height: 140px;
-      object-fit: contain;
-      filter: drop-shadow(0 0 40px rgba(200,164,90,0.25));
-    }
+    /* SECTIONS */
+    section { padding:100px 24px; max-width:1100px; margin:0 auto; }
+    .s-label { font-size:11px; font-weight:500; letter-spacing:.1em; text-transform:uppercase; color:var(--azure); margin-bottom:16px; }
+    .s-title { font-family:var(--serif); font-size:clamp(30px,4vw,48px); font-weight:400; letter-spacing:-.02em; line-height:1.1; max-width:600px; }
+    .s-title em { font-style:italic; color:var(--azure); }
 
-    .hero-eyebrow {
-      display: inline-flex; align-items: center; gap: 9px;
-      font-size: 11px; font-weight: 500;
-      color: var(--gold); letter-spacing: .14em; text-transform: uppercase;
-      border: 1px solid rgba(200,164,90,0.18);
-      background: rgba(200,164,90,0.05);
-      padding: 7px 18px; border-radius: 100px; margin-bottom: 40px;
-      animation: fadeUp .8s .08s ease both;
-    }
+    /* STEPS */
+    .steps { display:grid; grid-template-columns:repeat(auto-fit,minmax(220px,1fr)); gap:24px; margin-top:56px; }
+    .step { padding:28px; background:var(--near-black); border:1px solid var(--border); border-radius:14px; transition:border-color .2s; }
+    .step:hover { border-color:rgba(30,92,255,0.3); }
+    .step-num { font-family:var(--mono); font-size:11px; color:var(--muted); letter-spacing:.06em; margin-bottom:16px; }
+    .step-title { font-size:17px; font-weight:500; letter-spacing:-.01em; margin-bottom:10px; }
+    .step-desc { font-size:14px; color:var(--off-white); line-height:1.65; font-weight:300; }
 
-    .hero-title {
-      font-family: var(--serif);
-      font-size: clamp(52px, 8vw, 110px);
-      font-weight: 300; line-height: 0.96;
-      letter-spacing: -.01em; color: var(--cream);
-      animation: fadeUp .8s .16s ease both;
-    }
-    .hero-title em {
-      font-style: italic; color: var(--white);
-      font-weight: 300;
-    }
-    .hero-title .line2 {
-      display: block; font-size: clamp(36px, 5.5vw, 72px);
-      color: var(--cream-dim); margin-top: 8px;
-    }
+    /* FEATURES */
+    .features { display:grid; grid-template-columns:repeat(auto-fit,minmax(300px,1fr)); gap:16px; margin-top:56px; }
+    .feature { padding:28px 28px 24px; background:var(--near-black); border:1px solid var(--border); border-radius:14px; transition:background .2s,border-color .2s; }
+    .feature:hover { background:rgba(30,92,255,0.04); border-color:rgba(30,92,255,0.2); }
+    .f-icon { width:40px; height:40px; border-radius:10px; background:rgba(30,92,255,0.12); border:1px solid rgba(30,92,255,0.2); display:flex; align-items:center; justify-content:center; margin-bottom:18px; font-size:18px; }
+    .f-title { font-size:16px; font-weight:500; margin-bottom:8px; }
+    .f-desc { font-size:14px; color:var(--off-white); line-height:1.65; font-weight:300; }
 
-    .hero-sub {
-      font-size: clamp(15px, 1.8vw, 18px);
-      color: var(--muted); max-width: 480px; line-height: 1.75;
-      margin: 32px auto 0; font-weight: 300;
-      animation: fadeUp .8s .24s ease both;
-    }
+    /* PRICING */
+    #pricing { text-align:center; }
+    #pricing .s-title { margin:0 auto 56px; }
+    .plans { display:grid; grid-template-columns:repeat(auto-fit,minmax(280px,1fr)); gap:20px; max-width:700px; margin:0 auto; }
+    .plan { padding:32px; background:var(--near-black); border:1px solid var(--border); border-radius:16px; text-align:left; }
+    .plan.pro { border-color:rgba(30,92,255,0.5); background:linear-gradient(160deg,rgba(30,92,255,0.08) 0%,var(--near-black) 60%); position:relative; }
+    .p-badge { position:absolute; top:-12px; left:50%; transform:translateX(-50%); background:var(--blue); color:white; font-size:11px; font-weight:600; letter-spacing:.06em; padding:4px 14px; border-radius:100px; text-transform:uppercase; white-space:nowrap; }
+    .p-name { font-size:14px; color:var(--muted); text-transform:uppercase; letter-spacing:.08em; margin-bottom:12px; }
+    .p-price { font-family:var(--serif); font-size:44px; font-weight:400; letter-spacing:-.02em; line-height:1; margin-bottom:6px; }
+    .p-period { font-size:13px; color:var(--muted); margin-bottom:28px; }
+    .p-list { list-style:none; display:flex; flex-direction:column; gap:10px; margin-bottom:28px; }
+    .p-list li { font-size:14px; color:var(--off-white); display:flex; align-items:center; gap:10px; }
+    .p-list li::before { content:'✓'; color:var(--green); font-weight:600; font-size:13px; flex-shrink:0; }
+    .p-list li.off { color:var(--muted); }
+    .p-list li.off::before { content:'—'; color:var(--muted); }
+    .p-btn { width:100%; padding:12px 0; border-radius:9px; font-size:14px; font-weight:500; border:none; transition:opacity .2s; }
+    .p-btn:hover { opacity:.85; }
+    .p-btn.free { background:rgba(255,255,255,0.07); color:var(--off-white); }
+    .p-btn.upgrade { background:var(--blue); color:white; box-shadow:0 4px 24px rgba(30,92,255,0.4); }
 
-    .hero-actions {
-      display: flex; gap: 12px; flex-wrap: wrap;
-      justify-content: center; margin-top: 52px;
-      animation: fadeUp .8s .32s ease both;
-    }
-    .btn-primary {
-      background: var(--cream); color: var(--black);
-      border: none; padding: 15px 36px; border-radius: 10px;
-      font-size: 14px; font-weight: 500; letter-spacing: 0.03em;
-      transition: transform .2s, box-shadow .2s;
-    }
-    .btn-primary:hover {
-      transform: translateY(-2px);
-      box-shadow: 0 12px 48px rgba(232,217,181,0.18);
-    }
-    .btn-secondary {
-      background: transparent; color: var(--muted);
-      border: 1px solid var(--border-md);
-      padding: 15px 28px; border-radius: 10px;
-      font-size: 14px; font-weight: 400;
-      transition: border-color .2s, color .2s;
-    }
-    .btn-secondary:hover { border-color: var(--border-lg); color: var(--cream); }
+    /* CTA BOTTOM */
+    .cta-bottom { text-align:center; padding:80px 24px 120px; max-width:700px; margin:0 auto; }
+    .cta-bottom h2 { font-family:var(--serif); font-size:clamp(32px,5vw,56px); font-weight:400; letter-spacing:-.02em; margin-bottom:20px; }
+    .cta-bottom p { font-size:17px; color:var(--off-white); font-weight:300; margin-bottom:36px; }
 
-    /* ticker strip */
-    .ticker-strip {
-      margin-top: 80px; display: flex; gap: 10px;
-      flex-wrap: wrap; justify-content: center;
-      animation: fadeUp .8s .4s ease both;
-    }
-    .ticker-pill {
-      display: flex; align-items: center; gap: 10px;
-      padding: 8px 16px; border-radius: 8px;
-      background: rgba(232,217,181,0.025);
-      border: 1px solid var(--border); font-size: 13px;
-    }
-    .t-sym { font-family: var(--mono); font-weight: 500; font-size: 11px; color: var(--cream); letter-spacing: .03em; }
-    .t-score { font-size: 12px; font-weight: 500; }
-    .pos { color: var(--green); }
-    .neg { color: var(--red); }
-    .t-label { font-size: 11px; color: var(--muted); }
+    /* FOOTER */
+    footer { border-top:1px solid var(--border); padding:32px 40px; display:flex; align-items:center; justify-content:space-between; flex-wrap:wrap; gap:16px; font-size:13px; color:var(--muted); }
+    hr.div { border:none; border-top:1px solid var(--border); }
 
-    /* ─── DIVIDER ───────────────────────────────────────────── */
-    .div { border: none; border-top: 1px solid var(--border); }
+    @keyframes fadeUp { from{opacity:0;transform:translateY(18px)} to{opacity:1;transform:translateY(0)} }
 
-    /* ─── SECTIONS ──────────────────────────────────────────── */
-    section { padding: 110px 24px; max-width: 1080px; margin: 0 auto; }
-    .s-label {
-      font-size: 10px; font-weight: 500; letter-spacing: .16em;
-      text-transform: uppercase; color: var(--gold); margin-bottom: 20px;
-    }
-    .s-title {
-      font-family: var(--serif);
-      font-size: clamp(34px, 4.5vw, 58px);
-      font-weight: 300; letter-spacing: -.01em;
-      line-height: 1.05; max-width: 580px; color: var(--cream);
-    }
-    .s-title em { font-style: italic; color: var(--white); }
-
-    /* ─── STEPS (HOW IT WORKS) ──────────────────────────────── */
-    .steps {
-      display: grid;
-      grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
-      gap: 1px; background: var(--border);
-      border: 1px solid var(--border); border-radius: 18px;
-      overflow: hidden; margin-top: 60px;
-    }
-    .step { padding: 36px 32px; background: var(--void); transition: background .2s; }
-    .step:hover { background: var(--dark); }
-    .step-num {
-      font-family: var(--mono); font-size: 10px;
-      color: var(--gold-dim); letter-spacing: .1em; margin-bottom: 24px;
-    }
-    .step-title {
-      font-family: var(--serif); font-size: 22px; font-weight: 400;
-      letter-spacing: -.01em; margin-bottom: 12px; color: var(--cream);
-    }
-    .step-desc { font-size: 14px; color: var(--muted); line-height: 1.75; font-weight: 300; }
-
-    /* ─── FEATURES ──────────────────────────────────────────── */
-    .feat-grid {
-      display: grid;
-      grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
-      gap: 16px; margin-top: 60px;
-    }
-    .feat {
-      padding: 32px; background: var(--void);
-      border: 1px solid var(--border); border-radius: 16px;
-      transition: background .2s, border-color .2s;
-    }
-    .feat:hover { background: var(--dark); border-color: var(--border-md); }
-    .feat-icon {
-      width: 42px; height: 42px; border-radius: 10px;
-      background: rgba(200,164,90,0.07);
-      border: 1px solid rgba(200,164,90,0.12);
-      display: flex; align-items: center; justify-content: center;
-      font-size: 18px; margin-bottom: 22px;
-    }
-    .feat-title {
-      font-family: var(--serif); font-size: 20px; font-weight: 400;
-      margin-bottom: 10px; color: var(--cream); letter-spacing: -.01em;
-    }
-    .feat-desc { font-size: 14px; color: var(--muted); line-height: 1.75; font-weight: 300; }
-
-    /* ─── QUOTE ─────────────────────────────────────────────── */
-    .quote-band {
-      border-top: 1px solid var(--border);
-      border-bottom: 1px solid var(--border);
-      padding: 80px 24px; text-align: center;
-      position: relative; overflow: hidden;
-    }
-    .quote-inner { max-width: 800px; margin: 0 auto; }
-    .quote-text {
-      font-family: var(--serif); font-size: clamp(26px, 4vw, 46px);
-      font-weight: 300; line-height: 1.25; color: var(--cream);
-      letter-spacing: -.01em; font-style: italic;
-    }
-    .quote-attr {
-      font-size: 13px; color: var(--gold-dim); margin-top: 28px;
-      letter-spacing: .08em; text-transform: uppercase;
-    }
-
-    /* ─── PRICING ────────────────────────────────────────────── */
-    #pricing { text-align: center; }
-    #pricing .s-title { margin: 0 auto 64px; }
-    .plans {
-      display: grid;
-      grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
-      gap: 20px; max-width: 680px; margin: 0 auto;
-    }
-    .plan {
-      padding: 38px 36px; background: var(--void);
-      border: 1px solid var(--border); border-radius: 20px; text-align: left;
-    }
-    .plan.pro {
-      border-color: rgba(200,164,90,0.28);
-      background: linear-gradient(160deg, rgba(200,164,90,0.05) 0%, var(--void) 55%);
-      position: relative;
-    }
-    .p-badge {
-      position: absolute; top: -13px; left: 50%; transform: translateX(-50%);
-      background: var(--gold); color: var(--black);
-      font-size: 10px; font-weight: 600; letter-spacing: .1em;
-      padding: 5px 18px; border-radius: 100px; text-transform: uppercase; white-space: nowrap;
-    }
-    .p-name {
-      font-size: 11px; color: var(--muted); text-transform: uppercase;
-      letter-spacing: .14em; margin-bottom: 16px;
-    }
-    .p-price {
-      font-family: var(--serif); font-size: 52px; font-weight: 300;
-      letter-spacing: -.02em; line-height: 1; color: var(--cream); margin-bottom: 6px;
-    }
-    .p-period { font-size: 13px; color: var(--muted); margin-bottom: 34px; }
-    .p-list { list-style: none; display: flex; flex-direction: column; gap: 12px; margin-bottom: 34px; }
-    .p-list li { font-size: 14px; color: var(--muted); display: flex; align-items: center; gap: 11px; }
-    .p-list li::before { content: '✓'; color: var(--gold); font-weight: 600; font-size: 12px; flex-shrink: 0; }
-    .p-list li.off { color: rgba(72,76,96,0.5); }
-    .p-list li.off::before { content: '—'; color: rgba(72,76,96,0.4); }
-    .p-btn {
-      width: 100%; padding: 14px 0; border-radius: 10px;
-      font-size: 14px; font-weight: 500; border: none; transition: opacity .2s, transform .15s;
-    }
-    .p-btn:hover { opacity: .85; transform: translateY(-1px); }
-    .p-btn.free { background: rgba(232,217,181,0.06); color: var(--muted); }
-    .p-btn.upgrade { background: var(--cream); color: var(--black); }
-
-    /* ─── CTA BOTTOM ────────────────────────────────────────── */
-    .cta-bottom {
-      text-align: center; padding: 100px 24px 130px;
-      max-width: 680px; margin: 0 auto;
-    }
-    .cta-logo { margin: 0 auto 40px; display: flex; justify-content: center; }
-    .cta-logo img { width: 88px; height: 88px; object-fit: contain; filter: drop-shadow(0 0 30px rgba(200,164,90,0.2)); }
-    .cta-bottom h2 {
-      font-family: var(--serif);
-      font-size: clamp(36px, 5.5vw, 66px);
-      font-weight: 300; letter-spacing: -.02em;
-      line-height: 1.05; color: var(--cream); margin-bottom: 22px;
-    }
-    .cta-bottom h2 em { font-style: italic; color: var(--white); }
-    .cta-bottom p { font-size: 16px; color: var(--muted); font-weight: 300; margin-bottom: 44px; line-height: 1.7; }
-
-    /* ─── FOOTER ─────────────────────────────────────────────── */
-    footer {
-      border-top: 1px solid var(--border); padding: 32px 48px;
-      display: flex; align-items: center; justify-content: space-between;
-      flex-wrap: wrap; gap: 16px; font-size: 13px; color: var(--muted);
-    }
-    .foot-brand { display: flex; align-items: center; gap: 10px; }
-    .foot-brand img { width: 22px; height: 22px; object-fit: contain; }
-    .foot-name {
-      font-family: var(--serif); font-size: 15px; font-weight: 400;
-      color: var(--cream); letter-spacing: .08em; text-transform: uppercase;
-    }
-
-    /* ─── ANIMATIONS ─────────────────────────────────────────── */
-    @keyframes fadeUp {
-      from { opacity: 0; transform: translateY(24px); }
-      to   { opacity: 1; transform: translateY(0); }
-    }
-
-    @media (max-width: 768px) {
-      nav { padding: 0 20px; }
-      .nav-links { display: none; }
-      .hero { padding: 100px 20px 64px; }
-      .hero-logo-wrap img { width: 100px; height: 100px; }
-      footer { flex-direction: column; align-items: flex-start; padding: 28px 20px; }
-      section { padding: 72px 20px; }
+    @media(max-width:768px){
+      nav { padding:0 16px; }
+      .nav-links { display:none; }
+      .hero { padding:90px 20px 60px; }
+      .hero-glow { width:320px; }
+      footer { flex-direction:column; align-items:flex-start; padding:24px 20px; }
     }
   </style>
 </head>
 <body>
 
-<!-- ─── NAV ──────────────────────────────────────────────────── -->
+<!-- NAV -->
 <nav>
-  <a href="#" class="nav-brand">
-    <div class="nav-logo-wrap">
-      <img src="./logo.svg" alt="Cheruvo logo"/>
+  <div class="nav-logo">
+    <div class="nav-icon">
+      <svg width="14" height="14" viewBox="0 0 14 14" fill="none">
+        <path d="M1.5 10.5L5 6.5L8 9L12.5 4" stroke="white" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"/>
+        <circle cx="12.5" cy="4" r="1.2" fill="white"/>
+      </svg>
     </div>
-    <span class="nav-wordmark">Cheruvo</span>
-  </a>
+    FinSentinel
+  </div>
   <div class="nav-links">
-    <a href="#how-it-works" class="nav-link" data-i18n="navHow">How it works</a>
-    <a href="#features" class="nav-link" data-i18n="navFeat">Features</a>
-    <a href="#pricing" class="nav-link" data-i18n="navPrice">Pricing</a>
+    <a href="#how-it-works" class="nav-link" data-i18n="navHow">Come funziona</a>
+    <a href="#features" class="nav-link" data-i18n="navFeatures">Funzionalità</a>
+    <a href="#pricing" class="nav-link" data-i18n="navPricing">Prezzi</a>
   </div>
   <button class="lang-btn" id="lang-btn" onclick="toggleLang()">🇬🇧</button>
   <a href="https://finsentinel-three.vercel.app" target="_blank">
-    <button class="nav-cta" data-i18n="navCta">Open app →</button>
+    <button class="nav-cta" data-i18n="navCta">Apri l'app →</button>
   </a>
 </nav>
 
-<!-- ─── HERO ─────────────────────────────────────────────────── -->
+<!-- HERO -->
 <div class="hero">
-  <div class="hero-orb"></div>
-  <div class="hero-orb-2"></div>
-  <div class="hero-content">
-
-    <div class="hero-logo-wrap">
-      <img src="./logo.svg" alt="Cheruvo"/>
-    </div>
-
-    <div class="hero-eyebrow">
-      <svg width="7" height="7" viewBox="0 0 7 7"><circle cx="3.5" cy="3.5" r="3.5" fill="var(--green)"/></svg>
-      <span data-i18n="heroBadge">Live · Powered by FinBERT AI</span>
-    </div>
-
-    <h1 class="hero-title">
-      <span data-i18n="heroLine1">The market has a soul.</span>
-      <span class="line2" data-i18n="heroLine2"><em>We read it.</em></span>
-    </h1>
-
-    <p class="hero-sub" data-i18n="heroSub">
-      Cheruvo aggregates thousands of financial news articles and scores them with AI — so you know what the crowd is thinking before it shows in the price.
-    </p>
-
-    <div class="hero-actions">
-      <a href="https://finsentinel-three.vercel.app" target="_blank">
-        <button class="btn-primary" data-i18n="heroBtn">Start for free →</button>
-      </a>
-      <a href="#how-it-works">
-        <button class="btn-secondary" data-i18n="heroHow">See how it works</button>
-      </a>
-    </div>
-
-    <div class="ticker-strip">
-      <div class="ticker-pill">
-        <span class="t-sym">NVDA</span>
-        <span class="t-score pos">+0.421</span>
-        <span class="t-label" data-i18n="bullish">Bullish</span>
-      </div>
-      <div class="ticker-pill">
-        <span class="t-sym">ENI.MI</span>
-        <span class="t-score pos">+0.187</span>
-        <span class="t-label" data-i18n="neutral">Neutral+</span>
-      </div>
-      <div class="ticker-pill">
-        <span class="t-sym">TSLA</span>
-        <span class="t-score neg">−0.214</span>
-        <span class="t-label" data-i18n="bearish">Bearish</span>
-      </div>
-      <div class="ticker-pill">
-        <span class="t-sym">RACE.MI</span>
-        <span class="t-score pos">+0.339</span>
-        <span class="t-label" data-i18n="bullish">Bullish</span>
-      </div>
-      <div class="ticker-pill">
-        <span class="t-sym">ASML.AS</span>
-        <span class="t-score pos">+0.092</span>
-        <span class="t-label" data-i18n="neutral">Neutral</span>
-      </div>
-    </div>
+  <div class="hero-glow"></div>
+  <div class="hero-badge">
+    <svg width="8" height="8" viewBox="0 0 8 8"><circle cx="4" cy="4" r="4" fill="var(--green)"/></svg>
+    <span data-i18n="heroBadge">Live · Powered by FinBERT AI</span>
+  </div>
+  <h1 class="hero-title" data-i18n="heroTitle">Leggi l'umore del mercato<br/><em>prima che si muova</em></h1>
+  <p class="hero-sub" data-i18n="heroSub">FinSentinel aggrega migliaia di notizie finanziarie e post Reddit, poi le analizza con l'AI per mostrare cosa pensa davvero il mercato su qualsiasi azione.</p>
+  <div class="hero-actions">
+    <a href="https://finsentinel-three.vercel.app" target="_blank"><button class="btn-primary" data-i18n="heroBtn">Inizia gratis →</button></a>
+    <a href="#how-it-works"><button class="btn-secondary" data-i18n="heroHow">Scopri come funziona</button></a>
+  </div>
+  <div class="ticker-strip">
+    <div class="ticker-pill"><span class="t-sym">NVDA</span><span class="t-score pos">+0.421</span><span style="font-size:11px;color:var(--muted)" data-i18n="bullish">Rialzista</span></div>
+    <div class="ticker-pill"><span class="t-sym">ENI.MI</span><span class="t-score pos">+0.187</span><span style="font-size:11px;color:var(--muted)" data-i18n="neutral">Neutro+</span></div>
+    <div class="ticker-pill"><span class="t-sym">TSLA</span><span class="t-score neg">−0.214</span><span style="font-size:11px;color:var(--muted)" data-i18n="bearish">Ribassista</span></div>
+    <div class="ticker-pill"><span class="t-sym">RACE.MI</span><span class="t-score pos">+0.339</span><span style="font-size:11px;color:var(--muted)" data-i18n="bullish">Rialzista</span></div>
+    <div class="ticker-pill"><span class="t-sym">AMZN</span><span class="t-score pos">+0.092</span><span style="font-size:11px;color:var(--muted)" data-i18n="neutral">Neutro</span></div>
   </div>
 </div>
 
 <hr class="div"/>
 
-<!-- ─── HOW IT WORKS ──────────────────────────────────────────── -->
+<!-- HOW IT WORKS -->
 <section id="how-it-works">
-  <div class="s-label" data-i18n="howLabel">How it works</div>
-  <h2 class="s-title" data-i18n="howTitle">From raw news to <em>actionable signal</em></h2>
+  <div class="s-label" data-i18n="howLabel">Come funziona</div>
+  <h2 class="s-title" data-i18n="howTitle">Dal flusso grezzo di notizie al <em>segnale azionabile</em> in secondi</h2>
   <div class="steps">
     <div class="step">
       <div class="step-num">01</div>
-      <div class="step-title" data-i18n="s1t">Enter any ticker</div>
-      <div class="step-desc" data-i18n="s1d">Type any US or European symbol. Cheruvo validates it and loads price, sector and exchange data instantly.</div>
+      <div class="step-title" data-i18n="step1Title">Inserisci un ticker</div>
+      <div class="step-desc" data-i18n="step1Desc">Scrivi qualsiasi simbolo di azione USA o europea. FinSentinel lo valida e carica il profilo istantaneamente.</div>
     </div>
     <div class="step">
       <div class="step-num">02</div>
-      <div class="step-title" data-i18n="s2t">AI scores the news</div>
-      <div class="step-desc" data-i18n="s2d">FinBERT reads every headline and assigns a score from −1 (very bearish) to +1 (very bullish). No keyword tricks — real language understanding.</div>
+      <div class="step-title" data-i18n="step2Title">L'AI analizza le notizie</div>
+      <div class="step-desc" data-i18n="step2Desc">FinBERT — un transformer addestrato sul linguaggio finanziario — legge ogni titolo e assegna uno score da −1 (molto ribassista) a +1 (molto rialzista).</div>
     </div>
     <div class="step">
       <div class="step-num">03</div>
-      <div class="step-title" data-i18n="s3t">See the full picture</div>
-      <div class="step-desc" data-i18n="s3d">Price overlaid with sentiment, top headlines, source breakdown and trend up to 90 days — everything in one clean view.</div>
+      <div class="step-title" data-i18n="step3Title">Vedi il quadro completo</div>
+      <div class="step-desc" data-i18n="step3Desc">Grafico prezzo sovrapposto al sentiment, top titoli rialzisti/ribassisti, distribuzione per fonte e trend fino a 90 giorni — tutto in una schermata.</div>
     </div>
     <div class="step">
       <div class="step-num">04</div>
-      <div class="step-title" data-i18n="s4t">React with confidence</div>
-      <div class="step-desc" data-i18n="s4d">Know whether sentiment is turning positive or negative before the price reflects it. Export to CSV for your own backtesting.</div>
+      <div class="step-title" data-i18n="step4Title">Agisci con più certezza</div>
+      <div class="step-desc" data-i18n="step4Desc">Sappi se il mercato sta diventando positivo o negativo prima che si rifletta nel prezzo. Esporta in CSV per il tuo backtesting.</div>
     </div>
   </div>
 </section>
 
 <hr class="div"/>
 
-<!-- ─── QUOTE ──────────────────────────────────────────────────── -->
-<div class="quote-band">
-  <div class="quote-inner">
-    <p class="quote-text" data-i18n="quoteText">"The crowd always knows first. You just need to listen at the right frequency."</p>
-    <p class="quote-attr" data-i18n="quoteAttr">— The philosophy behind Cheruvo</p>
-  </div>
-</div>
-
-<!-- ─── FEATURES ──────────────────────────────────────────────── -->
+<!-- FEATURES -->
 <section id="features">
-  <div class="s-label" data-i18n="featLabel">Features</div>
-  <h2 class="s-title" data-i18n="featTitle">Built for <em>serious traders</em></h2>
-  <div class="feat-grid">
-    <div class="feat">
-      <div class="feat-icon">📡</div>
-      <div class="feat-title" data-i18n="f1t">Multi-source intelligence</div>
-      <div class="feat-desc" data-i18n="f1d">NewsAPI, Alpha Vantage, European RSS and Google News merged into one deduplicated feed. No blind spots.</div>
+  <div class="s-label" data-i18n="featLabel">Funzionalità</div>
+  <h2 class="s-title" data-i18n="featTitle">Tutto ciò di cui un <em>trader serio</em> ha bisogno</h2>
+  <div class="features">
+    <div class="feature">
+      <div class="f-icon">📡</div>
+      <div class="f-title" data-i18n="f1Title">Intelligence multi-fonte</div>
+      <div class="f-desc" data-i18n="f1Desc">NewsAPI, Alpha Vantage, RSS europei e Google News combinati in un unico feed. Nessun punto cieco da fonte singola.</div>
     </div>
-    <div class="feat">
-      <div class="feat-icon">🧠</div>
-      <div class="feat-title" data-i18n="f2t">FinBERT sentiment</div>
-      <div class="feat-desc" data-i18n="f2d">A transformer trained on millions of financial texts — understands context, irony, and nuance that basic models miss entirely.</div>
+    <div class="feature">
+      <div class="f-icon">🧠</div>
+      <div class="f-title" data-i18n="f2Title">Sentiment FinBERT</div>
+      <div class="f-desc" data-i18n="f2Desc">Non semplici keyword positivo/negativo — un transformer domain-specific che capisce il contesto e le sfumature finanziarie.</div>
     </div>
-    <div class="feat">
-      <div class="feat-icon">📈</div>
-      <div class="feat-title" data-i18n="f3t">Price + sentiment overlay</div>
-      <div class="feat-desc" data-i18n="f3d">Candlestick OHLCV alongside the sentiment curve. Spot divergences before the market catches up to the crowd.</div>
+    <div class="feature">
+      <div class="f-icon">📈</div>
+      <div class="f-title" data-i18n="f3Title">Overlay prezzo + sentiment</div>
+      <div class="f-desc" data-i18n="f3Desc">Candlestick OHLCV affiancati alla curva del sentiment per individuare divergenze prima che il mercato le colga.</div>
     </div>
-    <div class="feat">
-      <div class="feat-icon">🌍</div>
-      <div class="feat-title" data-i18n="f4t">European focus</div>
-      <div class="feat-desc" data-i18n="f4d">Full coverage of Borsa Italiana, Euronext, Frankfurt, LSE and all major European exchanges — not just the US market.</div>
+    <div class="feature">
+      <div class="f-icon">⚡</div>
+      <div class="f-title" data-i18n="f4Title">Aggiornamento in tempo reale</div>
+      <div class="f-desc" data-i18n="f4Desc">Fetch on-demand per qualsiasi ticker. Database aggiornato automaticamente da GitHub Actions ogni 6 ore.</div>
     </div>
-    <div class="feat">
-      <div class="feat-icon">📋</div>
-      <div class="feat-title" data-i18n="f5t">CSV export <span style="font-size:11px;color:var(--gold);margin-left:5px">Pro</span></div>
-      <div class="feat-desc" data-i18n="f5d">Download the full scored dataset for any ticker and date range. Build your own signals, run your own backtests.</div>
+    <div class="feature">
+      <div class="f-icon">📋</div>
+      <div class="f-title" data-i18n="f5Title">Export CSV <span style="font-size:11px;color:var(--azure);margin-left:4px">Pro</span></div>
+      <div class="f-desc" data-i18n="f5Desc">Scarica il dataset completo con score per qualsiasi ticker e intervallo di date per la tua analisi quantitativa.</div>
     </div>
-    <div class="feat">
-      <div class="feat-icon">🔔</div>
-      <div class="feat-title" data-i18n="f6t">Email alerts <span style="font-size:11px;color:var(--gold);margin-left:5px">Pro</span></div>
-      <div class="feat-desc" data-i18n="f6d">Automatic notifications when sentiment crosses a threshold on any of your watchlist tickers. Stay informed without checking every hour.</div>
+    <div class="feature">
+      <div class="f-icon">🔔</div>
+      <div class="f-title" data-i18n="f6Title">Alert email <span style="font-size:11px;color:var(--azure);margin-left:4px">Pro</span></div>
+      <div class="f-desc" data-i18n="f6Desc">Ricevi una notifica quando il sentiment supera una soglia — senza dover controllare la dashboard ogni ora.</div>
     </div>
   </div>
 </section>
 
 <hr class="div"/>
 
-<!-- ─── PRICING ────────────────────────────────────────────────── -->
+<!-- PRICING -->
 <section id="pricing">
-  <div class="s-label" data-i18n="priceLabel">Pricing</div>
-  <h2 class="s-title" data-i18n="priceTitle">Simple. Transparent. <em>Honest.</em></h2>
+  <div class="s-label" data-i18n="pricingLabel">Prezzi</div>
+  <h2 class="s-title" data-i18n="pricingTitle">Semplice e trasparente</h2>
   <div class="plans">
     <div class="plan">
       <div class="p-name">Free</div>
       <div class="p-price">€0</div>
-      <div class="p-period" data-i18n="freePeriod">forever</div>
+      <div class="p-period" data-i18n="freePeriod">per sempre</div>
       <ul class="p-list">
-        <li data-i18n="f_1">Any ticker, anytime</li>
-        <li data-i18n="f_2">30-day sentiment window</li>
-        <li data-i18n="f_3">Top 5 news headlines</li>
-        <li data-i18n="f_4">Price + sentiment chart</li>
-        <li data-i18n="f_5">Watchlist (3 tickers)</li>
-        <li class="off" data-i18n="f_6">CSV export</li>
-        <li class="off" data-i18n="f_7">90-day history</li>
-        <li class="off" data-i18n="f_8">Email alerts</li>
-        <li class="off" data-i18n="f_9">Advanced analytics</li>
+        <li data-i18n="free1">Qualsiasi ticker, sempre</li>
+        <li data-i18n="free2">Finestra sentiment 30 giorni</li>
+        <li data-i18n="free3">Top 5 titoli di notizie</li>
+        <li data-i18n="free4">Grafico prezzo overlay</li>
+        <li data-i18n="free5">Watchlist (3 ticker)</li>
+        <li class="off" data-i18n="free6">Export CSV</li>
+        <li class="off" data-i18n="free7">Storico 90 giorni</li>
+        <li class="off" data-i18n="free8">Alert email</li>
+        <li class="off" data-i18n="free9">Analytics avanzate</li>
       </ul>
-      <a href="https://finsentinel-three.vercel.app" target="_blank">
-        <button class="p-btn free" data-i18n="freeCta">Get started free</button>
-      </a>
+      <a href="https://finsentinel-three.vercel.app" target="_blank"><button class="p-btn free" data-i18n="freeCta">Inizia gratis</button></a>
     </div>
     <div class="plan pro">
-      <div class="p-badge" data-i18n="proBadge">Most popular</div>
+      <div class="p-badge" data-i18n="proBadge">Più popolare</div>
       <div class="p-name">Pro</div>
       <div class="p-price">€9</div>
-      <div class="p-period" data-i18n="proPeriod">per month · cancel anytime</div>
+      <div class="p-period" data-i18n="proPeriod">al mese · disdici quando vuoi</div>
       <ul class="p-list">
-        <li data-i18n="p_1">Everything in Free</li>
-        <li data-i18n="p_2">90-day sentiment window</li>
-        <li data-i18n="p_3">Full news feed (unlimited)</li>
-        <li data-i18n="p_4">CSV export</li>
-        <li data-i18n="p_5">Unlimited watchlist</li>
-        <li data-i18n="p_6">Email alerts</li>
-        <li data-i18n="p_7">Advanced analytics</li>
-        <li data-i18n="p_8">Priority support</li>
+        <li data-i18n="pro1">Tutto il piano Free</li>
+        <li data-i18n="pro2">Finestra sentiment 90 giorni</li>
+        <li data-i18n="pro3">Feed notizie completo (illimitato)</li>
+        <li data-i18n="pro4">Export CSV</li>
+        <li data-i18n="pro5">Watchlist illimitata</li>
+        <li data-i18n="pro6">Alert email</li>
+        <li data-i18n="pro7">Analytics avanzate</li>
+        <li data-i18n="pro8">Supporto prioritario</li>
       </ul>
-      <a href="https://finsentinel-three.vercel.app" target="_blank">
-        <button class="p-btn upgrade" data-i18n="proCta">⚡ Upgrade to Pro →</button>
-      </a>
+      <a href="https://finsentinel-three.vercel.app" target="_blank"><button class="p-btn upgrade" data-i18n="proCta">⚡ Passa a Pro →</button></a>
     </div>
   </div>
 </section>
 
 <hr class="div"/>
 
-<!-- ─── CTA BOTTOM ────────────────────────────────────────────── -->
+<!-- CTA BOTTOM -->
 <div class="cta-bottom">
-  <div class="cta-logo">
-    <img src="./logo.svg" alt="Cheruvo"/>
-  </div>
-  <h2 data-i18n="ctaTitle">Start reading the market's <em>soul</em></h2>
-  <p data-i18n="ctaSub">Free to try. No credit card. Up and running in 30 seconds.</p>
+  <h2 data-i18n="ctaTitle">Inizia a leggere la mente del mercato</h2>
+  <p data-i18n="ctaSub">Gratis da subito. Nessuna carta di credito. Operativo in 30 secondi.</p>
   <a href="https://finsentinel-three.vercel.app" target="_blank">
-    <button class="btn-primary" style="padding:17px 44px;font-size:15px;" data-i18n="ctaBtn">Open Cheruvo →</button>
+    <button class="btn-primary" style="padding:16px 36px;font-size:16px;" data-i18n="ctaBtn">Apri FinSentinel →</button>
   </a>
 </div>
 
-<!-- ─── FOOTER ─────────────────────────────────────────────────── -->
+<!-- FOOTER -->
 <footer>
-  <div class="foot-brand">
-    <img src="./logo.svg" alt="Cheruvo"/>
-    <span class="foot-name">Cheruvo</span>
+  <div style="display:flex;align-items:center;gap:9px;">
+    <div style="width:22px;height:22px;background:var(--blue);border-radius:5px;display:flex;align-items:center;justify-content:center;">
+      <svg width="11" height="11" viewBox="0 0 14 14" fill="none">
+        <path d="M1.5 10.5L5 6.5L8 9L12.5 4" stroke="white" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"/>
+        <circle cx="12.5" cy="4" r="1.2" fill="white"/>
+      </svg>
+    </div>
+    <span style="font-weight:500;color:var(--white);">FinSentinel</span>
   </div>
-  <span data-i18n="footCopy">© 2025 Cheruvo. For informational purposes only. Not financial advice.</span>
-  <a href="https://finsentinel-three.vercel.app" target="_blank" style="color:var(--gold);" data-i18n="footLink">Open app →</a>
+  <span data-i18n="footerCopy">© 2025 FinSentinel. Solo a scopo informativo. Non è consulenza finanziaria.</span>
+  <a href="https://finsentinel-three.vercel.app" target="_blank" style="color:var(--azure);" data-i18n="footerLink">Apri l'app →</a>
 </footer>
 
-<!-- ─── I18N SCRIPT ────────────────────────────────────────────── -->
 <script>
 const tr = {
-  en: {
-    navHow:'How it works', navFeat:'Features', navPrice:'Pricing', navCta:'Open app →',
-    heroBadge:'Live · Powered by FinBERT AI',
-    heroLine1:'The market has a soul.',
-    heroLine2:'<em>We read it.</em>',
-    heroSub:'Cheruvo aggregates thousands of financial news articles and scores them with AI — so you know what the crowd is thinking before it shows in the price.',
-    heroBtn:'Start for free →', heroHow:'See how it works',
-    bullish:'Bullish', bearish:'Bearish', neutral:'Neutral',
-    howLabel:'How it works', howTitle:'From raw news to <em>actionable signal</em>',
-    s1t:'Enter any ticker', s1d:'Type any US or European symbol. Cheruvo validates it and loads price, sector and exchange data instantly.',
-    s2t:'AI scores the news', s2d:'FinBERT reads every headline and assigns a score from −1 (very bearish) to +1 (very bullish). No keyword tricks — real language understanding.',
-    s3t:'See the full picture', s3d:'Price overlaid with sentiment, top headlines, source breakdown and trend up to 90 days — everything in one clean view.',
-    s4t:'React with confidence', s4d:'Know whether sentiment is turning positive or negative before the price reflects it. Export to CSV for your own backtesting.',
-    quoteText:'"The crowd always knows first. You just need to listen at the right frequency."',
-    quoteAttr:'— The philosophy behind Cheruvo',
-    featLabel:'Features', featTitle:'Built for <em>serious traders</em>',
-    f1t:'Multi-source intelligence', f1d:'NewsAPI, Alpha Vantage, European RSS and Google News merged into one deduplicated feed. No blind spots.',
-    f2t:'FinBERT sentiment', f2d:'A transformer trained on millions of financial texts — understands context, irony, and nuance that basic models miss entirely.',
-    f3t:'Price + sentiment overlay', f3d:'Candlestick OHLCV alongside the sentiment curve. Spot divergences before the market catches up to the crowd.',
-    f4t:'European focus', f4d:'Full coverage of Borsa Italiana, Euronext, Frankfurt, LSE and all major European exchanges — not just the US market.',
-    f5t:'CSV export', f5d:'Download the full scored dataset for any ticker and date range. Build your own signals, run your own backtests.',
-    f6t:'Email alerts', f6d:'Automatic notifications when sentiment crosses a threshold on any of your watchlist tickers.',
-    priceLabel:'Pricing', priceTitle:'Simple. Transparent. <em>Honest.</em>',
-    freePeriod:'forever', f_1:'Any ticker, anytime', f_2:'30-day sentiment window', f_3:'Top 5 news headlines', f_4:'Price + sentiment chart', f_5:'Watchlist (3 tickers)', f_6:'CSV export', f_7:'90-day history', f_8:'Email alerts', f_9:'Advanced analytics', freeCta:'Get started free',
-    proBadge:'Most popular', proPeriod:'per month · cancel anytime', p_1:'Everything in Free', p_2:'90-day sentiment window', p_3:'Full news feed (unlimited)', p_4:'CSV export', p_5:'Unlimited watchlist', p_6:'Email alerts', p_7:'Advanced analytics', p_8:'Priority support', proCta:'⚡ Upgrade to Pro →',
-    ctaTitle:"Start reading the market's <em>soul</em>", ctaSub:'Free to try. No credit card. Up and running in 30 seconds.', ctaBtn:'Open Cheruvo →',
-    footCopy:'© 2025 Cheruvo. For informational purposes only. Not financial advice.', footLink:'Open app →',
-  },
   it: {
-    navHow:'Come funziona', navFeat:'Funzionalità', navPrice:'Prezzi', navCta:"Apri l'app →",
-    heroBadge:'Live · Powered by FinBERT AI',
-    heroLine1:"Il mercato ha un'anima.",
-    heroLine2:'<em>Noi la leggiamo.</em>',
-    heroSub:"Cheruvo aggrega migliaia di notizie finanziarie e le analizza con l'AI — così sai cosa pensa il mercato prima che si rifletta nel prezzo.",
-    heroBtn:'Inizia gratis →', heroHow:'Scopri come funziona',
-    bullish:'Rialzista', bearish:'Ribassista', neutral:'Neutro',
-    howLabel:'Come funziona', howTitle:'Dal flusso di notizie al <em>segnale azionabile</em>',
-    s1t:'Inserisci un ticker', s1d:'Scrivi qualsiasi simbolo USA o europeo. Cheruvo lo valida e carica prezzo, settore e borsa istantaneamente.',
-    s2t:"L'AI analizza le notizie", s2d:'FinBERT legge ogni titolo e assegna uno score da −1 (molto ribassista) a +1 (molto rialzista). Non keyword — vera comprensione del linguaggio.',
-    s3t:'Vedi il quadro completo', s3d:'Prezzo sovrapposto al sentiment, top titoli, distribuzione per fonte e trend fino a 90 giorni — tutto in un\'unica schermata.',
-    s4t:'Agisci con più certezza', s4d:'Sappi se il sentiment sta girando positivo o negativo prima che si rifletta nel prezzo. Esporta in CSV per il tuo backtesting.',
-    quoteText:'"Il mercato lo sa sempre prima. Devi solo ascoltarlo alla giusta frequenza."',
-    quoteAttr:'— La filosofia di Cheruvo',
-    featLabel:'Funzionalità', featTitle:'Fatto per <em>trader seri</em>',
-    f1t:'Intelligence multi-fonte', f1d:'NewsAPI, Alpha Vantage, RSS europei e Google News in un unico feed deduplicato. Nessun punto cieco.',
-    f2t:'Sentiment FinBERT', f2d:'Un transformer addestrato su milioni di testi finanziari — capisce contesto, ironia e sfumature che i modelli base non colgono.',
-    f3t:'Overlay prezzo + sentiment', f3d:'Candlestick OHLCV affiancati alla curva del sentiment. Individua le divergenze prima che il mercato le colga.',
-    f4t:'Focus europeo', f4d:'Copertura completa di Borsa Italiana, Euronext, Francoforte, LSE e tutte le principali borse europee.',
-    f5t:'Export CSV', f5d:'Scarica il dataset completo con score per qualsiasi ticker e intervallo. Costruisci i tuoi segnali, fai il tuo backtesting.',
-    f6t:'Alert email', f6d:'Notifiche automatiche quando il sentiment supera una soglia su qualsiasi ticker della tua watchlist.',
-    priceLabel:'Prezzi', priceTitle:'Semplice. Trasparente. <em>Onesto.</em>',
-    freePeriod:'per sempre', f_1:'Qualsiasi ticker, sempre', f_2:'Finestra sentiment 30 giorni', f_3:'Top 5 titoli di notizie', f_4:'Grafico prezzo + sentiment', f_5:'Watchlist (3 ticker)', f_6:'Export CSV', f_7:'Storico 90 giorni', f_8:'Alert email', f_9:'Analytics avanzate', freeCta:'Inizia gratis',
-    proBadge:'Più popolare', proPeriod:'al mese · disdici quando vuoi', p_1:'Tutto il piano Free', p_2:'Finestra sentiment 90 giorni', p_3:'Feed notizie completo (illimitato)', p_4:'Export CSV', p_5:'Watchlist illimitata', p_6:'Alert email', p_7:'Analytics avanzate', p_8:'Supporto prioritario', proCta:'⚡ Passa a Pro →',
-    ctaTitle:"Inizia a leggere l'<em>anima</em> del mercato", ctaSub:'Gratis da subito. Nessuna carta di credito. Operativo in 30 secondi.', ctaBtn:'Apri Cheruvo →',
-    footCopy:'© 2025 Cheruvo. Solo a scopo informativo. Non è consulenza finanziaria.', footLink:"Apri l'app →",
+    navHow: 'Come funziona', navFeatures: 'Funzionalità', navPricing: 'Prezzi', navCta: "Apri l'app →",
+    heroBadge: 'Live · Powered by FinBERT AI',
+    heroTitle: "Leggi l'umore del mercato<br/><em>prima che si muova</em>",
+    heroSub: 'FinSentinel aggrega migliaia di notizie finanziarie e post Reddit, poi le analizza con l\'AI per mostrare cosa pensa davvero il mercato su qualsiasi azione.',
+    heroBtn: 'Inizia gratis →', heroHow: 'Scopri come funziona',
+    bullish: 'Rialzista', bearish: 'Ribassista', neutral: 'Neutro',
+    howLabel: 'Come funziona', howTitle: "Dal flusso grezzo di notizie al <em>segnale azionabile</em> in secondi",
+    step1Title: 'Inserisci un ticker', step1Desc: 'Scrivi qualsiasi simbolo di azione USA o europea. FinSentinel lo valida e carica il profilo istantaneamente.',
+    step2Title: "L'AI analizza le notizie", step2Desc: 'FinBERT — un transformer addestrato sul linguaggio finanziario — legge ogni titolo e assegna uno score da −1 (molto ribassista) a +1 (molto rialzista).',
+    step3Title: 'Vedi il quadro completo', step3Desc: 'Grafico prezzo sovrapposto al sentiment, top titoli rialzisti/ribassisti, distribuzione per fonte e trend fino a 90 giorni — tutto in una schermata.',
+    step4Title: 'Agisci con più certezza', step4Desc: 'Sappi se il mercato sta diventando positivo o negativo prima che si rifletta nel prezzo. Esporta in CSV per il tuo backtesting.',
+    featLabel: 'Funzionalità', featTitle: 'Tutto ciò di cui un <em>trader serio</em> ha bisogno',
+    f1Title: 'Intelligence multi-fonte', f1Desc: 'NewsAPI, Alpha Vantage, RSS europei e Google News combinati in un unico feed. Nessun punto cieco da fonte singola.',
+    f2Title: 'Sentiment FinBERT', f2Desc: 'Non semplici keyword positivo/negativo — un transformer domain-specific che capisce il contesto e le sfumature finanziarie.',
+    f3Title: 'Overlay prezzo + sentiment', f3Desc: 'Candlestick OHLCV affiancati alla curva del sentiment per individuare divergenze prima che il mercato le colga.',
+    f4Title: 'Aggiornamento in tempo reale', f4Desc: 'Fetch on-demand per qualsiasi ticker. Database aggiornato automaticamente da GitHub Actions ogni 6 ore.',
+    f5Title: 'Export CSV', f5Desc: 'Scarica il dataset completo con score per qualsiasi ticker e intervallo di date per la tua analisi quantitativa.',
+    f6Title: 'Alert email', f6Desc: 'Ricevi una notifica quando il sentiment supera una soglia — senza dover controllare la dashboard ogni ora.',
+    pricingLabel: 'Prezzi', pricingTitle: 'Semplice e trasparente',
+    freePeriod: 'per sempre', free1: 'Qualsiasi ticker, sempre', free2: 'Finestra sentiment 30 giorni', free3: 'Top 5 titoli di notizie', free4: 'Grafico prezzo overlay', free5: 'Watchlist (3 ticker)', free6: 'Export CSV', free7: 'Storico 90 giorni', free8: 'Alert email', free9: 'Analytics avanzate', freeCta: 'Inizia gratis',
+    proBadge: 'Più popolare', proPeriod: 'al mese · disdici quando vuoi', pro1: 'Tutto il piano Free', pro2: 'Finestra sentiment 90 giorni', pro3: 'Feed notizie completo (illimitato)', pro4: 'Export CSV', pro5: 'Watchlist illimitata', pro6: 'Alert email', pro7: 'Analytics avanzate', pro8: 'Supporto prioritario', proCta: '⚡ Passa a Pro →',
+    ctaTitle: 'Inizia a leggere la mente del mercato', ctaSub: 'Gratis da subito. Nessuna carta di credito. Operativo in 30 secondi.', ctaBtn: 'Apri FinSentinel →',
+    footerCopy: '© 2025 FinSentinel. Solo a scopo informativo. Non è consulenza finanziaria.', footerLink: "Apri l'app →",
+  },
+  en: {
+    navHow: 'How it works', navFeatures: 'Features', navPricing: 'Pricing', navCta: 'Launch app →',
+    heroBadge: 'Live · Powered by FinBERT AI',
+    heroTitle: "Know the market's mood<br/><em>before it moves</em>",
+    heroSub: "FinSentinel aggregates thousands of financial news articles and Reddit posts, then scores them with AI to surface what the crowd is really thinking about any stock.",
+    heroBtn: 'Start for free →', heroHow: 'See how it works',
+    bullish: 'Bullish', bearish: 'Bearish', neutral: 'Neutral',
+    howLabel: 'How it works', howTitle: 'From raw news to <em>actionable signal</em> in seconds',
+    step1Title: 'Enter any ticker', step1Desc: 'Type any US or European stock symbol. FinSentinel validates it and fetches its profile instantly.',
+    step2Title: 'AI scores the news', step2Desc: 'FinBERT — a transformer trained on financial language — reads every headline and assigns a sentiment score from −1 (very bearish) to +1 (very bullish).',
+    step3Title: 'See the full picture', step3Desc: 'Price chart overlaid with sentiment, top bullish/bearish headlines, source breakdown and a 30- or 90-day trend — all in one view.',
+    step4Title: 'React with confidence', step4Desc: 'Know whether the crowd is turning positive or negative before it shows in the price. Export to CSV for your own backtesting.',
+    featLabel: 'Features', featTitle: 'Everything a <em>serious trader</em> needs',
+    f1Title: 'Multi-source intelligence', f1Desc: 'NewsAPI, Alpha Vantage, European RSS and Google News combined into one unified feed. No single-source blind spots.',
+    f2Title: 'FinBERT sentiment', f2Desc: "Not just positive/negative keywords — a domain-specific transformer model that understands financial context and nuance.",
+    f3Title: 'Price + sentiment overlay', f3Desc: 'Candlestick OHLCV data alongside the sentiment curve to spot divergences before the market catches up.',
+    f4Title: 'Real-time refresh', f4Desc: 'Trigger on-demand news fetch for any ticker. Database updated by GitHub Actions every 6 hours automatically.',
+    f5Title: 'CSV export', f5Desc: 'Download the full scored dataset for any ticker and date range to run your own quantitative analysis.',
+    f6Title: 'Email alerts', f6Desc: 'Get notified when sentiment crosses a threshold — without checking the dashboard every hour.',
+    pricingLabel: 'Pricing', pricingTitle: 'Simple, honest pricing',
+    freePeriod: 'forever', free1: 'Any ticker, anytime', free2: '30-day sentiment window', free3: 'Top 5 news headlines', free4: 'Price chart overlay', free5: 'Watchlist (3 tickers)', free6: 'CSV export', free7: '90-day history', free8: 'Email alerts', free9: 'Advanced analytics', freeCta: 'Get started free',
+    proBadge: 'Most popular', proPeriod: 'per month · cancel anytime', pro1: 'Everything in Free', pro2: '90-day sentiment window', pro3: 'Full news feed (unlimited)', pro4: 'CSV export', pro5: 'Unlimited watchlist', pro6: 'Email alerts', pro7: 'Advanced analytics', pro8: 'Priority support', proCta: '⚡ Upgrade to Pro →',
+    ctaTitle: "Start reading the market's mind", ctaSub: 'Free to try. No credit card required. Up and running in 30 seconds.', ctaBtn: 'Launch FinSentinel →',
+    footerCopy: '© 2025 FinSentinel. For informational purposes only. Not financial advice.', footerLink: 'Launch app →',
   }
 }
 
-let lang = localStorage.getItem('cv-lang') || 'en'
+let lang = localStorage.getItem('fs-lang') || 'en'
 
 function applyLang(l) {
   lang = l
-  localStorage.setItem('cv-lang', l)
+  localStorage.setItem('fs-lang', l)
   document.documentElement.lang = l
-  document.getElementById('lang-btn').textContent = l === 'en' ? '🇬🇧' : '🇮🇹'
+  document.getElementById('lang-btn').textContent = l === 'it' ? '🇮🇹' : '🇬🇧'
   document.querySelectorAll('[data-i18n]').forEach(el => {
     const k = el.getAttribute('data-i18n')
     if (tr[l][k] !== undefined) el.innerHTML = tr[l][k]
   })
 }
 
-function toggleLang() { applyLang(lang === 'en' ? 'it' : 'en') }
+function toggleLang() { applyLang(lang === 'it' ? 'en' : 'it') }
+
 applyLang(lang)
 </script>
 </body>
