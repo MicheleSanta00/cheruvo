@@ -28,11 +28,11 @@ app.add_exception_handler(RateLimitExceeded, _rate_limit_exceeded_handler)
 app.add_middleware(
     CORSMiddleware,
     allow_origins=[
-        "https://finsentinel-three.vercel.app",
-        "https://finsentinel-five.vercel.app",
+        "https://appcheruvo.app",
+        "https://www.appcheruvo.app",
         "http://localhost:5173",
     ],
-    allow_origin_regex=r"https://.*\.vercel\.app",
+    allow_origin_regex=None,
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
@@ -83,7 +83,7 @@ def ticker_info(ticker: str, request: Request):
     info = validate_ticker(ticker.upper())
     if not info["valid"]:
         result = {
-            "valid": True,
+            "valid": False,
             "ticker": ticker.upper(),
             "nome": ticker.upper(),
             "settore": "N/A",

@@ -33,6 +33,19 @@ def init_subscriptions_table():
                 UNIQUE(user_id)
             )
         """)
+        cur.execute("""
+            CREATE TABLE IF NOT EXISTS watchlist (
+                id         SERIAL PRIMARY KEY,
+                user_id    UUID NOT NULL,
+                ticker     TEXT NOT NULL,
+                created_at TIMESTAMP DEFAULT NOW(),
+                UNIQUE(user_id, ticker)
+            )
+        """)
+        cur.execute("""
+            CREATE INDEX IF NOT EXISTS idx_watchlist_user
+            ON watchlist (user_id)
+        """)
         conn.commit()
         cur.close()
     finally:
