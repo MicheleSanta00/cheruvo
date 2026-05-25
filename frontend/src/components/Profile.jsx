@@ -87,7 +87,7 @@ export default function Profile({ user, isPro, onClose, onUpgrade }) {
         )}
 
         <a
-          href="https://finsentinel-five.vercel.app"
+          href="chevuro.vercel.app"
           style={{
             display: 'block', width: '100%', textAlign: 'center',
             background: 'transparent', color: 'var(--muted)',
