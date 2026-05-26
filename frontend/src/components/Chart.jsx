@@ -184,30 +184,32 @@ function PricePanel({ prices, sentiment }) {
 
 // ── Candlestick custom shape ──────────────────────────────────────────────
 function CandlestickBar(props) {
-  const { x, y, width, height, open, close, high, low, yAxis } = props
+  const { x, width, payload, yAxis } = props
+  if (!payload || !yAxis?.scale) return null
+
+  const open  = payload.Open
+  const close = payload.Close
+  const high  = payload.High ?? Math.max(payload.Open, payload.Close)
+  const low   = payload.Low  ?? Math.min(payload.Open, payload.Close)
+
   if (open == null || close == null) return null
 
-  const yScale = yAxis?.scale
-  if (!yScale) return null
+  const yScale  = yAxis.scale
+  const yOpen   = yScale(open)
+  const yClose  = yScale(close)
+  const yHigh   = yScale(high)
+  const yLow    = yScale(low)
 
-  const yOpen  = yScale(open)
-  const yClose = yScale(close)
-  const yHigh  = yScale(high)
-  const yLow   = yScale(low)
-
-  const isUp   = close >= open
-  const color  = isUp ? '#4ade80' : '#f87171'
+  const isUp    = close >= open
+  const color   = isUp ? '#4ade80' : '#f87171'
   const bodyTop = Math.min(yOpen, yClose)
   const bodyH   = Math.max(Math.abs(yOpen - yClose), 1)
   const cx      = x + width / 2
 
   return (
     <g>
-      {/* Wick superiore */}
       <line x1={cx} y1={yHigh} x2={cx} y2={bodyTop} stroke={color} strokeWidth={1} opacity={0.7} />
-      {/* Body */}
       <rect x={x + 1} y={bodyTop} width={Math.max(width - 2, 2)} height={bodyH} fill={color} opacity={0.85} rx={1} />
-      {/* Wick inferiore */}
       <line x1={cx} y1={bodyTop + bodyH} x2={cx} y2={yLow} stroke={color} strokeWidth={1} opacity={0.7} />
     </g>
   )
