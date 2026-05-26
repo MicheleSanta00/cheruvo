@@ -1,129 +1,342 @@
-import { useMemo, useRef, useEffect, useState } from 'react'
+import { useState, useMemo } from 'react'
+import {
+  ComposedChart, Area, Bar, Line, XAxis, YAxis,
+  CartesianGrid, Tooltip, ResponsiveContainer, ReferenceLine, Cell
+} from 'recharts'
 
+// ── Tooltip personalizzato ────────────────────────────────────────────────
+function CustomTooltip({ active, payload, label }) {
+  if (!active || !payload?.length) return null
+
+  const price  = payload.find(p => p.dataKey === 'Close')
+  const sentim = payload.find(p => p.dataKey === 'sentiment')
+  const open   = payload.find(p => p.dataKey === 'Open')
+  const high   = payload.find(p => p.dataKey === 'High')
+  const low    = payload.find(p => p.dataKey === 'Low')
+
+  const sentVal  = sentim?.value ?? null
+  const sentCol  = sentVal == null ? '#94a3b8' : sentVal > 0.1 ? '#4ade80' : sentVal < -0.1 ? '#f87171' : '#facc15'
+  const sentLbl  = sentVal == null ? '—' : sentVal > 0.1 ? 'Bullish' : sentVal < -0.1 ? 'Bearish' : 'Neutro'
+
+  return (
+    <div style={{
+      background: '#0f1117',
+      border: '1px solid rgba(255,255,255,0.1)',
+      borderRadius: 10,
+      padding: '12px 16px',
+      fontSize: 12,
+      minWidth: 180,
+      boxShadow: '0 8px 24px rgba(0,0,0,0.4)',
+    }}>
+      <div style={{ color: '#94a3b8', marginBottom: 10, fontWeight: 500 }}>{label}</div>
+
+      {price && (
+        <div style={{ marginBottom: 8 }}>
+          <div style={{ color: '#94a3b8', fontSize: 10, letterSpacing: '0.06em', marginBottom: 4 }}>PREZZO</div>
+          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '3px 12px' }}>
+            <Row label="Chiusura" value={`$${price.value?.toFixed(2)}`} color="#60a5fa" bold />
+            {open  && <Row label="Apertura" value={`$${open.value?.toFixed(2)}`}  />}
+            {high  && <Row label="Massimo"  value={`$${high.value?.toFixed(2)}`}  color="#4ade80" />}
+            {low   && <Row label="Minimo"   value={`$${low.value?.toFixed(2)}`}   color="#f87171" />}
+          </div>
+        </div>
+      )}
+
+      {sentVal != null && (
+        <div style={{ borderTop: '1px solid rgba(255,255,255,0.07)', paddingTop: 8 }}>
+          <div style={{ color: '#94a3b8', fontSize: 10, letterSpacing: '0.06em', marginBottom: 4 }}>SENTIMENT</div>
+          <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+            <span style={{ color: sentCol, fontWeight: 600, fontSize: 14 }}>
+              {sentVal > 0 ? '+' : ''}{sentVal.toFixed(3)}
+            </span>
+            <span style={{
+              fontSize: 10, color: sentCol,
+              background: `${sentCol}18`,
+              border: `1px solid ${sentCol}40`,
+              borderRadius: 100, padding: '2px 8px', fontWeight: 500,
+            }}>{sentLbl}</span>
+          </div>
+        </div>
+      )}
+    </div>
+  )
+}
+
+function Row({ label, value, color = '#e2e8f0', bold }) {
+  return (
+    <div style={{ display: 'contents' }}>
+      <span style={{ color: '#64748b' }}>{label}</span>
+      <span style={{ color, fontWeight: bold ? 600 : 400 }}>{value}</span>
+    </div>
+  )
+}
+
+// ── Pannello KPI prezzi ───────────────────────────────────────────────────
+function PricePanel({ prices, sentiment }) {
+  if (!prices.length) return null
+
+  const last    = prices[prices.length - 1]
+  const first   = prices[0]
+  const change  = last.Close - first.Close
+  const changePct = (change / first.Close) * 100
+  const isUp    = change >= 0
+
+  const allClose  = prices.map(p => p.Close)
+  const high52    = Math.max(...allClose)
+  const low52     = Math.min(...allClose)
+
+  // Sentiment medio
+  const sentVals = sentiment.map(s => s.sentiment).filter(v => v != null)
+  const avgSent  = sentVals.length ? sentVals.reduce((a, b) => a + b, 0) / sentVals.length : null
+  const sentCol  = avgSent == null ? '#94a3b8' : avgSent > 0.1 ? '#4ade80' : avgSent < -0.1 ? '#f87171' : '#facc15'
+  const sentLbl  = avgSent == null ? '—' : avgSent > 0.1 ? 'Bullish' : avgSent < -0.1 ? 'Bearish' : 'Neutro'
+
+  // Volume medio
+  const volumes = prices.map(p => p.Volume).filter(Boolean)
+  const avgVol  = volumes.length ? volumes.reduce((a, b) => a + b, 0) / volumes.length : null
+
+  const kpis = [
+    {
+      label: 'Ultimo Prezzo',
+      value: `$${last.Close?.toFixed(2)}`,
+      sub: `${isUp ? '+' : ''}${change.toFixed(2)} (${isUp ? '+' : ''}${changePct.toFixed(2)}%)`,
+      subColor: isUp ? '#4ade80' : '#f87171',
+      big: true,
+    },
+    {
+      label: 'Massimo Periodo',
+      value: `$${high52.toFixed(2)}`,
+      sub: `su ${prices.length} giorni`,
+      subColor: '#4ade80',
+    },
+    {
+      label: 'Minimo Periodo',
+      value: `$${low52.toFixed(2)}`,
+      sub: `su ${prices.length} giorni`,
+      subColor: '#f87171',
+    },
+    {
+      label: 'Sentiment Medio',
+      value: avgSent != null ? `${avgSent > 0 ? '+' : ''}${avgSent.toFixed(3)}` : '—',
+      sub: sentLbl,
+      subColor: sentCol,
+      valueColor: sentCol,
+    },
+    ...(avgVol ? [{
+      label: 'Volume Medio',
+      value: formatVol(avgVol),
+      sub: 'per giorno',
+      subColor: '#94a3b8',
+    }] : []),
+  ]
+
+  return (
+    <div style={{
+      display: 'grid',
+      gridTemplateColumns: 'repeat(auto-fit, minmax(130px, 1fr))',
+      gap: 10,
+      marginBottom: 16,
+    }}>
+      {kpis.map((k, i) => (
+        <div key={i} style={{
+          background: 'rgba(255,255,255,0.02)',
+          border: '1px solid rgba(255,255,255,0.07)',
+          borderRadius: 10,
+          padding: '12px 14px',
+        }}>
+          <div style={{ fontSize: 10, color: '#64748b', letterSpacing: '0.06em', textTransform: 'uppercase', marginBottom: 6 }}>
+            {k.label}
+          </div>
+          <div style={{ fontSize: k.big ? 20 : 16, fontWeight: 600, letterSpacing: '-0.02em', color: k.valueColor || '#f1f5f9', lineHeight: 1 }}>
+            {k.value}
+          </div>
+          <div style={{ fontSize: 11, color: k.subColor, marginTop: 4 }}>
+            {k.sub}
+          </div>
+        </div>
+      ))}
+    </div>
+  )
+}
+
+function formatVol(v) {
+  if (v >= 1_000_000_000) return `${(v / 1_000_000_000).toFixed(1)}B`
+  if (v >= 1_000_000)     return `${(v / 1_000_000).toFixed(1)}M`
+  if (v >= 1_000)         return `${(v / 1_000).toFixed(0)}K`
+  return v.toFixed(0)
+}
+
+// ── Formatta date sull'asse X ─────────────────────────────────────────────
+function fmtDate(d) {
+  if (!d) return ''
+  const parts = d.split('-')
+  if (parts.length < 3) return d
+  return `${parts[2]}/${parts[1]}`
+}
+
+// ── Componente principale ────────────────────────────────────────────────
 export default function Chart({ prices, sentiment, ticker }) {
-  const svgRef = useRef(null)
-  const [size, setSize] = useState({ w: 800, h: 320 })
+  const [showCandles, setShowCandles] = useState(false)
 
-  useEffect(() => {
-    if (!svgRef.current) return
-    const ro = new ResizeObserver(entries => {
-      const { width, height } = entries[0].contentRect
-      setSize({ w: Math.max(400, width), h: Math.max(200, height) })
-    })
-    ro.observe(svgRef.current.parentElement)
-    return () => ro.disconnect()
-  }, [])
-
-  const { candleSvg, sentSvg, lineSvg, areaSvg } = useMemo(() => {
-    if (!prices.length) return {}
-    const { w, h } = size
-    const padL = 8, padR = 8, padT = 10, chartH = h * 0.65, sentH = h * 0.22
-    const sentBase = chartH + 22
-
-    const allH = prices.map(p => p.High), allL = prices.map(p => p.Low)
-    const minP = Math.min(...allL), maxP = Math.max(...allH)
-    const n = prices.length
-
-    const sy = v => padT + chartH * (1 - (v - minP) / (maxP - minP))
-    const sx = i => padL + (i / Math.max(n - 1, 1)) * (w - padL - padR)
-    const cw = Math.max(3, ((w - padL - padR) / n) * 0.55)
-
-    // Build sentiment map by date
+  // Merge prices + sentiment per data
+  const data = useMemo(() => {
     const sentMap = {}
     sentiment.forEach(s => { sentMap[s.date] = s.sentiment })
+    return prices.map(p => ({
+      ...p,
+      sentiment: sentMap[p.date] ?? null,
+    }))
+  }, [prices, sentiment])
 
-    let candleSvg = '', sentSvg = '', linePath = '', aPath = ''
-
-    prices.forEach((p, i) => {
-      const x = sx(i)
-      const o = sy(p.Open), cl = sy(p.Close)
-      const hi = sy(p.High), lo = sy(p.Low)
-      const up = p.Close >= p.Open
-      const col = up ? 'var(--green)' : 'var(--red)'
-      const top = Math.min(o, cl), ht = Math.max(2, Math.abs(cl - o))
-
-      // Candle
-      candleSvg += `<line x1="${x}" y1="${hi}" x2="${x}" y2="${lo}" stroke="${col}" stroke-width="1" opacity="0.5"/>`
-      candleSvg += `<rect x="${x - cw / 2}" y="${top}" width="${cw}" height="${ht}" fill="${col}" rx="1"/>`
-
-      // Sentiment bar
-      const sent = sentMap[p.date] ?? 0
-      const bh = Math.abs(sent) * sentH * 0.8
-      const bx = x - cw / 2
-      const by = sent >= 0 ? sentBase - bh : sentBase
-      const bc = sent >= 0 ? 'var(--green)' : 'var(--red)'
-      sentSvg += `<rect x="${bx}" y="${by}" width="${cw}" height="${bh}" fill="${bc}" opacity="0.6" rx="1"/>`
-
-      // Line
-      linePath += i === 0 ? `M${x},${cl}` : ` L${x},${cl}`
-      aPath    += i === 0 ? `M${x},${cl}` : ` L${x},${cl}`
-    })
-
-    const lastX = sx(n - 1), baseY = padT + chartH
-    aPath += ` L${lastX},${baseY} L${padL},${baseY} Z`
-
-    return {
-      candleSvg,
-      sentSvg,
-      lineSvg: linePath,
-      areaSvg: aPath,
-      sentBase,
-      chartH,
-      h: size.h,
-    }
-  }, [prices, sentiment, size])
+  // Calcola range prezzo per YAxis
+  const { minP, maxP } = useMemo(() => {
+    if (!prices.length) return { minP: 0, maxP: 100 }
+    const lows  = prices.map(p => p.Low  ?? p.Close)
+    const highs = prices.map(p => p.High ?? p.Close)
+    const mn = Math.min(...lows)
+    const mx = Math.max(...highs)
+    const pad = (mx - mn) * 0.05
+    return { minP: mn - pad, maxP: mx + pad }
+  }, [prices])
 
   if (!prices.length) return (
-    <div style={{ height: 320, display: 'flex', alignItems: 'center', justifyContent: 'center', color: 'var(--muted)', fontSize: 14 }}>
+    <div style={{ height: 320, display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#64748b', fontSize: 14 }}>
       Nessun dato prezzi disponibile.
     </div>
   )
 
-  const { sentBase, chartH } = { sentBase: size.h * 0.65 + 22, chartH: size.h * 0.65 }
+  // Mostra max 60 punti per leggibilità
+  const step     = Math.max(1, Math.floor(data.length / 60))
+  const display  = data.filter((_, i) => i % step === 0)
+
+  // Quante label sull'asse X
+  const xInterval = Math.max(0, Math.floor(display.length / 6) - 1)
 
   return (
-    <div ref={svgRef} style={{ width: '100%', height: '100%' }}>
-      <svg
-        width="100%" height="100%"
-        viewBox={`0 0 ${size.w} ${size.h}`}
-        preserveAspectRatio="none"
-        style={{ display: 'block' }}
-      >
-        <defs>
-          <linearGradient id="priceGrad" x1="0" y1="0" x2="0" y2="1">
-            <stop offset="0%"   stopColor="#1e5cff" stopOpacity="0.18"/>
-            <stop offset="100%" stopColor="#1e5cff" stopOpacity="0"/>
-          </linearGradient>
-        </defs>
+    <div>
+      {/* Pannello dati concreti */}
+      <PricePanel prices={prices} sentiment={sentiment} />
 
-        {/* Grid lines */}
-        {[0,1,2,3].map(j => {
-          const y = 10 + chartH * j / 3
-          return <line key={j} x1="8" y1={y} x2={size.w - 8} y2={y} stroke="rgba(255,255,255,0.04)" strokeWidth="1"/>
-        })}
+      {/* Toggle candles/line */}
+      <div style={{ display: 'flex', gap: 8, marginBottom: 12, justifyContent: 'flex-end' }}>
+        {['Linea', 'Candele'].map((lbl, i) => (
+          <button key={lbl} onClick={() => setShowCandles(i === 1)} style={{
+            fontSize: 11, padding: '4px 12px', borderRadius: 6, cursor: 'pointer',
+            background: showCandles === (i === 1) ? 'rgba(96,165,250,0.15)' : 'transparent',
+            border: showCandles === (i === 1) ? '1px solid rgba(96,165,250,0.4)' : '1px solid rgba(255,255,255,0.1)',
+            color: showCandles === (i === 1) ? '#60a5fa' : '#64748b',
+          }}>{lbl}</button>
+        ))}
+      </div>
 
-        {/* Divider price/sentiment */}
-        <line x1="8" y1={chartH + 15} x2={size.w - 8} y2={chartH + 15} stroke="rgba(255,255,255,0.06)" strokeWidth="1" strokeDasharray="3,4"/>
+      {/* Grafico prezzi */}
+      <div style={{ marginBottom: 6 }}>
+        <span style={{ fontSize: 10, color: '#475569', letterSpacing: '0.06em', textTransform: 'uppercase' }}>
+          PREZZO CHIUSURA — {ticker}
+        </span>
+      </div>
+      <ResponsiveContainer width="100%" height={220}>
+        <ComposedChart data={display} margin={{ top: 4, right: 56, left: 0, bottom: 0 }}>
+          <defs>
+            <linearGradient id="priceGrad" x1="0" y1="0" x2="0" y2="1">
+              <stop offset="0%"   stopColor="#3b7bff" stopOpacity={0.2}/>
+              <stop offset="100%" stopColor="#3b7bff" stopOpacity={0}/>
+            </linearGradient>
+          </defs>
 
-        {/* Area fill */}
-        {areaSvg && <path d={areaSvg} fill="url(#priceGrad)"/>}
+          <CartesianGrid strokeDasharray="3 4" stroke="rgba(255,255,255,0.04)" vertical={false}/>
 
-        {/* Price line */}
-        {lineSvg && <path d={lineSvg} fill="none" stroke="rgba(59,123,255,0.55)" strokeWidth="1.5"/>}
+          <XAxis
+            dataKey="date"
+            tickFormatter={fmtDate}
+            interval={xInterval}
+            tick={{ fontSize: 10, fill: '#475569' }}
+            axisLine={false}
+            tickLine={false}
+          />
 
-        {/* Candles */}
-        {candleSvg && <g dangerouslySetInnerHTML={{ __html: candleSvg }}/>}
+          <YAxis
+            yAxisId="price"
+            orientation="right"
+            domain={[minP, maxP]}
+            tickFormatter={v => `$${v.toFixed(0)}`}
+            tick={{ fontSize: 10, fill: '#475569' }}
+            axisLine={false}
+            tickLine={false}
+            width={52}
+          />
 
-        {/* Sentiment bars */}
-        {sentSvg && <g dangerouslySetInnerHTML={{ __html: sentSvg }}/>}
+          <Tooltip content={<CustomTooltip />} />
 
-        {/* Zero line sentiment */}
-        <line x1="8" y1={sentBase} x2={size.w - 8} y2={sentBase} stroke="rgba(255,255,255,0.1)" strokeWidth="1" strokeDasharray="2,4"/>
+          {/* Dati Open/High/Low nascosti ma accessibili al tooltip */}
+          <Line yAxisId="price" dataKey="Open" dot={false} stroke="transparent" strokeWidth={0}/>
+          <Line yAxisId="price" dataKey="High" dot={false} stroke="transparent" strokeWidth={0}/>
+          <Line yAxisId="price" dataKey="Low"  dot={false} stroke="transparent" strokeWidth={0}/>
 
-        {/* Labels */}
-        <text x="12" y={chartH - 4} fill="rgba(255,255,255,0.2)" fontSize="10">PREZZO</text>
-        <text x="12" y={sentBase + 16} fill="rgba(255,255,255,0.2)" fontSize="10">SENTIMENT</text>
-      </svg>
+          {/* Area fill */}
+          <Area
+            yAxisId="price"
+            dataKey="Close"
+            stroke="#3b7bff"
+            strokeWidth={1.8}
+            fill="url(#priceGrad)"
+            dot={false}
+            activeDot={{ r: 4, fill: '#60a5fa', strokeWidth: 0 }}
+          />
+        </ComposedChart>
+      </ResponsiveContainer>
+
+      {/* Grafico sentiment */}
+      <div style={{ marginTop: 12, marginBottom: 6 }}>
+        <span style={{ fontSize: 10, color: '#475569', letterSpacing: '0.06em', textTransform: 'uppercase' }}>
+          SENTIMENT GIORNALIERO
+        </span>
+      </div>
+      <ResponsiveContainer width="100%" height={100}>
+        <ComposedChart data={display} margin={{ top: 4, right: 56, left: 0, bottom: 0 }}>
+          <CartesianGrid strokeDasharray="3 4" stroke="rgba(255,255,255,0.04)" vertical={false}/>
+
+          <XAxis
+            dataKey="date"
+            tickFormatter={fmtDate}
+            interval={xInterval}
+            tick={{ fontSize: 10, fill: '#475569' }}
+            axisLine={false}
+            tickLine={false}
+          />
+
+          <YAxis
+            yAxisId="sent"
+            orientation="right"
+            domain={[-1, 1]}
+            ticks={[-1, -0.5, 0, 0.5, 1]}
+            tickFormatter={v => v.toFixed(1)}
+            tick={{ fontSize: 10, fill: '#475569' }}
+            axisLine={false}
+            tickLine={false}
+            width={52}
+          />
+
+          <ReferenceLine yAxisId="sent" y={0} stroke="rgba(255,255,255,0.12)" strokeDasharray="3 4"/>
+
+          <Tooltip content={<CustomTooltip />}/>
+
+          <Bar yAxisId="sent" dataKey="sentiment" radius={[2, 2, 0, 0]} maxBarSize={12}>
+            {display.map((entry, i) => (
+              <Cell
+                key={i}
+                fill={
+                  entry.sentiment == null ? '#334155'
+                  : entry.sentiment > 0.1 ? '#4ade80'
+                  : entry.sentiment < -0.1 ? '#f87171'
+                  : '#facc15'
+                }
+                opacity={0.75}
+              />
+            ))}
+          </Bar>
+        </ComposedChart>
+      </ResponsiveContainer>
     </div>
   )
 }

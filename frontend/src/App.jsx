@@ -268,7 +268,7 @@ export default function App() {
                   <Legend color="var(--red)" label={t.main.negative} />
                 </div>
               </div>
-              <div style={{ height: 300 }}>
+              <div>
                 <Chart prices={prices} sentiment={sentiment} ticker={ticker} />
               </div>
             </div>
