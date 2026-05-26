@@ -1,16 +1,18 @@
 """
 alerts.py — Sistema di alert sentiment per Cheruvo.
-
-Chiamato da GitHub Actions (updater.py) dopo ogni fetch.
-Supporta alert negativi E positivi, solo per utenti PRO con watchlist.
 """
 import os
+import sys
+
+# Fix import path quando chiamato da updater.py nella root
+sys.path.insert(0, os.path.dirname(__file__))
+
 import resend
 from database import get_pool
 
 resend.api_key = os.environ.get("RESEND_API_KEY", "")
-FROM_EMAIL = os.environ.get("FROM_EMAIL", "alerts@cheruvo.com")
-FRONTEND_URL = os.environ.get("FRONTEND_URL", "https://finsentinel-three.vercel.app")
+FROM_EMAIL = os.environ.get("FROM_EMAIL", "alerts@appcheruvo.com")
+FRONTEND_URL = os.environ.get("FRONTEND_URL", "https://appcheruvo.vercel.app")
 
 
 def _conn():
