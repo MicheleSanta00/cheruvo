@@ -266,8 +266,3 @@ def get_summary(ticker: str, request: Request):
     _cache[cache_key] = {"data": result, "ts": time.time()}
     return result
 
-@app.delete("/api/summary/cache/{ticker}")
-def clear_summary_cache(ticker: str):
-    key = f"summary:{ticker.upper()}"
-    _cache.pop(key, None)
-    return {"cleared": ticker.upper()}
