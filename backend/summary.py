@@ -18,7 +18,7 @@ Sentiment medio calcolato: {avg_sentiment:.2f} (scala da -1 a +1)
 Basandoti su queste informazioni, rispondi SOLO con un oggetto JSON valido con questa struttura esatta, senza markdown, senza backtick, senza testo aggiuntivo:
 {{
   "giudizio": "bullish" | "bearish" | "neutro",
-  "riassunto": "Tre frasi che spiegano la situazione attuale del titolo basandosi sulle notizie.",
+  "riassunto": "Cinque-sei frasi dettagliate che spiegano la situazione attuale del titolo: analizza il contesto di mercato, i fattori che influenzano il sentiment, eventuali rischi o opportunità emerse dalle notizie, e una prospettiva di breve periodo.",
   "temi": ["tema1", "tema2", "tema3"]
 }}
 
@@ -48,7 +48,7 @@ def genera_summary(ticker: str, company: str, headlines: list[str], avg_sentimen
         response = client.chat.completions.create(
             model="llama-3.1-8b-instant",
             messages=[{"role": "user", "content": prompt}],
-            max_tokens=400,
+            max_tokens=800,
             temperature=0.3,   # bassa per output consistente
         )
         raw = response.choices[0].message.content.strip()
