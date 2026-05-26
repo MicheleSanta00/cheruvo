@@ -40,7 +40,7 @@ jobs:
           FROM_EMAIL: ${{ secrets.FROM_EMAIL }}
           FRONTEND_URL: ${{ secrets.FRONTEND_URL }}
           # — Python path
-          PYTHONPATH: ${{ github.workspace }}
+          PYTHONPATH: ${{ github.workspace }}/backend:${{ github.workspace }}
         run: python updater.py
 
       - name: Risultato
