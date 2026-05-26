@@ -83,7 +83,7 @@ def ticker_info(ticker: str, request: Request):
     info = validate_ticker(ticker.upper())
     if not info["valid"]:
         result = {
-            "valid": True,
+            "valid": False,
             "ticker": ticker.upper(),
             "nome": ticker.upper(),
             "settore": "N/A",
