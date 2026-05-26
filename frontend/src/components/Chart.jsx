@@ -75,25 +75,23 @@ function Row({ label, value, color = '#e2e8f0', bold }) {
 function PricePanel({ prices, sentiment }) {
   if (!prices.length) return null
 
-  const last    = prices[prices.length - 1]
-  const first   = prices[0]
-  const change  = last.Close - first.Close
+  const last      = prices[prices.length - 1]
+  const first     = prices[0]
+  const change    = last.Close - first.Close
   const changePct = (change / first.Close) * 100
-  const isUp    = change >= 0
+  const isUp      = change >= 0
 
-  const allClose  = prices.map(p => p.Close)
-  const high52    = Math.max(...allClose)
-  const low52     = Math.min(...allClose)
+  const allClose = prices.map(p => p.Close)
+  const high52   = Math.max(...allClose)
+  const low52    = Math.min(...allClose)
 
-  // Sentiment medio
   const sentVals = sentiment.map(s => s.sentiment).filter(v => v != null)
   const avgSent  = sentVals.length ? sentVals.reduce((a, b) => a + b, 0) / sentVals.length : null
+  const maxSent  = sentVals.length ? Math.max(...sentVals) : null
+  const minSent  = sentVals.length ? Math.min(...sentVals) : null
+
   const sentCol  = avgSent == null ? '#94a3b8' : avgSent > 0.1 ? '#4ade80' : avgSent < -0.1 ? '#f87171' : '#facc15'
   const sentLbl  = avgSent == null ? '—' : avgSent > 0.1 ? 'Bullish' : avgSent < -0.1 ? 'Bearish' : 'Neutro'
-
-  // Volume medio
-  const volumes = prices.map(p => p.Volume).filter(Boolean)
-  const avgVol  = volumes.length ? volumes.reduce((a, b) => a + b, 0) / volumes.length : null
 
   const kpis = [
     {
@@ -122,12 +120,30 @@ function PricePanel({ prices, sentiment }) {
       subColor: sentCol,
       valueColor: sentCol,
     },
-    ...(avgVol ? [{
-      label: 'Volume Medio',
-      value: formatVol(avgVol),
-      sub: 'per giorno',
-      subColor: '#94a3b8',
-    }] : []),
+    {
+      label: 'Picco Positivo',
+      value: maxSent != null ? `${maxSent > 0 ? '+' : ''}${maxSent.toFixed(3)}` : '—',
+      sub: 'sentiment massimo',
+      subColor: '#4ade80',
+      valueColor: maxSent != null ? '#4ade80' : '#94a3b8',
+    },
+    {
+      label: 'Picco Negativo',
+      value: minSent != null ? `${minSent > 0 ? '+' : ''}${minSent.toFixed(3)}` : '—',
+      sub: 'sentiment minimo',
+      subColor: '#f87171',
+      valueColor: minSent != null ? '#f87171' : '#94a3b8',
+    },
+    ...((() => {
+      const volumes = prices.map(p => p.Volume).filter(Boolean)
+      const avgVol = volumes.length ? volumes.reduce((a, b) => a + b, 0) / volumes.length : null
+      return avgVol ? [{
+        label: 'Scambi Giornalieri',
+        value: formatVol(avgVol),
+        sub: 'azioni trattate/giorno',
+        subColor: '#94a3b8',
+      }] : []
+    })()),
   ]
 
   return (
@@ -159,11 +175,35 @@ function PricePanel({ prices, sentiment }) {
   )
 }
 
-function formatVol(v) {
-  if (v >= 1_000_000_000) return `${(v / 1_000_000_000).toFixed(1)}B`
-  if (v >= 1_000_000)     return `${(v / 1_000_000).toFixed(1)}M`
-  if (v >= 1_000)         return `${(v / 1_000).toFixed(0)}K`
-  return v.toFixed(0)
+// ── Candlestick custom shape ──────────────────────────────────────────────
+function CandlestickBar(props) {
+  const { x, y, width, height, open, close, high, low, yAxis } = props
+  if (open == null || close == null) return null
+
+  const yScale = yAxis?.scale
+  if (!yScale) return null
+
+  const yOpen  = yScale(open)
+  const yClose = yScale(close)
+  const yHigh  = yScale(high)
+  const yLow   = yScale(low)
+
+  const isUp   = close >= open
+  const color  = isUp ? '#4ade80' : '#f87171'
+  const bodyTop = Math.min(yOpen, yClose)
+  const bodyH   = Math.max(Math.abs(yOpen - yClose), 1)
+  const cx      = x + width / 2
+
+  return (
+    <g>
+      {/* Wick superiore */}
+      <line x1={cx} y1={yHigh} x2={cx} y2={bodyTop} stroke={color} strokeWidth={1} opacity={0.7} />
+      {/* Body */}
+      <rect x={x + 1} y={bodyTop} width={Math.max(width - 2, 2)} height={bodyH} fill={color} opacity={0.85} rx={1} />
+      {/* Wick inferiore */}
+      <line x1={cx} y1={bodyTop + bodyH} x2={cx} y2={yLow} stroke={color} strokeWidth={1} opacity={0.7} />
+    </g>
+  )
 }
 
 // ── Formatta date sull'asse X ─────────────────────────────────────────────
@@ -178,7 +218,6 @@ function fmtDate(d) {
 export default function Chart({ prices, sentiment, ticker }) {
   const [showCandles, setShowCandles] = useState(false)
 
-  // Merge prices + sentiment per data
   const data = useMemo(() => {
     const sentMap = {}
     sentiment.forEach(s => { sentMap[s.date] = s.sentiment })
@@ -188,7 +227,6 @@ export default function Chart({ prices, sentiment, ticker }) {
     }))
   }, [prices, sentiment])
 
-  // Calcola range prezzo per YAxis
   const { minP, maxP } = useMemo(() => {
     if (!prices.length) return { minP: 0, maxP: 100 }
     const lows  = prices.map(p => p.Low  ?? p.Close)
@@ -205,19 +243,15 @@ export default function Chart({ prices, sentiment, ticker }) {
     </div>
   )
 
-  // Mostra max 60 punti per leggibilità
-  const step     = Math.max(1, Math.floor(data.length / 60))
-  const display  = data.filter((_, i) => i % step === 0)
-
-  // Quante label sull'asse X
+  const step    = Math.max(1, Math.floor(data.length / 60))
+  const display = data.filter((_, i) => i % step === 0)
   const xInterval = Math.max(0, Math.floor(display.length / 6) - 1)
 
   return (
     <div>
-      {/* Pannello dati concreti */}
       <PricePanel prices={prices} sentiment={sentiment} />
 
-      {/* Toggle candles/line */}
+      {/* Toggle linea / candele */}
       <div style={{ display: 'flex', gap: 8, marginBottom: 12, justifyContent: 'flex-end' }}>
         {['Linea', 'Candele'].map((lbl, i) => (
           <button key={lbl} onClick={() => setShowCandles(i === 1)} style={{
@@ -229,12 +263,12 @@ export default function Chart({ prices, sentiment, ticker }) {
         ))}
       </div>
 
-      {/* Grafico prezzi */}
       <div style={{ marginBottom: 6 }}>
         <span style={{ fontSize: 10, color: '#475569', letterSpacing: '0.06em', textTransform: 'uppercase' }}>
-          PREZZO CHIUSURA — {ticker}
+          PREZZO {showCandles ? 'OHLC' : 'CHIUSURA'} — {ticker}
         </span>
       </div>
+
       <ResponsiveContainer width="100%" height={220}>
         <ComposedChart data={display} margin={{ top: 4, right: 56, left: 0, bottom: 0 }}>
           <defs>
@@ -268,21 +302,31 @@ export default function Chart({ prices, sentiment, ticker }) {
 
           <Tooltip content={<CustomTooltip />} />
 
-          {/* Dati Open/High/Low nascosti ma accessibili al tooltip */}
+          {/* Open/High/Low sempre presenti per il tooltip */}
           <Line yAxisId="price" dataKey="Open" dot={false} stroke="transparent" strokeWidth={0}/>
           <Line yAxisId="price" dataKey="High" dot={false} stroke="transparent" strokeWidth={0}/>
           <Line yAxisId="price" dataKey="Low"  dot={false} stroke="transparent" strokeWidth={0}/>
 
-          {/* Area fill */}
-          <Area
-            yAxisId="price"
-            dataKey="Close"
-            stroke="#3b7bff"
-            strokeWidth={1.8}
-            fill="url(#priceGrad)"
-            dot={false}
-            activeDot={{ r: 4, fill: '#60a5fa', strokeWidth: 0 }}
-          />
+          {showCandles ? (
+            /* Candele: Bar con shape custom */
+            <Bar
+              yAxisId="price"
+              dataKey="Close"
+              shape={<CandlestickBar />}
+              isAnimationActive={false}
+            />
+          ) : (
+            /* Linea con area fill */
+            <Area
+              yAxisId="price"
+              dataKey="Close"
+              stroke="#3b7bff"
+              strokeWidth={1.8}
+              fill="url(#priceGrad)"
+              dot={false}
+              activeDot={{ r: 4, fill: '#60a5fa', strokeWidth: 0 }}
+            />
+          )}
         </ComposedChart>
       </ResponsiveContainer>
 
