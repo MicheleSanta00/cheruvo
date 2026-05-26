@@ -83,7 +83,7 @@ def ticker_info(ticker: str, request: Request):
     info = validate_ticker(ticker.upper())
     if not info["valid"]:
         result = {
-            "valid": False,
+            "valid": True,
             "ticker": ticker.upper(),
             "nome": ticker.upper(),
             "settore": "N/A",
@@ -207,3 +207,61 @@ def list_tickers(request: Request):
 @app.get("/health")
 def health():
     return {"status": "ok", "cache_entries": len(_cache)}
+
+# ── AI Summary ─────────────────────────────────────────────────────────────
+from summary import genera_summary
+
+SUMMARY_TTL = 6 * 3600  # 6 ore
+
+@app.get("/api/summary/{ticker}")
+@limiter.limit("20/minute")
+def get_summary(ticker: str, request: Request):
+    ticker = ticker.upper()
+    cache_key = f"summary:{ticker}"
+
+    # Cache con TTL 6 ore (override del TTL globale di 5 min)
+    entry = _cache.get(cache_key)
+    if entry and time.time() - entry["ts"] < SUMMARY_TTL:
+        return entry["data"]
+
+    # Recupera news dal DB
+    pool = get_pool()
+    conn = pool.getconn()
+    try:
+        cur = conn.cursor()
+        cur.execute(
+            """SELECT title, sentiment FROM news
+               WHERE ticker = %s
+               ORDER BY published_date DESC
+               LIMIT 15""",
+            (ticker,)
+        )
+        rows = cur.fetchall()
+        cur.close()
+    finally:
+        pool.putconn(conn)
+
+    if not rows:
+        raise HTTPException(status_code=404, detail="Nessuna news trovata per questo ticker")
+
+    headlines = [r[0] for r in rows if r[0]]
+    sentiments = [r[1] for r in rows if r[1] is not None]
+    avg_sentiment = sum(sentiments) / len(sentiments) if sentiments else 0.0
+
+    # Recupera nome azienda dalla cache validate
+    ticker_info = cache_get(f"validate:{ticker}") or {}
+    company = ticker_info.get("nome", ticker)
+
+    # Chiama Groq
+    try:
+        result = genera_summary(ticker, company, headlines, avg_sentiment)
+    except RuntimeError as e:
+        raise HTTPException(status_code=503, detail=str(e))
+
+    result["ticker"] = ticker
+    result["avg_sentiment"] = round(avg_sentiment, 4)
+    result["news_analizzate"] = len(headlines)
+
+    # Salva in cache con TTL 6h
+    _cache[cache_key] = {"data": result, "ts": time.time()}
+    return result

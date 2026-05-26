@@ -5,7 +5,8 @@ import { supabase } from './supabase.js'
 import { useLang } from './LangContext.jsx'
 
 import Sidebar  from './components/Sidebar.jsx'
-import KPIGrid  from './components/KPIGrid.jsx'
+import KPIGrid     from './components/KPIGrid.jsx'
+import SummaryCard from './components/SummaryCard.jsx'
 import Chart    from './components/Chart.jsx'
 import TopNews  from './components/TopNews.jsx'
 import Stats    from './components/Stats.jsx'
@@ -225,6 +226,10 @@ export default function App() {
           )}
 
           {stats && <KPIGrid stats={stats} />}
+
+          {tickerInfo && !loading && (
+            <SummaryCard ticker={ticker} isPro={isPro} />
+          )}
 
           {!loading && !tickerInfo && !error && <EmptyState t={t} />}
 
