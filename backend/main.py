@@ -210,7 +210,6 @@ def health():
     return {"status": "ok", "cache_entries": len(_cache)}
 
 # ── AI Summary ─────────────────────────────────────────────────────────────
-from summary import genera_summary
 
 SUMMARY_TTL = 6 * 3600  # 6 ore
 
