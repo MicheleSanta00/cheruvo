@@ -80,3 +80,51 @@ input  { font-family: var(--sans); }
     display: none !important;
   }
 }
+
+/* ── Shimmer animation per SummaryCard skeleton ─────────────────────── */
+@keyframes shimmer {
+  0%   { background-position: 200% 0; }
+  100% { background-position: -200% 0; }
+}
+
+/* ── Mobile tweaks aggiuntivi ────────────────────────────────────────── */
+@media (max-width: 640px) {
+
+  /* Contenuto principale: padding laterale ridotto */
+  main > div[style] {
+    padding-left: 12px !important;
+    padding-right: 12px !important;
+  }
+
+  /* Header: limita la larghezza del nome ticker per non spingere i bottoni */
+  header span[style*="overflow: hidden"] {
+    max-width: 120px;
+  }
+
+  /* KPI grid: 2 colonne su mobile invece di auto-fit */
+  div[style*="minmax(120px"] {
+    grid-template-columns: repeat(2, 1fr) !important;
+  }
+
+  /* SummaryCard: padding ridotto su mobile */
+  div[style*="border-radius: 12px"][style*="padding: 16px 20px"] {
+    padding: 12px 14px !important;
+  }
+
+  /* Nascondi temi su mobile anche per PRO (troppo stretti) */
+  .summary-temi {
+    display: none;
+  }
+
+  /* Chart: altezza ridotta su mobile */
+  div[style*="height: 320px"],
+  div[style*="height:320px"] {
+    height: 220px !important;
+  }
+
+  /* Bottone upgrade PRO nell'header: testo più corto */
+  header button[style*="background: var(--blue)"] {
+    font-size: 11px !important;
+    padding: 4px 8px !important;
+  }
+}

@@ -122,7 +122,7 @@ export default function SummaryCard({ ticker, isPro }) {
 
       {/* Temi */}
       {isPro && data.temi?.length > 0 && (
-        <div style={{ display: 'flex', gap: 8, marginTop: 12, flexWrap: 'wrap' }}>
+        <div className="summary-temi" style={{ display: 'flex', gap: 8, marginTop: 12, flexWrap: 'wrap' }}>
           {data.temi.map((tema, i) => (
             <span key={i} style={{
               fontSize: 12, fontWeight: 500,
