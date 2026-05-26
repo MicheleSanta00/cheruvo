@@ -36,7 +36,7 @@ def genera_summary(ticker: str, company: str, headlines: list[str], avg_sentimen
     if not headlines:
         return _fallback(avg_sentiment)
 
-    headlines_str = "\n".join(f"- {h}" for h in headlines[:15])
+    headlines_str = "\n".join(f"- {h}" for h in headlines[:60])
     prompt = PROMPT_TEMPLATE.format(
         ticker=ticker,
         company=company,

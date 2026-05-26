@@ -231,9 +231,10 @@ def get_summary(ticker: str, request: Request):
         cur = conn.cursor()
         cur.execute(
             """SELECT title, sentiment FROM news
-               WHERE ticker = %s
-               ORDER BY published_date DESC
-               LIMIT 15""",
+            WHERE ticker = %s
+            AND published_date >= NOW() - INTERVAL '7 days'
+            ORDER BY published_date DESC
+            LIMIT 60""",
             (ticker,)
         )
         rows = cur.fetchall()
