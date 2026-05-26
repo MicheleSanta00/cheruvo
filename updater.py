@@ -6,12 +6,16 @@ import os
 import sys
 import random
 
-sys.path.insert(0, os.path.dirname(__file__))
+# Assicura che Python trovi i moduli in backend/
+BASE_DIR = os.path.dirname(__file__)
+BACKEND_DIR = os.path.join(BASE_DIR, 'backend')
+sys.path.insert(0, BACKEND_DIR)
+sys.path.insert(0, BASE_DIR)
 
 # Usa il quick_fetch del backend (VADER, leggero)
-from backend.quick_fetch import quick_fetch
-from backend.alerts import check_and_send_alerts
-from backend.database import get_pool, init_database
+from quick_fetch import quick_fetch
+from alerts import check_and_send_alerts
+from database import get_pool, init_database
 
 DEFAULT_TICKERS = [
     # USA
