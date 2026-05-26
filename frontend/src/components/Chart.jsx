@@ -185,7 +185,7 @@ function PricePanel({ prices, sentiment }) {
 // ── Candlestick custom shape ──────────────────────────────────────────────
 function CandlestickBar(props) {
   const { x, width, payload, background, yAxis } = props
-  if (!payload || !background) return null
+  if (!payload || !background || !yAxis?.scale) return null
 
   const open  = payload.Open
   const close = payload.Close
@@ -193,12 +193,9 @@ function CandlestickBar(props) {
   const low   = payload.Low  ?? Math.min(open, close)
   if (open == null || close == null) return null
 
-  const domain = yAxis?.domain ?? [0, 100]
-  const domMin = Math.min(...domain)
-  const domMax = Math.max(...domain)
-  const chartTop    = background.y
-  const chartHeight = background.height
-  const toY = v => chartTop + ((domMax - v) / (domMax - domMin)) * chartHeight
+  // Usa la funzione scale di recharts direttamente — evita NaN quando
+  // yAxis.domain è ['auto','auto'] e Math.min/max ritorna NaN
+  const toY = v => yAxis.scale(v)
 
   const yOpen  = toY(open)
   const yClose = toY(close)
