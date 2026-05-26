@@ -47,7 +47,13 @@ export default function SummaryCard({ ticker, isPro }) {
     </div>
   )
 
-  if (error || !data) return null
+  if (error || !data) return (
+    <div style={cardStyle('#f8fafc', '#e2e8f0')}>
+      <span style={{ fontSize: 13, color: '#94a3b8' }}>
+        ℹ️ Nessun summary disponibile — carica prima le news con il pulsante Aggiorna
+      </span>
+    </div>
+  )
 
   const colori = COLORI[data.giudizio] || COLORI.neutro
   const frasi  = data.riassunto?.split('.').filter(f => f.trim().length > 5) || []

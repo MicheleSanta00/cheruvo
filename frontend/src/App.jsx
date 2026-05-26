@@ -27,6 +27,8 @@ export default function App() {
   const [isPro, setIsPro]             = useState(false)
   const [showProfile, setShowProfile] = useState(false)
   const [sidebarOpen, setSidebarOpen] = useState(false)
+  // FIX: ticker "confermato" — si aggiorna solo dopo che il caricamento è completato
+  const [loadedTicker, setLoadedTicker] = useState(null)
 
   const { tickerInfo, news, stats, prices, sentiment, loading, fetching, error, load, triggerFetch } = useFinData()
 
@@ -49,9 +51,16 @@ export default function App() {
     }
   }, [user])
 
+  // FIX: handleLoad aggiorna loadedTicker solo a caricamento completato
+  const handleLoad = async (tk, d, p) => {
+    await load(tk, d, p)
+    setLoadedTicker(tk)
+    setSidebarOpen(false)
+  }
+
   const handleFetch = async (tk) => {
     await triggerFetch(tk)
-    setTimeout(() => load(tk, days, period), 3000)
+    setTimeout(() => handleLoad(tk, days, period), 3000)
   }
 
   const handleUpgrade = async () => {
@@ -68,7 +77,7 @@ export default function App() {
     if (!isPro) { handleUpgrade(); return }
     if (!news.length) return
     const headers = ['title', 'source', 'published_date', 'sentiment', 'url']
-    const rows = news.map(n => headers.map(h => `"${(n[h] || '').toString().replace(/"/g, '""')}"`).join(','))
+    const rows = news.map(n => headers.map(h => `"${(n[h] || '').toString().replace(/"/g, '""')}`).join(','))
     const csv = [headers.join(','), ...rows].join('\n')
     const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' })
     const url = URL.createObjectURL(blob)
@@ -107,7 +116,7 @@ export default function App() {
           ticker={ticker} days={days} period={period}
           loading={loading} fetching={fetching} isPro={isPro}
           onTickerChange={setTicker} onDaysChange={setDays} onPeriodChange={setPeriod}
-          onLoad={(tk, d, p) => { load(tk, d, p); setSidebarOpen(false) }}
+          onLoad={(tk, d, p) => handleLoad(tk, d, p)}
           onFetch={handleFetch} onUpgrade={handleUpgrade}
         />
       </div>
@@ -227,8 +236,9 @@ export default function App() {
 
           {stats && <KPIGrid stats={stats} />}
 
-          {tickerInfo && !loading && (
-            <SummaryCard ticker={ticker} isPro={isPro} />
+          {/* FIX: usa loadedTicker invece di ticker — la SummaryCard parte solo dopo il caricamento completo */}
+          {tickerInfo && !loading && loadedTicker && (
+            <SummaryCard ticker={loadedTicker} isPro={isPro} />
           )}
 
           {!loading && !tickerInfo && !error && <EmptyState t={t} />}

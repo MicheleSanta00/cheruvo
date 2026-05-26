@@ -17,6 +17,7 @@ from database import SuperNewsAnalyzer, init_database, get_pool
 from prices import get_prices, validate_ticker
 from stripe_routes import router as stripe_router, init_subscriptions_table
 from quick_fetch import quick_fetch
+from summary import genera_summary, _fallback
 
 # ── Rate limiter ───────────────────────────────────────────────────────────
 limiter = Limiter(key_func=get_remote_address, default_limits=["60/minute"])
@@ -243,7 +244,11 @@ def get_summary(ticker: str, request: Request):
         pool.putconn(conn)
 
     if not rows:
-        raise HTTPException(status_code=404, detail="Nessuna news trovata per questo ticker")
+        result = _fallback(0.0)
+        result["ticker"] = ticker
+        result["avg_sentiment"] = 0.0
+        result["news_analizzate"] = 0
+        return result
 
     headlines = [r[0] for r in rows if r[0]]
     sentiments = [r[1] for r in rows if r[1] is not None]
