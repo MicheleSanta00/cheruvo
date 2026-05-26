@@ -71,6 +71,13 @@ function Row({ label, value, color = '#e2e8f0', bold }) {
   )
 }
 
+function formatVol(v) {
+  if (v >= 1_000_000_000) return `${(v / 1_000_000_000).toFixed(1)}B`
+  if (v >= 1_000_000)     return `${(v / 1_000_000).toFixed(1)}M`
+  if (v >= 1_000)         return `${(v / 1_000).toFixed(0)}K`
+  return v.toFixed(0)
+}
+
 // ── Pannello KPI prezzi ───────────────────────────────────────────────────
 function PricePanel({ prices, sentiment }) {
   if (!prices.length) return null
