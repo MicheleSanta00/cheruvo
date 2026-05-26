@@ -184,21 +184,26 @@ function PricePanel({ prices, sentiment }) {
 
 // ── Candlestick custom shape ──────────────────────────────────────────────
 function CandlestickBar(props) {
-  const { x, width, payload, yAxis } = props
-  if (!payload || !yAxis?.scale) return null
+  const { x, width, payload, background, yAxis } = props
+  if (!payload || !background) return null
 
   const open  = payload.Open
   const close = payload.Close
-  const high  = payload.High ?? Math.max(payload.Open, payload.Close)
-  const low   = payload.Low  ?? Math.min(payload.Open, payload.Close)
-
+  const high  = payload.High ?? Math.max(open, close)
+  const low   = payload.Low  ?? Math.min(open, close)
   if (open == null || close == null) return null
 
-  const yScale  = yAxis.scale
-  const yOpen   = yScale(open)
-  const yClose  = yScale(close)
-  const yHigh   = yScale(high)
-  const yLow    = yScale(low)
+  const domain = yAxis?.domain ?? [0, 100]
+  const domMin = Math.min(...domain)
+  const domMax = Math.max(...domain)
+  const chartTop    = background.y
+  const chartHeight = background.height
+  const toY = v => chartTop + ((domMax - v) / (domMax - domMin)) * chartHeight
+
+  const yOpen  = toY(open)
+  const yClose = toY(close)
+  const yHigh  = toY(high)
+  const yLow   = toY(low)
 
   const isUp    = close >= open
   const color   = isUp ? '#4ade80' : '#f87171'
@@ -208,9 +213,9 @@ function CandlestickBar(props) {
 
   return (
     <g>
-      <line x1={cx} y1={yHigh} x2={cx} y2={bodyTop} stroke={color} strokeWidth={1} opacity={0.7} />
+      <line x1={cx} y1={yHigh} x2={cx} y2={bodyTop} stroke={color} strokeWidth={1} opacity={0.8} />
       <rect x={x + 1} y={bodyTop} width={Math.max(width - 2, 2)} height={bodyH} fill={color} opacity={0.85} rx={1} />
-      <line x1={cx} y1={bodyTop + bodyH} x2={cx} y2={yLow} stroke={color} strokeWidth={1} opacity={0.7} />
+      <line x1={cx} y1={bodyTop + bodyH} x2={cx} y2={yLow} stroke={color} strokeWidth={1} opacity={0.8} />
     </g>
   )
 }
