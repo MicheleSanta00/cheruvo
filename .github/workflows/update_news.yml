@@ -2,7 +2,7 @@ name: Cheruvo — Aggiorna news e alert (FinBERT)
 
 on:
   schedule:
-    - cron: '0 */6 * * *'   # ogni 6 ore
+    - cron: '0 */8 * * *'   # ogni 8 ore (~2160 min/mese, entro il free tier GitHub Actions)
   workflow_dispatch:
 
 jobs:

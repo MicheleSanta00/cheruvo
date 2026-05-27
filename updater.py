@@ -1,10 +1,10 @@
 """
-updater.py — Eseguito da GitHub Actions ogni 6 ore.
+updater.py — Eseguito da GitHub Actions ogni 8 ore.
 Usa FinBERT (data/database.py) per sentiment più preciso.
 """
 import os
 import sys
-import random
+from datetime import datetime, timezone
 
 # Aggiunge i path necessari
 BASE_DIR    = os.path.dirname(os.path.abspath(__file__))
@@ -38,41 +38,61 @@ DEFAULT_TICKERS = [
 ]
 
 
-def get_all_tickers() -> list:
-    """Recupera tutti i ticker già presenti nel DB."""
-    from backend.database import get_pool as backend_pool
-    pool = backend_pool()
-    conn = pool.getconn()
+def get_tickers_by_priority() -> list[str]:
+    """
+    Restituisce tutti i ticker ordinati per priorità di aggiornamento:
+    quelli aggiornati meno di recente vengono prima.
+    I ticker DEFAULT che non hanno mai news vengono aggiunti in fondo.
+    """
+    conn = _get_raw_conn()
     try:
         cur = conn.cursor()
-        cur.execute("SELECT DISTINCT ticker FROM news")
-        tickers = [row[0] for row in cur.fetchall()]
+        # Ticker nel DB con data dell'ultima news (proxy di "ultimo aggiornamento")
+        cur.execute("""
+            SELECT ticker, MAX(published_date) as last_news
+            FROM news
+            GROUP BY ticker
+            ORDER BY last_news ASC NULLS FIRST
+        """)
+        rows = cur.fetchall()
         cur.close()
     finally:
-        pool.putconn(conn)
-    return tickers
+        conn.close()
+
+    db_tickers = [r[0] for r in rows]
+    # Aggiunge i DEFAULT che non sono ancora nel DB (mai fetchati)
+    missing = [t for t in DEFAULT_TICKERS if t not in db_tickers]
+    return missing + db_tickers  # i mai-fetchati hanno la priorità massima
+
+
+def _get_raw_conn():
+    """Connessione diretta (senza pool) — usata solo nell'updater batch."""
+    import psycopg2
+    database_url = os.environ.get("DATABASE_URL", "")
+    if not database_url:
+        raise RuntimeError("DATABASE_URL non trovata")
+    return psycopg2.connect(database_url)
 
 
 if __name__ == "__main__":
     print("=" * 50)
-    print("Cheruvo Updater — FinBERT mode")
+    print("Cheruvo Updater — FinBERT mode (priority queue)")
     print("=" * 50)
 
     # Init DB
     init_database()
 
-    # Raccogli ticker
+    # Raccogli ticker ordinati per priorità
     try:
-        tickers_db = get_all_tickers()
+        tickers = get_tickers_by_priority()
     except Exception as e:
-        print(f"Errore lettura ticker dal DB: {e}")
-        tickers_db = []
+        print(f"Errore lettura ticker dal DB: {e} — uso DEFAULT")
+        tickers = DEFAULT_TICKERS[:]
 
-    tickers = list(set(DEFAULT_TICKERS + tickers_db))
-
-    # 3 ticker per run — FinBERT è più lento di VADER
-    selected = random.sample(tickers, min(3, len(tickers)))
-    print(f"Ticker selezionati: {selected}")
+    # 5 ticker per run con sistema a priorità
+    # (quelli meno aggiornati vengono sempre prima)
+    selected = tickers[:5]
+    print(f"Ticker selezionati (priorità): {selected}")
     print(f"(FinBERT verrà caricato al primo ticker — ~30s)\n")
 
     for ticker in selected:

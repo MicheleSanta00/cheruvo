@@ -1,4 +1,5 @@
 import { useEffect, useState } from 'react'
+import { supabase } from '../supabase.js'
 
 const BASE = import.meta.env.VITE_API_BASE || 'https://financial-sentiment-analysis-20px.onrender.com/api'
 
@@ -18,11 +19,27 @@ export default function SummaryCard({ ticker, isPro, onUpgrade }) {
     setData(null)
     setError(null)
     setLoading(true)
-    fetch(`${BASE}/summary/${ticker}`)
-      .then(r => { if (!r.ok) throw new Error(); return r.json() })
-      .then(d => setData(d))
-      .catch(() => setError(true))
-      .finally(() => setLoading(false))
+
+    // Recupera il token Supabase prima di chiamare l'API
+    supabase.auth.getSession().then(({ data: sessionData }) => {
+      const token = sessionData?.session?.access_token
+      if (!token) {
+        setError(true)
+        setLoading(false)
+        return
+      }
+      fetch(`${BASE}/summary/${ticker}`, {
+        headers: { 'Authorization': `Bearer ${token}` },
+      })
+        .then(r => {
+          if (r.status === 401) throw new Error('auth')
+          if (!r.ok) throw new Error('fetch')
+          return r.json()
+        })
+        .then(d => setData(d))
+        .catch(() => setError(true))
+        .finally(() => setLoading(false))
+    })
   }, [ticker])
 
   if (loading) return (
@@ -43,6 +60,11 @@ export default function SummaryCard({ ticker, isPro, onUpgrade }) {
       </p>
     </div>
   )
+
+  // Il backend ora gestisce il gate PRO:
+  // - se locked=true nel response → l'utente è FREE (1 sola frase)
+  // - se locked=false/assente → l'utente è PRO (testo completo)
+  const isLocked = data.locked === true
 
   const c = COLORI[data.giudizio] || COLORI.neutro
   const frasi = data.riassunto?.split('.').filter(f => f.trim().length > 5) || []
@@ -80,26 +102,24 @@ export default function SummaryCard({ ticker, isPro, onUpgrade }) {
 
       {/* Testo riassunto */}
       <div style={{ position: 'relative' }}>
-        {frasi.map((frase, i) => {
-          const visibile = isPro || i === 0
-          return (
-            <p key={i} style={{
-              fontSize: 12, lineHeight: 1.75,
-              color: visibile ? 'var(--off-white)' : 'var(--muted)',
-              margin: '0 0 6px 0',
-              filter: visibile ? 'none' : 'blur(3px)',
-              userSelect: visibile ? 'auto' : 'none',
-            }}>
-              {frase.trim()}.
-            </p>
-          )
-        })}
+        {frasi.map((frase, i) => (
+          <p key={i} style={{
+            fontSize: 12, lineHeight: 1.75,
+            color: 'var(--off-white)',
+            margin: '0 0 6px 0',
+          }}>
+            {frase.trim()}.
+          </p>
+        ))}
 
-        {!isPro && (
+        {/* Banner upgrade solo se il backend ha restituito locked=true */}
+        {isLocked && (
           <div style={{
-            position: 'absolute', bottom: 0, left: 0, right: 0,
-            background: `linear-gradient(to bottom, transparent, ${c.bg} 75%)`,
-            paddingTop: 28, textAlign: 'center',
+            marginTop: 10,
+            background: 'rgba(0,0,0,0.15)',
+            borderRadius: 8,
+            padding: '10px 12px',
+            textAlign: 'center',
           }}>
             <button onClick={onUpgrade} style={{
               fontSize: 11, color: '#a78bfa', fontWeight: 600,
@@ -113,8 +133,8 @@ export default function SummaryCard({ ticker, isPro, onUpgrade }) {
         )}
       </div>
 
-      {/* Temi PRO */}
-      {isPro && data.temi?.length > 0 && (
+      {/* Temi — visibili solo se non locked */}
+      {!isLocked && data.temi?.length > 0 && (
         <div className="summary-temi" style={{ display: 'flex', gap: 6, marginTop: 14, flexWrap: 'wrap' }}>
           {data.temi.map((tema, i) => (
             <span key={i} style={{
