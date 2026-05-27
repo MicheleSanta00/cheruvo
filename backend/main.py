@@ -22,32 +22,54 @@ from summary import genera_summary, _fallback
 
 # ── JWT Auth helpers ───────────────────────────────────────────────────────
 
+import base64
+import json as _json
+
 SUPABASE_JWT_SECRET = os.environ.get("SUPABASE_JWT_SECRET", "")
 
+
+def _decode_jwt_payload(token: str) -> dict | None:
+    """Decodifica il payload JWT senza verifica firma (base64 puro)."""
+    try:
+        parts = token.split(".")
+        if len(parts) != 3:
+            return None
+        # JWT usa base64url senza padding — aggiungiamo il padding necessario
+        padded = parts[1] + "=" * (4 - len(parts[1]) % 4)
+        return _json.loads(base64.urlsafe_b64decode(padded))
+    except Exception:
+        return None
+
+
 def _verify_jwt(authorization: str) -> str | None:
-    """Verifica il token Supabase e restituisce lo user_id (sub), oppure None."""
+    """
+    Verifica il token Supabase e restituisce lo user_id (sub), oppure None.
+
+    - Se SUPABASE_JWT_SECRET è settato: verifica firma con PyJWT (sicuro).
+    - Altrimenti: decodifica solo il payload senza verifica firma (ok per dev/staging).
+      In produzione imposta sempre SUPABASE_JWT_SECRET su Render.
+    """
     if not authorization or not authorization.startswith("Bearer "):
         return None
     token = authorization[7:].strip()
-    if not SUPABASE_JWT_SECRET:
-        # Fallback in dev: decodifica senza verifica firma
+
+    if SUPABASE_JWT_SECRET:
         try:
-            payload = jwt.decode(token, options={"verify_signature": False})
+            payload = jwt.decode(
+                token,
+                SUPABASE_JWT_SECRET,
+                algorithms=["HS256"],
+                options={"verify_aud": False},
+            )
             return payload.get("sub")
+        except jwt.ExpiredSignatureError:
+            return None
         except Exception:
             return None
-    try:
-        payload = jwt.decode(
-            token,
-            SUPABASE_JWT_SECRET,
-            algorithms=["HS256"],
-            options={"verify_aud": False},
-        )
-        return payload.get("sub")
-    except jwt.ExpiredSignatureError:
-        return None
-    except Exception:
-        return None
+    else:
+        # Nessun secret configurato: decodifica senza verifica firma
+        payload = _decode_jwt_payload(token)
+        return payload.get("sub") if payload else None
 
 
 def _is_pro(user_id: str) -> bool:
@@ -288,7 +310,10 @@ def get_summary(ticker: str, request: Request):
         full = entry["data"]
         return full if is_pro else _trim_for_free(full)
 
-    # Recupera news dal DB
+    # Recupera news dal DB.
+    # Prima prova: ultimi 7 giorni (news fresche).
+    # Se trova meno di 5 titoli, usa le 60 piu' recenti senza filtro data:
+    # cosi' il summary funziona anche se l'updater non ha girato di recente.
     pool = get_pool()
     conn = pool.getconn()
     try:
@@ -296,12 +321,24 @@ def get_summary(ticker: str, request: Request):
         cur.execute(
             """SELECT title, sentiment FROM news
             WHERE ticker = %s
-            AND published_date::timestamp >= NOW() - INTERVAL '7 days'
+            AND published_date >= TO_CHAR(NOW() - INTERVAL '7 days', 'YYYY-MM-DD')
             ORDER BY published_date DESC
             LIMIT 60""",
             (ticker,)
         )
         rows = cur.fetchall()
+
+        # Fallback: se meno di 5 news recenti, prendi le 60 piu' recenti in assoluto
+        if len(rows) < 5:
+            cur.execute(
+                """SELECT title, sentiment FROM news
+                WHERE ticker = %s
+                ORDER BY published_date DESC
+                LIMIT 60""",
+                (ticker,)
+            )
+            rows = cur.fetchall()
+
         cur.close()
     finally:
         pool.putconn(conn)
