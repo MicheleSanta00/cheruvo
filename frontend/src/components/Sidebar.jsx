@@ -13,7 +13,7 @@ const MAX_DAYS_PRO = 90
 export default function Sidebar({ ticker, days, period, onLoad, onFetch, loading, fetching, onTickerChange, onDaysChange, onPeriodChange, isPro, onUpgrade }) {
   const { t } = useLang()
   const [input, setInput] = useState(ticker)
-  const [watchlist, setWatchlist] = useState(['NVDA', 'AAPL', 'TSLA'])
+  const [watchlist, setWatchlist] = useState([])
   const [saving, setSaving] = useState(false)
   const [suggestions, setSuggestions] = useState([])
   const [showSuggestions, setShowSuggestions] = useState(false)
@@ -62,9 +62,10 @@ export default function Sidebar({ ticker, days, period, onLoad, onFetch, loading
   }
 
   const removeTicker = async (tk) => {
-    await supabase.from('watchlist').delete().eq('ticker', tk)
+    const { data: { user } } = await supabase.auth.getUser()
+    await supabase.from('watchlist').delete().eq('ticker', tk).eq('user_id', user.id)
     setWatchlist(prev => prev.filter(x => x !== tk))
-  }
+}
 
   const submit = (tk) => {
     const v = (tk || input).toUpperCase()

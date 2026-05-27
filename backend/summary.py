@@ -18,13 +18,13 @@ Sentiment medio calcolato: {avg_sentiment:.2f} (scala da -1 a +1)
 Basandoti su queste informazioni, rispondi SOLO con un oggetto JSON valido con questa struttura esatta, senza markdown, senza backtick, senza testo aggiuntivo:
 {{
   "giudizio": "bullish" | "bearish" | "neutro",
-  "riassunto": "Cinque-sei frasi dettagliate che spiegano la situazione attuale del titolo: analizza il contesto di mercato, i fattori che influenzano il sentiment, eventuali rischi o opportunità emerse dalle notizie, e una prospettiva di breve periodo.",
+  "riassunto": "Cinque-sei frasi in italiano che analizzano il contesto di mercato, i fattori che influenzano il sentiment, eventuali rischi o opportunità, e una prospettiva di breve periodo.",
   "temi": ["tema1", "tema2", "tema3"]
 }}
 
 Regole:
 - giudizio: "bullish" se sentiment > 0.1, "bearish" se < -0.1, "neutro" altrimenti
-- riassunto: massimo 3 frasi, in italiano, chiaro e diretto
+- riassunto: cinque-sei frasi in italiano, chiaro e diretto
 - temi: esattamente 3 temi principali emersi dalle notizie, 1-3 parole ciascuno
 """
 
