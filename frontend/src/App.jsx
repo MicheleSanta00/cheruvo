@@ -1,15 +1,15 @@
 import { useState, useEffect } from 'react'
-import Auth from './components/Auth.jsx'
-import Profile from './components/Profile.jsx'
+import Auth        from './components/Auth.jsx'
+import Profile     from './components/Profile.jsx'
 import { supabase } from './supabase.js'
-import { useLang } from './LangContext.jsx'
+import { useLang }  from './LangContext.jsx'
 
-import Sidebar  from './components/Sidebar.jsx'
+import Sidebar     from './components/Sidebar.jsx'
 import KPIGrid     from './components/KPIGrid.jsx'
 import SummaryCard from './components/SummaryCard.jsx'
-import Chart    from './components/Chart.jsx'
-import TopNews  from './components/TopNews.jsx'
-import Stats    from './components/Stats.jsx'
+import Chart       from './components/Chart.jsx'
+import TopNews     from './components/TopNews.jsx'
+import Stats       from './components/Stats.jsx'
 import { useFinData } from './hooks/useFinData.js'
 
 const DEFAULT_TICKER = 'NVDA'
@@ -27,8 +27,8 @@ export default function App() {
   const [isPro, setIsPro]             = useState(false)
   const [showProfile, setShowProfile] = useState(false)
   const [sidebarOpen, setSidebarOpen] = useState(false)
-  // FIX: ticker "confermato" — si aggiorna solo dopo che il caricamento è completato
   const [loadedTicker, setLoadedTicker] = useState(null)
+  const [showStats, setShowStats]     = useState(false)
 
   const { tickerInfo, news, stats, prices, sentiment, loading, fetching, error, load, triggerFetch } = useFinData()
 
@@ -51,7 +51,6 @@ export default function App() {
     }
   }, [user])
 
-  // FIX: handleLoad aggiorna loadedTicker solo a caricamento completato
   const handleLoad = async (tk, d, p) => {
     await load(tk, d, p)
     setLoadedTicker(tk)
@@ -89,17 +88,17 @@ export default function App() {
   if (authLoading) return null
   if (!user) return <Auth onLogin={setUser} />
 
+  const hasData = !!tickerInfo && !loading
+
   return (
     <div style={{ display: 'flex', height: '100dvh', overflow: 'hidden', background: 'var(--black)', position: 'relative' }}>
 
+      {/* Overlay mobile */}
       {sidebarOpen && (
-        <div
-          onClick={() => setSidebarOpen(false)}
-          style={{
-            position: 'fixed', inset: 0, zIndex: 40,
-            background: 'rgba(0,0,0,0.5)', backdropFilter: 'blur(2px)',
-          }}
-        />
+        <div onClick={() => setSidebarOpen(false)} style={{
+          position: 'fixed', inset: 0, zIndex: 40,
+          background: 'rgba(0,0,0,0.6)', backdropFilter: 'blur(2px)',
+        }} />
       )}
 
       {showProfile && (
@@ -110,6 +109,7 @@ export default function App() {
         />
       )}
 
+      {/* Sidebar */}
       <div style={{ position: 'relative', zIndex: 50 }}
         className={`sidebar-wrapper ${sidebarOpen ? 'sidebar-open' : ''}`}>
         <Sidebar
@@ -121,189 +121,202 @@ export default function App() {
         />
       </div>
 
+      {/* Main area */}
       <main style={{ flex: 1, display: 'flex', flexDirection: 'column', overflow: 'hidden', height: '100dvh', minWidth: 0 }}>
 
+        {/* Header */}
         <header style={{
-          height: 56, flexShrink: 0,
+          height: 52, flexShrink: 0,
           borderBottom: '1px solid var(--border)',
           display: 'flex', alignItems: 'center',
-          padding: '0 16px', gap: 12,
+          padding: '0 16px', gap: 10,
           background: 'var(--near-black)',
         }}>
-
-          <button
-            onClick={() => setSidebarOpen(!sidebarOpen)}
-            className="mobile-menu-btn"
-            style={{
-              display: 'none', background: 'transparent',
-              color: 'var(--muted)', fontSize: 18, padding: '4px',
-              border: '1px solid var(--border)', borderRadius: 6,
-            }}
-          >☰</button>
+          <button onClick={() => setSidebarOpen(!sidebarOpen)} className="mobile-menu-btn"
+            style={{ display: 'none', background: 'transparent', color: 'var(--muted)', fontSize: 18, padding: '4px', border: '1px solid var(--border)', borderRadius: 6 }}>
+            ☰
+          </button>
 
           {tickerInfo ? (
             <>
-              <span style={{ fontSize: 15, fontWeight: 500, letterSpacing: '-0.01em', flexShrink: 0 }}>{tickerInfo.ticker}</span>
-              <span style={{ fontSize: 14, color: 'var(--muted)', flexShrink: 0 }}>·</span>
-              <span style={{ fontSize: 14, color: 'var(--muted)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{tickerInfo.nome}</span>
+              <span style={{ fontSize: 15, fontWeight: 600, letterSpacing: '-0.01em', flexShrink: 0 }}>{tickerInfo.ticker}</span>
+              <span style={{ fontSize: 13, color: 'var(--muted)', flexShrink: 0 }}>·</span>
+              <span style={{ fontSize: 13, color: 'var(--muted)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{tickerInfo.nome}</span>
               {tickerInfo.settore && tickerInfo.settore !== 'N/A' && (
-                <span style={{
+                <span className="hide-mobile" style={{
                   fontSize: 11, color: 'var(--azure)', flexShrink: 0,
-                  background: 'rgba(96,165,250,0.08)',
-                  border: '1px solid rgba(96,165,250,0.15)',
-                  padding: '3px 10px', borderRadius: 100,
-                }} className="hide-mobile">{tickerInfo.settore}</span>
+                  background: 'rgba(96,165,250,0.08)', border: '1px solid rgba(96,165,250,0.15)',
+                  padding: '2px 8px', borderRadius: 100,
+                }}>{tickerInfo.settore}</span>
               )}
             </>
           ) : (
-            <span style={{ fontSize: 14, color: 'var(--muted)', fontFamily: 'var(--serif)', fontStyle: 'italic' }}>
+            <span style={{ fontSize: 13, color: 'var(--muted)', fontStyle: 'italic' }}>
               {t.header.enterTicker}
             </span>
           )}
 
           <div style={{ marginLeft: 'auto', display: 'flex', alignItems: 'center', gap: 8, flexShrink: 0 }}>
-
             {news.length > 0 && (
-              <button
-                onClick={handleExport}
-                style={{
-                  fontSize: 12, color: isPro ? 'var(--muted)' : 'rgba(255,255,255,0.2)',
-                  border: '1px solid var(--border)', borderRadius: 6,
-                  padding: '4px 10px', background: 'transparent', cursor: 'pointer',
-                  display: 'flex', alignItems: 'center', gap: 4,
-                }}
-                className="hide-mobile"
-              >
+              <button onClick={handleExport} className="hide-mobile" style={{
+                fontSize: 11, color: isPro ? 'var(--muted)' : 'rgba(255,255,255,0.2)',
+                border: '1px solid var(--border)', borderRadius: 6,
+                padding: '4px 10px', background: 'transparent', cursor: 'pointer',
+              }}>
                 {isPro ? t.header.csv : t.header.csvLocked}
               </button>
             )}
-
             {loading && <Spinner />}
             {fetching && <Spinner color="var(--azure)" />}
-
             {isPro ? (
-              <span style={{
-                fontSize: 12, color: '#4ade80',
-                border: '1px solid rgba(74,222,128,0.3)',
-                borderRadius: 6, padding: '4px 10px',
-              }}>{t.header.pro}</span>
+              <span style={{ fontSize: 11, color: '#4ade80', border: '1px solid rgba(74,222,128,0.3)', borderRadius: 6, padding: '3px 8px' }}>
+                {t.header.pro}
+              </span>
             ) : (
-              <button
-                onClick={handleUpgrade}
-                style={{
-                  fontSize: 12, color: 'white', background: 'var(--blue)',
-                  border: 'none', borderRadius: 6, padding: '4px 12px',
-                  cursor: 'pointer', fontWeight: 500,
-                }}>{t.header.upgradePro}</button>
+              <button onClick={handleUpgrade} style={{
+                fontSize: 11, color: 'white', background: 'var(--blue)',
+                border: 'none', borderRadius: 6, padding: '4px 10px', cursor: 'pointer', fontWeight: 500,
+              }}>{t.header.upgradePro}</button>
             )}
-
-            <button
-              onClick={toggleLang}
-              style={{
-                fontSize: 14, background: 'transparent',
-                border: '1px solid var(--border)',
-                borderRadius: 6, padding: '4px 8px',
-                cursor: 'pointer', lineHeight: 1,
-              }}
-              title={lang === 'it' ? 'Switch to English' : "Passa all'italiano"}
-            >
+            <button onClick={toggleLang} style={{
+              fontSize: 13, background: 'transparent', border: '1px solid var(--border)',
+              borderRadius: 6, padding: '3px 7px', cursor: 'pointer', lineHeight: 1,
+            }}>
               {lang === 'it' ? '🇮🇹' : '🇬🇧'}
             </button>
-
-            <div
-              onClick={() => setShowProfile(true)}
-              title={user?.email}
-              style={{
-                width: 30, height: 30, borderRadius: '50%',
-                background: 'var(--blue)', display: 'flex',
-                alignItems: 'center', justifyContent: 'center',
-                fontSize: 13, fontWeight: 500, cursor: 'pointer', flexShrink: 0,
-              }}
-            >
+            <div onClick={() => setShowProfile(true)} title={user?.email} style={{
+              width: 28, height: 28, borderRadius: '50%', background: 'var(--blue)',
+              display: 'flex', alignItems: 'center', justifyContent: 'center',
+              fontSize: 12, fontWeight: 600, cursor: 'pointer', flexShrink: 0,
+            }}>
               {user?.email?.[0].toUpperCase()}
             </div>
           </div>
         </header>
 
-        <div style={{ flex: 1, overflowY: 'auto', padding: '20px 16px', display: 'flex', flexDirection: 'column', gap: 20 }}>
+        {/* ── Content area ── */}
+        {!hasData && !error ? (
+          /* Empty / loading state — full width */
+          <div style={{ flex: 1, overflowY: 'auto', padding: '20px 20px' }}>
+            {error && <ErrorBanner msg={error} />}
+            {!loading && !error && <EmptyState t={t} />}
+            {loading && <LoadingState />}
+          </div>
+        ) : (
+          /* Two-column dashboard */
+          <div className="dashboard-grid" style={{ flex: 1, overflow: 'hidden', display: 'grid', gridTemplateColumns: '380px 1fr', gridTemplateRows: '1fr' }}>
 
-          {error && (
+            {/* ── LEFT PANEL ── */}
             <div style={{
-              background: 'rgba(248,113,113,0.08)', border: '1px solid rgba(248,113,113,0.2)',
-              borderRadius: 10, padding: '12px 16px', fontSize: 14, color: 'var(--red)',
-            }}>{error}</div>
-          )}
-
-          {stats && <KPIGrid stats={stats} />}
-
-          {/* FIX: usa loadedTicker invece di ticker — la SummaryCard parte solo dopo il caricamento completo */}
-          {tickerInfo && !loading && loadedTicker && (
-            <SummaryCard ticker={loadedTicker} isPro={isPro} />
-          )}
-
-          {!loading && !tickerInfo && !error && <EmptyState t={t} />}
-
-          {tickerInfo && !loading && !news.length && !error && (
-            <div style={{
-              background: 'rgba(96,165,250,0.06)', border: '1px solid rgba(96,165,250,0.15)',
-              borderRadius: 12, padding: '24px 28px', textAlign: 'center',
+              borderRight: '1px solid var(--border)',
+              overflowY: 'auto', padding: '20px 16px',
+              display: 'flex', flexDirection: 'column', gap: 16,
             }}>
-              <div style={{ fontSize: 15, color: 'var(--azure)', marginBottom: 8 }}>{t.main.noNews}</div>
-              <div style={{ fontSize: 13, color: 'var(--muted)' }}>
-                {t.main.noNewsHint} <b style={{ color: 'var(--white)' }}>{t.main.refreshNews}</b> {t.main.noNewsHint2}
-              </div>
-            </div>
-          )}
+              {error && <ErrorBanner msg={error} />}
 
-          {(prices.length > 0 || news.length > 0) && (
-            <div style={{ background: 'rgba(255,255,255,0.02)', border: '1px solid var(--border)', borderRadius: 12, padding: 20 }}>
-              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: 16, flexWrap: 'wrap', gap: 8 }}>
+              {/* AI Summary */}
+              {loadedTicker && (
+                <SummaryCard ticker={loadedTicker} isPro={isPro} onUpgrade={handleUpgrade} />
+              )}
+
+              {/* KPI */}
+              {stats && <KPIGrid stats={stats} />}
+
+              {/* Stats PRO — collassabili */}
+              {news.length > 0 && isPro && (
                 <div>
-                  <div style={{ fontSize: 15, fontWeight: 500, letterSpacing: '-0.01em' }}>{t.main.chartTitle(ticker)}</div>
-                  <div style={{ fontSize: 12, color: 'var(--muted)', marginTop: 2 }}>{t.main.chartSub}</div>
+                  <button
+                    onClick={() => setShowStats(s => !s)}
+                    style={{
+                      width: '100%', display: 'flex', justifyContent: 'space-between',
+                      alignItems: 'center', padding: '10px 14px',
+                      background: 'rgba(255,255,255,0.02)', border: '1px solid var(--border)',
+                      borderRadius: 8, cursor: 'pointer', fontSize: 12,
+                      color: 'var(--muted)', marginBottom: showStats ? 12 : 0,
+                    }}
+                  >
+                    <span>📊 Analytics avanzate</span>
+                    <span style={{ transition: 'transform .2s', transform: showStats ? 'rotate(180deg)' : 'none' }}>▾</span>
+                  </button>
+                  {showStats && <Stats news={news} />}
                 </div>
-                <div style={{ display: 'flex', gap: 6 }}>
-                  <Legend color="var(--azure)" label={t.main.price} />
-                  <Legend color="var(--green)" label={t.main.positive} />
-                  <Legend color="var(--red)" label={t.main.negative} />
+              )}
+
+              {/* Upgrade banner FREE */}
+              {news.length > 0 && !isPro && (
+                <div style={{
+                  background: 'rgba(30,92,255,0.04)', border: '1px solid rgba(30,92,255,0.15)',
+                  borderRadius: 10, padding: '16px',
+                }}>
+                  <div style={{ fontSize: 13, color: 'var(--white)', marginBottom: 6, fontWeight: 500 }}>
+                    {t.main.advancedTitle}
+                  </div>
+                  <div style={{ fontSize: 12, color: 'var(--muted)', marginBottom: 12, lineHeight: 1.6 }}>
+                    {t.main.advancedDesc}
+                  </div>
+                  <button onClick={handleUpgrade} style={{
+                    background: 'var(--blue)', color: 'white', border: 'none',
+                    borderRadius: 7, padding: '8px 18px', fontSize: 13,
+                    fontWeight: 500, cursor: 'pointer', width: '100%',
+                  }}>{t.main.upgradeBtn}</button>
                 </div>
-              </div>
-              <div>
-                <Chart prices={prices} sentiment={sentiment} ticker={ticker} />
-              </div>
+              )}
+
+              <div style={{ height: 8 }} />
             </div>
-          )}
 
-          {news.length > 0 && <TopNews news={news} isPro={isPro} onUpgrade={handleUpgrade} />}
-          {news.length > 0 && isPro && <Stats news={news} />}
+            {/* ── RIGHT PANEL ── */}
+            <div style={{ overflowY: 'auto', padding: '20px 20px', display: 'flex', flexDirection: 'column', gap: 20 }}>
 
-          {news.length > 0 && !isPro && (
-            <div style={{
-              background: 'rgba(30,92,255,0.04)', border: '1px solid rgba(30,92,255,0.15)',
-              borderRadius: 12, padding: '28px', textAlign: 'center',
-            }}>
-              <div style={{ fontSize: 15, color: 'var(--white)', marginBottom: 8, fontWeight: 500 }}>
-                {t.main.advancedTitle}
-              </div>
-              <div style={{ fontSize: 13, color: 'var(--muted)', marginBottom: 16 }}>
-                {t.main.advancedDesc}
-              </div>
-              <button
-                onClick={handleUpgrade}
-                style={{
-                  background: 'var(--blue)', color: 'white', border: 'none',
-                  borderRadius: 8, padding: '10px 24px', fontSize: 14,
-                  fontWeight: 500, cursor: 'pointer',
-                }}>{t.main.upgradeBtn}</button>
+              {/* Chart */}
+              {(prices.length > 0 || news.length > 0) && (
+                <div style={{
+                  background: 'rgba(255,255,255,0.02)', border: '1px solid var(--border)',
+                  borderRadius: 12, padding: '16px 20px',
+                }}>
+                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: 14, flexWrap: 'wrap', gap: 8 }}>
+                    <div>
+                      <div style={{ fontSize: 14, fontWeight: 500, letterSpacing: '-0.01em' }}>{t.main.chartTitle(ticker)}</div>
+                      <div style={{ fontSize: 11, color: 'var(--muted)', marginTop: 2 }}>{t.main.chartSub}</div>
+                    </div>
+                    <div style={{ display: 'flex', gap: 6 }}>
+                      <Legend color="var(--azure)"  label={t.main.price} />
+                      <Legend color="var(--green)"  label={t.main.positive} />
+                      <Legend color="var(--red)"    label={t.main.negative} />
+                    </div>
+                  </div>
+                  <Chart prices={prices} sentiment={sentiment} ticker={ticker} />
+                </div>
+              )}
+
+              {/* No news notice */}
+              {tickerInfo && !loading && !news.length && !error && (
+                <div style={{
+                  background: 'rgba(96,165,250,0.06)', border: '1px solid rgba(96,165,250,0.15)',
+                  borderRadius: 12, padding: '24px', textAlign: 'center',
+                }}>
+                  <div style={{ fontSize: 14, color: 'var(--azure)', marginBottom: 8 }}>{t.main.noNews}</div>
+                  <div style={{ fontSize: 12, color: 'var(--muted)' }}>
+                    {t.main.noNewsHint} <b style={{ color: 'var(--white)' }}>{t.main.refreshNews}</b> {t.main.noNewsHint2}
+                  </div>
+                </div>
+              )}
+
+              {/* News */}
+              {news.length > 0 && (
+                <TopNews news={news} isPro={isPro} onUpgrade={handleUpgrade} />
+              )}
+
+              <div style={{ height: 12 }} />
             </div>
-          )}
-
-          <div style={{ height: 20 }} />
-        </div>
+          </div>
+        )}
       </main>
     </div>
   )
 }
+
+// ── Sub-components ────────────────────────────────────────────────────────────
 
 function Spinner({ color = 'var(--muted)' }) {
   return (
@@ -320,6 +333,27 @@ function Legend({ color, label }) {
       <span style={{ width: 8, height: 8, background: color, borderRadius: 2, display: 'inline-block', opacity: 0.8 }}/>
       {label}
     </span>
+  )
+}
+
+function ErrorBanner({ msg }) {
+  return (
+    <div style={{
+      background: 'rgba(248,113,113,0.08)', border: '1px solid rgba(248,113,113,0.2)',
+      borderRadius: 10, padding: '12px 16px', fontSize: 13, color: 'var(--red)',
+    }}>{msg}</div>
+  )
+}
+
+function LoadingState() {
+  return (
+    <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', height: '60vh', gap: 10, color: 'var(--muted)', fontSize: 13 }}>
+      <svg width="16" height="16" viewBox="0 0 14 14" fill="none" style={{ animation: 'spin 0.8s linear infinite' }}>
+        <style>{`@keyframes spin { to { transform: rotate(360deg); } }`}</style>
+        <circle cx="7" cy="7" r="5.5" stroke="var(--muted)" strokeWidth="1.5" strokeDasharray="20 14" strokeLinecap="round"/>
+      </svg>
+      Caricamento...
+    </div>
   )
 }
 

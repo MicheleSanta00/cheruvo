@@ -128,3 +128,15 @@ input  { font-family: var(--sans); }
     padding: 4px 8px !important;
   }
 }
+/* ── Dashboard two-column grid ───────────────────────────────────────── */
+@media (max-width: 900px) {
+  .dashboard-grid {
+    grid-template-columns: 1fr !important;
+    grid-template-rows: auto auto !important;
+    overflow-y: auto !important;
+  }
+  .dashboard-grid > div:first-child {
+    border-right: none !important;
+    border-bottom: 1px solid var(--border);
+  }
+}
