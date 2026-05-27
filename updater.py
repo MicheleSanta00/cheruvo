@@ -1,34 +1,47 @@
 """
 updater.py — Eseguito da GitHub Actions ogni 6 ore.
-Aggiorna le news e manda gli alert agli utenti PRO.
+Usa FinBERT (data/database.py) per sentiment più preciso.
 """
 import os
 import sys
 import random
 
-# Aggiunge backend/ al path PRIMA di qualsiasi import
-BASE_DIR = os.path.dirname(os.path.abspath(__file__))
+# Aggiunge i path necessari
+BASE_DIR    = os.path.dirname(os.path.abspath(__file__))
 BACKEND_DIR = os.path.join(BASE_DIR, 'backend')
-sys.path.insert(0, BACKEND_DIR)
+DATA_DIR    = os.path.join(BASE_DIR, 'data')
+
+sys.path.insert(0, DATA_DIR)     # data/database.py  (FinBERT)
+sys.path.insert(0, BACKEND_DIR)  # backend/alerts.py, backend/database.py
 sys.path.insert(0, BASE_DIR)
 
-# Import diretti senza prefisso backend.
-from quick_fetch import quick_fetch
-from alerts import check_and_send_alerts
-from database import get_pool, init_database
+from database import SuperNewsAnalyzer, init_database, get_pool   # data/database.py
+from alerts import check_and_send_alerts                           # backend/alerts.py
+
+API_KEY = {
+    "ALPHA_VANTAGE": os.environ.get("ALPHA_VANTAGE", ""),
+    "NEWSAPI":       os.environ.get("NEWSAPI", ""),
+    "FMP":           os.environ.get("FMP", ""),
+    "REDDIT": {
+        "client_id":     os.environ.get("REDDIT_CLIENT_ID", ""),
+        "client_secret": os.environ.get("REDDIT_CLIENT_SECRET", ""),
+    },
+}
 
 DEFAULT_TICKERS = [
     # USA
     'NVDA', 'AAPL', 'TSLA', 'MSFT', 'GOOGL', 'META', 'AMD', 'AMZN',
     # Italia
-    'ENI.MI', 'ENEL.MI', 'ISP.MI', 'UCG.MI', 'STM.MI', 'RACE.MI', 'TIT.MI', 'BAMI.MI',
+    'ENI.MI', 'ENEL.MI', 'ISP.MI', 'UCG.MI', 'STM.MI', 'RACE.MI',
     # Europa
-    'LVMH.PA', 'SAP.DE', 'ASML.AS', 'NESN.SW', 'SHEL.L', 'NOVN.SW',
+    'LVMH.PA', 'SAP.DE', 'ASML.AS', 'SHEL.L',
 ]
 
 
 def get_all_tickers() -> list:
-    pool = get_pool()
+    """Recupera tutti i ticker già presenti nel DB."""
+    from backend.database import get_pool as backend_pool
+    pool = backend_pool()
     conn = pool.getconn()
     try:
         cur = conn.cursor()
@@ -41,23 +54,42 @@ def get_all_tickers() -> list:
 
 
 if __name__ == "__main__":
+    print("=" * 50)
+    print("Cheruvo Updater — FinBERT mode")
+    print("=" * 50)
+
+    # Init DB
     init_database()
 
-    tickers_db = get_all_tickers()
+    # Raccogli ticker
+    try:
+        tickers_db = get_all_tickers()
+    except Exception as e:
+        print(f"Errore lettura ticker dal DB: {e}")
+        tickers_db = []
+
     tickers = list(set(DEFAULT_TICKERS + tickers_db))
 
-    # 3 ticker per run per evitare timeout GitHub Actions
+    # 3 ticker per run — FinBERT è più lento di VADER
     selected = random.sample(tickers, min(3, len(tickers)))
     print(f"Ticker selezionati: {selected}")
+    print(f"(FinBERT verrà caricato al primo ticker — ~30s)\n")
 
     for ticker in selected:
-        print(f"Aggiornando {ticker}...")
+        print(f"\n{'─'*40}")
+        print(f"Aggiornando {ticker} con FinBERT...")
         try:
-            count = quick_fetch(ticker)
-            print(f"  ✓ {ticker}: {count} nuove news")
+            analyzer = SuperNewsAnalyzer(ticker, API_KEY)
+            count = analyzer.mega_fetch_silent()
+            print(f"✓ {ticker}: {count} nuove news salvate")
         except Exception as e:
-            print(f"  ✗ Errore su {ticker}: {e}")
+            print(f"✗ Errore su {ticker}: {e}")
 
-    print("\nControllo alert PRO...")
-    check_and_send_alerts()
-    print("Done.")
+    print(f"\n{'─'*40}")
+    print("Controllo alert PRO...")
+    try:
+        check_and_send_alerts()
+    except Exception as e:
+        print(f"Errore alert: {e}")
+
+    print("\nDone.")

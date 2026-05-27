@@ -1,14 +1,14 @@
-name: Cheruvo — Aggiorna news e alert
+name: Cheruvo — Aggiorna news e alert (FinBERT)
 
 on:
   schedule:
-    - cron: '0 */6 * * *'   # ogni 6 ore: 00:00, 06:00, 12:00, 18:00 UTC
-  workflow_dispatch:          # esecuzione manuale dal tab Actions su GitHub
+    - cron: '0 */6 * * *'   # ogni 6 ore
+  workflow_dispatch:
 
 jobs:
   update:
     runs-on: ubuntu-latest
-    timeout-minutes: 15       # se supera 15 min, fallisce (evita run infiniti)
+    timeout-minutes: 25      # FinBERT richiede più tempo di VADER
 
     steps:
       - name: Checkout repo
@@ -19,27 +19,28 @@ jobs:
         with:
           python-version: '3.11'
           cache: 'pip'
-          cache-dependency-path: backend/requirements.txt
+          cache-dependency-path: requirements-actions.txt
 
-      - name: Installa dipendenze
-        run: pip install -r backend/requirements.txt
+      - name: Installa dipendenze FinBERT
+        run: pip install -r requirements-actions.txt
 
-      - name: Aggiorna news e invia alert PRO
+      - name: Cache modello FinBERT
+        uses: actions/cache@v4
+        with:
+          path: ~/.cache/huggingface
+          key: finbert-${{ runner.os }}-v1
+
+      - name: Aggiorna news con FinBERT e invia alert PRO
         env:
-          # — API news
-          ALPHA_VANTAGE: ${{ secrets.ALPHA_VANTAGE }}
-          NEWSAPI: ${{ secrets.NEWSAPI }}
-          FMP: ${{ secrets.FMP }}
-          # — Reddit
-          REDDIT_CLIENT_ID: ${{ secrets.REDDIT_CLIENT_ID }}
+          ALPHA_VANTAGE:       ${{ secrets.ALPHA_VANTAGE }}
+          NEWSAPI:             ${{ secrets.NEWSAPI }}
+          FMP:                 ${{ secrets.FMP }}
+          REDDIT_CLIENT_ID:    ${{ secrets.REDDIT_CLIENT_ID }}
           REDDIT_CLIENT_SECRET: ${{ secrets.REDDIT_CLIENT_SECRET }}
-          # — Database
-          DATABASE_URL: ${{ secrets.DATABASE_URL }}
-          # — Alert email (Resend)
-          RESEND_API_KEY: ${{ secrets.RESEND_API_KEY }}
-          FROM_EMAIL: ${{ secrets.FROM_EMAIL }}
-          FRONTEND_URL: ${{ secrets.FRONTEND_URL }}
-          # — Python path
+          DATABASE_URL:        ${{ secrets.DATABASE_URL }}
+          RESEND_API_KEY:      ${{ secrets.RESEND_API_KEY }}
+          FROM_EMAIL:          ${{ secrets.FROM_EMAIL }}
+          FRONTEND_URL:        ${{ secrets.FRONTEND_URL }}
           PYTHONPATH: ${{ github.workspace }}/backend:${{ github.workspace }}
         run: python updater.py
 

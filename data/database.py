@@ -346,7 +346,7 @@ class SuperNewsAnalyzer:
         """SEC EDGAR — comunicati ufficiali (earnings, acquisizioni, ecc.)"""
         news_list = []
         try:
-            headers = {"User-Agent": "FinSentinel contact@finsentinel.com"}
+            headers = {"User-Agent": "Cheruvo contact@appcheruvo.app"}
             # Cerca il CIK del ticker
             r = requests.get(
                 f"https://efts.sec.gov/LATEST/search-index?q=%22{self.ticker}%22&dateRange=custom&startdt={(datetime.now()-timedelta(days=30)).strftime('%Y-%m-%d')}&enddt={datetime.now().strftime('%Y-%m-%d')}&forms=8-K",
