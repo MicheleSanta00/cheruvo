@@ -12,56 +12,12 @@ from slowapi.errors import RateLimitExceeded
 import os
 import pandas as pd
 import time
-import jwt
 
 from database import SuperNewsAnalyzer, init_database, get_pool
 from prices import get_prices, validate_ticker
 from stripe_routes import router as stripe_router, init_subscriptions_table
 from quick_fetch import quick_fetch
 from summary import genera_summary, _fallback
-
-# ── JWT Auth helpers ───────────────────────────────────────────────────────
-
-SUPABASE_JWT_SECRET = os.environ.get("SUPABASE_JWT_SECRET", "")
-
-def _verify_jwt(authorization: str) -> str | None:
-    """Verifica il token Supabase e restituisce lo user_id (sub), oppure None."""
-    if not authorization or not authorization.startswith("Bearer "):
-        return None
-    token = authorization[7:].strip()
-    if not SUPABASE_JWT_SECRET:
-        # Fallback in dev: decodifica senza verifica firma
-        try:
-            payload = jwt.decode(token, options={"verify_signature": False})
-            return payload.get("sub")
-        except Exception:
-            return None
-    try:
-        payload = jwt.decode(
-            token,
-            SUPABASE_JWT_SECRET,
-            algorithms=["HS256"],
-            options={"verify_aud": False},
-        )
-        return payload.get("sub")
-    except jwt.ExpiredSignatureError:
-        return None
-    except Exception:
-        return None
-
-
-def _is_pro(user_id: str) -> bool:
-    """Controlla se l'utente ha status PRO nel DB."""
-    pool = get_pool()
-    conn = pool.getconn()
-    try:
-        cur = conn.cursor()
-        cur.execute("SELECT status FROM subscriptions WHERE user_id = %s", (user_id,))
-        row = cur.fetchone()
-        cur.close()
-        return row is not None and row[0] == "pro"
-    finally:
-        pool.putconn(conn)
 
 # ── Rate limiter ───────────────────────────────────────────────────────────
 limiter = Limiter(key_func=get_remote_address, default_limits=["60/minute"])
@@ -256,37 +212,16 @@ def health():
 
 SUMMARY_TTL = 6 * 3600  # 6 ore
 
-
-def _trim_for_free(result: dict) -> dict:
-    """Restituisce una versione ridotta del summary per utenti FREE."""
-    frasi = [f.strip() for f in result.get("riassunto", "").split(".") if f.strip()]
-    prima_frase = (frasi[0] + ".") if frasi else "Carica il summary completo con PRO."
-    return {
-        **result,
-        "riassunto": prima_frase,
-        "temi": [],
-        "locked": True,  # flag letto dal frontend per mostrare il banner upgrade
-    }
-
-
 @app.get("/api/summary/{ticker}")
 @limiter.limit("20/minute")
 def get_summary(ticker: str, request: Request):
-    # ── Autenticazione obbligatoria ────────────────────────────────────────
-    user_id = _verify_jwt(request.headers.get("Authorization", ""))
-    if not user_id:
-        raise HTTPException(status_code=401, detail="Autenticazione richiesta")
-
     ticker = ticker.upper()
-    is_pro = _is_pro(user_id)
     cache_key = f"summary:{ticker}"
 
-    # Cache con TTL 6 ore — la risposta completa viene sempre salvata,
-    # poi filtrata in base allo status dell'utente al momento della lettura
+    # Cache con TTL 6 ore (override del TTL globale di 5 min)
     entry = _cache.get(cache_key)
     if entry and time.time() - entry["ts"] < SUMMARY_TTL:
-        full = entry["data"]
-        return full if is_pro else _trim_for_free(full)
+        return entry["data"]
 
     # Recupera news dal DB
     pool = get_pool()
@@ -311,7 +246,6 @@ def get_summary(ticker: str, request: Request):
         result["ticker"] = ticker
         result["avg_sentiment"] = 0.0
         result["news_analizzate"] = 0
-        result["locked"] = not is_pro
         return result
 
     headlines = [r[0] for r in rows if r[0]]
@@ -332,6 +266,7 @@ def get_summary(ticker: str, request: Request):
     result["avg_sentiment"] = round(avg_sentiment, 4)
     result["news_analizzate"] = len(headlines)
 
-    # Salva la versione completa in cache (PRO e FREE leggono da qui)
+    # Salva in cache con TTL 6h
     _cache[cache_key] = {"data": result, "ts": time.time()}
-    return result if is_pro else _trim_for_free(result)
+    return result
+
