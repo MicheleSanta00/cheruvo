@@ -2,7 +2,7 @@ import { useState, useMemo } from 'react'
 import {
   ComposedChart, Area, Bar, Line,
   XAxis, YAxis, CartesianGrid, Tooltip,
-  ResponsiveContainer, ReferenceLine, Cell,
+  ResponsiveContainer, ReferenceLine, Cell, Brush,
 } from 'recharts'
 
 // ── Tooltip hover ─────────────────────────────────────────────────────────
@@ -14,12 +14,23 @@ function CustomTooltip({ active, payload, label }) {
   const open  = get('Open')
   const high  = get('High')
   const low   = get('Low')
+  const vol   = get('Volume')
   const sent  = get('sentiment')
+  const ma    = get('sentMA')
 
-  const sentCol = sent == null ? '#94a3b8'
-    : sent > 0.1 ? '#4ade80' : sent < -0.1 ? '#f87171' : '#facc15'
-  const sentLbl = sent == null ? '—'
-    : sent > 0.1 ? 'Bullish' : sent < -0.1 ? 'Bearish' : 'Neutro'
+  const sentVal = sent ?? ma
+  const sentCol = sentVal == null ? '#94a3b8'
+    : sentVal > 0.1 ? '#4ade80' : sentVal < -0.1 ? '#f87171' : '#facc15'
+  const sentLbl = sentVal == null ? '—'
+    : sentVal > 0.1 ? 'Bullish' : sentVal < -0.1 ? 'Bearish' : 'Neutro'
+
+  const fmtVol = v => {
+    if (!v) return '—'
+    if (v >= 1e9) return `${(v/1e9).toFixed(2)}B`
+    if (v >= 1e6) return `${(v/1e6).toFixed(2)}M`
+    if (v >= 1e3) return `${(v/1e3).toFixed(0)}K`
+    return v
+  }
 
   return (
     <div style={{
@@ -43,15 +54,16 @@ function CustomTooltip({ active, payload, label }) {
                 {close >= open ? '+' : ''}{(close - open).toFixed(2)} ({((close - open) / open * 100).toFixed(2)}%)
               </span>
             </>}
+            {vol   != null && <><span style={{ color: '#64748b' }}>Volume</span><span style={{ color: '#94a3b8' }}>{fmtVol(vol)}</span></>}
           </div>
         </div>
       )}
-      {sent != null && (
+      {sentVal != null && (
         <div style={{ borderTop: '1px solid rgba(255,255,255,0.07)', paddingTop: 8 }}>
           <div style={{ color: '#475569', fontSize: 10, letterSpacing: '0.06em', marginBottom: 5 }}>SENTIMENT</div>
           <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
             <span style={{ color: sentCol, fontWeight: 700, fontSize: 15 }}>
-              {sent > 0 ? '+' : ''}{sent.toFixed(3)}
+              {sentVal > 0 ? '+' : ''}{sentVal.toFixed(3)}
             </span>
             <span style={{
               fontSize: 10, color: sentCol, background: `${sentCol}18`,
@@ -59,15 +71,42 @@ function CustomTooltip({ active, payload, label }) {
               padding: '2px 8px', fontWeight: 500,
             }}>{sentLbl}</span>
           </div>
+          {ma != null && sent != null && (
+            <div style={{ fontSize: 11, color: '#64748b', marginTop: 4 }}>
+              MA7: {ma > 0 ? '+' : ''}{ma.toFixed(3)}
+            </div>
+          )}
         </div>
       )}
     </div>
   )
 }
 
-// ── Candlestick: usa closure con minP/maxP + background rect ──────────────
-// recharts NON passa yAxis alla custom shape — bisogna ricostruire la scala
-// manualmente dai valori noti del dominio e dall'altezza del background rect.
+// ── Calcola media mobile N giorni ─────────────────────────────────────────
+function movingAverage(data, key, n = 7) {
+  return data.map((d, i) => {
+    const slice = data.slice(Math.max(0, i - n + 1), i + 1)
+      .map(x => x[key])
+      .filter(v => v != null)
+    if (!slice.length) return null
+    return parseFloat((slice.reduce((a, b) => a + b, 0) / slice.length).toFixed(4))
+  })
+}
+
+// ── Calcola correlazione di Pearson tra due array ─────────────────────────
+function pearsonCorrelation(x, y) {
+  const pairs = x.map((v, i) => [v, y[i]]).filter(([a, b]) => a != null && b != null)
+  if (pairs.length < 5) return null
+  const n  = pairs.length
+  const mx = pairs.reduce((s, [a]) => s + a, 0) / n
+  const my = pairs.reduce((s, [, b]) => s + b, 0) / n
+  const num = pairs.reduce((s, [a, b]) => s + (a - mx) * (b - my), 0)
+  const dx  = Math.sqrt(pairs.reduce((s, [a]) => s + (a - mx) ** 2, 0))
+  const dy  = Math.sqrt(pairs.reduce((s, [, b]) => s + (b - my) ** 2, 0))
+  return dx && dy ? parseFloat((num / (dx * dy)).toFixed(3)) : null
+}
+
+// ── Candlestick shape ─────────────────────────────────────────────────────
 function makeCandleShape(minP, maxP) {
   const range = maxP - minP || 1
   return function CandleShape({ x, width, background, payload }) {
@@ -75,8 +114,8 @@ function makeCandleShape(minP, maxP) {
     const { Open, Close, High, Low } = payload
     if (Open == null || Close == null) return null
 
-    const top = background.y          // coordinata y del top del chart
-    const h   = background.height     // altezza totale del chart
+    const top = background.y
+    const h   = background.height
     const toY = v => top + h * (1 - (v - minP) / range)
 
     const isUp    = Close >= Open
@@ -100,10 +139,8 @@ function makeCandleShape(minP, maxP) {
   }
 }
 
-// ── Pannello dati ─────────────────────────────────────────────────────────
-// stats = { avg, max, min, total, sources } da /api/news  (coerente con KPIGrid)
-// sentiment = array giornaliero da /api/sentiment (usato solo per conteggio giorni)
-function DataPanel({ prices, sentiment, stats }) {
+// ── Pannello statistiche ──────────────────────────────────────────────────
+function DataPanel({ prices, sentiment, stats, correlation }) {
   if (!prices.length) return null
 
   const last   = prices[prices.length - 1]
@@ -116,7 +153,6 @@ function DataPanel({ prices, sentiment, stats }) {
   const high   = Math.max(...closes)
   const low    = Math.min(...closes)
 
-  // Conteggio giorni bullish/bearish/neutri dall'array sentiment giornaliero
   const sentVals    = sentiment.map(s => s.sentiment).filter(v => v != null)
   const bullishDays = sentVals.filter(v => v > 0.1).length
   const bearishDays = sentVals.filter(v => v < -0.1).length
@@ -124,7 +160,6 @@ function DataPanel({ prices, sentiment, stats }) {
   const total       = sentVals.length || 1
   const lastSent    = sentVals.length ? sentVals[sentVals.length - 1] : null
 
-  // Valori avg/max/min da stats (= stessa fonte di KPIGrid → coerenti)
   const avgSent = stats?.avg ?? null
   const maxSent = stats?.max ?? null
   const minSent = stats?.min ?? null
@@ -133,6 +168,13 @@ function DataPanel({ prices, sentiment, stats }) {
     : v > 0.1 ? '#4ade80' : v < -0.1 ? '#f87171' : '#facc15'
   const sentLabel = v => v == null ? '—'
     : v > 0.1 ? 'Bullish' : v < -0.1 ? 'Bearish' : 'Neutro'
+
+  const corrColor = c => c == null ? '#94a3b8'
+    : c > 0.3 ? '#4ade80' : c < -0.3 ? '#f87171' : '#facc15'
+  const corrLabel = c => c == null ? 'N/D'
+    : c > 0.5 ? 'Forte positiva' : c > 0.3 ? 'Moderata positiva'
+    : c < -0.5 ? 'Forte negativa' : c < -0.3 ? 'Moderata negativa'
+    : 'Debole / assente'
 
   const Block = ({ label, value, sub, valueColor = '#f1f5f9', big }) => (
     <div style={{
@@ -176,11 +218,11 @@ function DataPanel({ prices, sentiment, stats }) {
         />
       </div>
 
-      {/* Sentiment */}
+      {/* Sentiment + Correlazione */}
       {(avgSent != null || sentVals.length > 0) && (
         <>
           <div style={{ fontSize: 10, color: '#475569', letterSpacing: '0.08em', textTransform: 'uppercase', marginBottom: 8 }}>
-            🧠 Sentiment news
+            🧠 Sentiment & Correlazione
           </div>
           <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(130px, 1fr))', gap: 8 }}>
             <Block label="Sentiment recente" value={fmt(lastSent)} big
@@ -191,24 +233,28 @@ function DataPanel({ prices, sentiment, stats }) {
               valueColor={sentColor(avgSent)}
               sub={<span style={{ color: sentColor(avgSent) }}>{sentLabel(avgSent)}</span>}
             />
-            <Block label="Picco positivo" value={fmt(maxSent)}
-              valueColor="#4ade80"
+            <Block label="Picco positivo" value={fmt(maxSent)} valueColor="#4ade80"
               sub={<span style={{ color: '#64748b' }}>massimo registrato</span>}
             />
-            <Block label="Picco negativo" value={fmt(minSent)}
-              valueColor="#f87171"
+            <Block label="Picco negativo" value={fmt(minSent)} valueColor="#f87171"
               sub={<span style={{ color: '#64748b' }}>minimo registrato</span>}
             />
-            <Block label="Giorni bullish" value={`${bullishDays} gg`}
-              valueColor="#4ade80"
+
+            {/* NUOVO: Correlazione sentiment/prezzo */}
+            <Block
+              label="Correlazione sent/prezzo"
+              value={correlation != null ? (correlation > 0 ? '+' : '') + correlation : 'N/D'}
+              valueColor={corrColor(correlation)}
+              sub={<span style={{ color: corrColor(correlation) }}>{corrLabel(correlation)}</span>}
+            />
+
+            <Block label="Giorni bullish" value={`${bullishDays} gg`} valueColor="#4ade80"
               sub={<span style={{ color: '#64748b' }}>{((bullishDays / total) * 100).toFixed(0)}% del periodo</span>}
             />
-            <Block label="Giorni bearish" value={`${bearishDays} gg`}
-              valueColor="#f87171"
+            <Block label="Giorni bearish" value={`${bearishDays} gg`} valueColor="#f87171"
               sub={<span style={{ color: '#64748b' }}>{((bearishDays / total) * 100).toFixed(0)}% del periodo</span>}
             />
-            <Block label="Giorni neutri" value={`${neutralDays} gg`}
-              valueColor="#facc15"
+            <Block label="Giorni neutri" value={`${neutralDays} gg`} valueColor="#facc15"
               sub={<span style={{ color: '#64748b' }}>{((neutralDays / total) * 100).toFixed(0)}% del periodo</span>}
             />
           </div>
@@ -227,11 +273,17 @@ const fmtDate = d => {
 // ── Componente principale ─────────────────────────────────────────────────
 export default function Chart({ prices, sentiment, ticker, stats }) {
   const [showCandles, setShowCandles] = useState(false)
+  const [showMA, setShowMA]           = useState(true)
 
   const data = useMemo(() => {
     const sentMap = {}
     sentiment.forEach(s => { sentMap[s.date] = s.sentiment })
-    return prices.map(p => ({ ...p, sentiment: sentMap[p.date] ?? null }))
+
+    const merged = prices.map(p => ({ ...p, sentiment: sentMap[p.date] ?? null }))
+
+    // Calcola MA7 sul sentiment
+    const maValues = movingAverage(merged, 'sentiment', 7)
+    return merged.map((d, i) => ({ ...d, sentMA: maValues[i] }))
   }, [prices, sentiment])
 
   const { minP, maxP } = useMemo(() => {
@@ -244,7 +296,15 @@ export default function Chart({ prices, sentiment, ticker, stats }) {
     return { minP: mn - pad, maxP: mx + pad }
   }, [prices])
 
-  // CandleShape ricreata solo quando cambia il range prezzi
+  // Correlazione Pearson tra sentiment e variazione prezzo stesso giorno
+  const correlation = useMemo(() => {
+    const sentArr  = data.map(d => d.sentiment)
+    const priceChg = data.map(d =>
+      d.Open != null && d.Close != null ? (d.Close - d.Open) / d.Open : null
+    )
+    return pearsonCorrelation(sentArr, priceChg)
+  }, [data])
+
   const CandleShape = useMemo(() => makeCandleShape(minP, maxP), [minP, maxP])
 
   if (!prices.length) return (
@@ -257,12 +317,15 @@ export default function Chart({ prices, sentiment, ticker, stats }) {
   const display = data.filter((_, i) => i % step === 0)
   const xInt    = Math.max(0, Math.floor(display.length / 6) - 1)
 
+  const hasVolume = display.some(d => d.Volume > 0)
+  const maxVol    = hasVolume ? Math.max(...display.map(d => d.Volume ?? 0)) : 1
+
   return (
     <div>
-      <DataPanel prices={prices} sentiment={sentiment} stats={stats} />
+      <DataPanel prices={prices} sentiment={sentiment} stats={stats} correlation={correlation} />
 
-      {/* Toggle */}
-      <div style={{ display: 'flex', gap: 8, marginBottom: 12, justifyContent: 'flex-end' }}>
+      {/* Toggle Linea/Candele + MA */}
+      <div style={{ display: 'flex', gap: 8, marginBottom: 12, justifyContent: 'flex-end', flexWrap: 'wrap' }}>
         {['Linea', 'Candele'].map((lbl, i) => {
           const active = showCandles === (i === 1)
           return (
@@ -274,6 +337,12 @@ export default function Chart({ prices, sentiment, ticker, stats }) {
             }}>{lbl}</button>
           )
         })}
+        <button onClick={() => setShowMA(v => !v)} style={{
+          fontSize: 11, padding: '4px 12px', borderRadius: 6, cursor: 'pointer',
+          background: showMA ? 'rgba(250,204,21,0.12)' : 'transparent',
+          border: showMA ? '1px solid rgba(250,204,21,0.35)' : '1px solid rgba(255,255,255,0.1)',
+          color: showMA ? '#facc15' : '#64748b',
+        }}>MA7 Sentiment</button>
       </div>
 
       {/* Label */}
@@ -283,7 +352,7 @@ export default function Chart({ prices, sentiment, ticker, stats }) {
         </span>
       </div>
 
-      {/* Grafico prezzi */}
+      {/* Grafico prezzi + volume */}
       <ResponsiveContainer width="100%" height={220}>
         <ComposedChart data={display} margin={{ top: 4, right: 60, left: 0, bottom: 0 }}>
           <defs>
@@ -298,9 +367,22 @@ export default function Chart({ prices, sentiment, ticker, stats }) {
           <YAxis yAxisId="price" orientation="right" domain={[minP, maxP]}
             tickFormatter={v => `$${v.toFixed(0)}`}
             tick={{ fontSize: 10, fill: '#475569' }} axisLine={false} tickLine={false} width={54}/>
+          {hasVolume && (
+            <YAxis yAxisId="vol" orientation="left" domain={[0, maxVol * 4]}
+              tick={false} axisLine={false} tickLine={false} width={0}/>
+          )}
           <Tooltip content={<CustomTooltip />}/>
 
-          {/* Open/High/Low invisibili ma inclusi nel payload del tooltip */}
+          {/* Volume bars (sfondo, molto sottili) */}
+          {hasVolume && (
+            <Bar yAxisId="vol" dataKey="Volume" maxBarSize={8} radius={[2,2,0,0]} isAnimationActive={false}>
+              {display.map((d, i) => (
+                <Cell key={i} fill={d.Close >= (d.Open ?? d.Close) ? 'rgba(74,222,128,0.2)' : 'rgba(248,113,113,0.2)'} />
+              ))}
+            </Bar>
+          )}
+
+          {/* Open/High/Low per tooltip */}
           {['Open','High','Low'].map(k => (
             <Line key={k} yAxisId="price" dataKey={k}
               dot={false} stroke="transparent" strokeWidth={0}/>
@@ -319,13 +401,20 @@ export default function Chart({ prices, sentiment, ticker, stats }) {
         </ComposedChart>
       </ResponsiveContainer>
 
-      {/* Grafico sentiment */}
-      <div style={{ marginTop: 16, marginBottom: 6 }}>
+      {/* Grafico sentiment + MA7 */}
+      <div style={{ marginTop: 16, marginBottom: 6, display: 'flex', alignItems: 'center', gap: 12 }}>
         <span style={{ fontSize: 10, color: '#475569', letterSpacing: '0.06em', textTransform: 'uppercase' }}>
           SENTIMENT GIORNALIERO
         </span>
+        {showMA && (
+          <span style={{ fontSize: 10, color: '#facc15', display: 'flex', alignItems: 'center', gap: 4 }}>
+            <span style={{ width: 16, height: 2, background: '#facc15', display: 'inline-block', borderRadius: 1 }}/>
+            Media mobile 7 giorni
+          </span>
+        )}
       </div>
-      <ResponsiveContainer width="100%" height={100}>
+
+      <ResponsiveContainer width="100%" height={120}>
         <ComposedChart data={display} margin={{ top: 4, right: 60, left: 0, bottom: 0 }}>
           <CartesianGrid strokeDasharray="3 4" stroke="rgba(255,255,255,0.04)" vertical={false}/>
           <XAxis dataKey="date" tickFormatter={fmtDate} interval={xInt}
@@ -334,10 +423,13 @@ export default function Chart({ prices, sentiment, ticker, stats }) {
             ticks={[-1, -0.5, 0, 0.5, 1]} tickFormatter={v => v.toFixed(1)}
             tick={{ fontSize: 10, fill: '#475569' }} axisLine={false} tickLine={false} width={34}/>
           <ReferenceLine yAxisId="sent" y={0} stroke="rgba(255,255,255,0.12)" strokeDasharray="3 4"/>
+          <ReferenceLine yAxisId="sent" y={0.1}  stroke="rgba(74,222,128,0.1)"  strokeDasharray="2 4"/>
+          <ReferenceLine yAxisId="sent" y={-0.1} stroke="rgba(248,113,113,0.1)" strokeDasharray="2 4"/>
           <Tooltip content={<CustomTooltip />}/>
-          <Bar yAxisId="sent" dataKey="sentiment" radius={[2,2,0,0]} maxBarSize={12}>
+
+          <Bar yAxisId="sent" dataKey="sentiment" radius={[2,2,0,0]} maxBarSize={12} isAnimationActive={false}>
             {display.map((d, i) => (
-              <Cell key={i} opacity={0.75}
+              <Cell key={i} opacity={0.7}
                 fill={d.sentiment == null ? '#334155'
                   : d.sentiment > 0.1 ? '#4ade80'
                   : d.sentiment < -0.1 ? '#f87171'
@@ -345,6 +437,26 @@ export default function Chart({ prices, sentiment, ticker, stats }) {
               />
             ))}
           </Bar>
+
+          {/* MA7 come linea sovrapposta */}
+          {showMA && (
+            <Line yAxisId="sent" dataKey="sentMA"
+              stroke="#facc15" strokeWidth={1.5}
+              dot={false} strokeDasharray="0"
+              activeDot={{ r: 3, fill: '#facc15', strokeWidth: 0 }}
+            />
+          )}
+
+          {/* Brush per zoom — solo se ci sono abbastanza dati */}
+          {display.length > 20 && (
+            <Brush
+              dataKey="date" height={18} stroke="rgba(255,255,255,0.08)"
+              fill="rgba(255,255,255,0.02)"
+              travellerWidth={6}
+              tickFormatter={fmtDate}
+              startIndex={Math.max(0, display.length - 30)}
+            />
+          )}
         </ComposedChart>
       </ResponsiveContainer>
     </div>
