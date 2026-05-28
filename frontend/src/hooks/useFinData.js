@@ -10,6 +10,8 @@ export function useFinData() {
   const [loading, setLoading]         = useState(false)
   const [fetching, setFetching]       = useState(false)
   const [error, setError]             = useState(null)
+  const BASE = import.meta.env.VITE_API_BASE 
+  || 'https://financial-sentiment-analysis-20px.onrender.com/api'
 
   const load = useCallback(async (ticker, days = 30, period = '3mo') => {
     setLoading(true)
