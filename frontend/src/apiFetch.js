@@ -16,6 +16,8 @@ export default async function apiFetch(path, options = {}) {
   const token = session?.access_token
 
   if (!token) {
+    // Pulisce la sessione scaduta dal localStorage e notifica l'app via onAuthStateChange
+    await supabase.auth.signOut()
     throw new Error('Sessione scaduta — effettua nuovamente il login')
   }
 
