@@ -10,7 +10,8 @@ import KPIGrid     from './components/KPIGrid.jsx'
 import SummaryCard from './components/SummaryCard.jsx'
 import Chart       from './components/Chart.jsx'
 import TopNews     from './components/TopNews.jsx'
-import Stats       from './components/Stats.jsx'
+import Stats            from './components/Stats.jsx'
+import CorrelationPanel from './components/CorrelationPanel.jsx'
 import { useFinData } from './hooks/useFinData.js'
 
 const DEFAULT_TICKER = 'NVDA'
@@ -197,7 +198,7 @@ export default function App() {
           /* Empty / loading state — full width */
           <div style={{ flex: 1, overflowY: 'auto', padding: '20px 20px' }}>
             {error && <ErrorBanner msg={error} />}
-            {!loading && !error && <EmptyState t={t} />}
+            {!loading && !error && <EmptyState t={t} onLoad={handleLoad} days={days} period={period} />}
             {loading && <LoadingState />}
           </div>
         ) : (
@@ -300,6 +301,16 @@ export default function App() {
                 </div>
               )}
 
+              {/* Correlazione sentiment/prezzo */}
+              {prices.length > 0 && sentiment.length > 0 && (
+                <CorrelationPanel
+                  prices={prices}
+                  sentiment={sentiment}
+                  isPro={isPro}
+                  onUpgrade={handleUpgrade}
+                />
+              )}
+
               {/* News */}
               {news.length > 0 && (
                 <TopNews news={news} isPro={isPro} onUpgrade={handleUpgrade} />
@@ -355,28 +366,116 @@ function LoadingState() {
   )
 }
 
-function EmptyState({ t }) {
+const SUGGESTED_TICKERS = [
+  { symbol: 'NVDA',   name: 'NVIDIA',        flag: '🇺🇸' },
+  { symbol: 'AAPL',   name: 'Apple',          flag: '🇺🇸' },
+  { symbol: 'TSLA',   name: 'Tesla',          flag: '🇺🇸' },
+  { symbol: 'ENI.MI', name: 'Eni',            flag: '🇮🇹' },
+  { symbol: 'MSFT',   name: 'Microsoft',      flag: '🇺🇸' },
+  { symbol: 'ENEL.MI',name: 'Enel',           flag: '🇮🇹' },
+]
+
+function EmptyState({ t, onLoad, days, period }) {
+  const [showWelcome, setShowWelcome] = useState(() => {
+    return !localStorage.getItem('cheruvo_welcomed')
+  })
+
+  const dismissWelcome = () => {
+    localStorage.setItem('cheruvo_welcomed', '1')
+    setShowWelcome(false)
+  }
+
+  const handleSuggestion = (symbol) => {
+    dismissWelcome()
+    onLoad(symbol, days, period)
+  }
+
   return (
     <div style={{
       flex: 1, display: 'flex', flexDirection: 'column',
       alignItems: 'center', justifyContent: 'center',
-      padding: '80px 40px', textAlign: 'center', gap: 16,
+      padding: '60px 40px', textAlign: 'center', gap: 20, maxWidth: 560, margin: '0 auto',
     }}>
+
+      {/* Welcome banner — solo al primo accesso */}
+      {showWelcome && (
+        <div style={{
+          width: '100%', background: 'rgba(30,92,255,0.08)',
+          border: '1px solid rgba(30,92,255,0.25)', borderRadius: 14,
+          padding: '20px 24px', textAlign: 'left', position: 'relative',
+        }}>
+          <button
+            onClick={dismissWelcome}
+            style={{
+              position: 'absolute', top: 12, right: 12,
+              background: 'transparent', color: 'var(--muted)',
+              fontSize: 16, padding: '2px 6px', borderRadius: 4,
+              border: '1px solid transparent',
+            }}
+          >✕</button>
+          <div style={{ fontSize: 13, fontWeight: 600, color: 'var(--azure)', marginBottom: 6 }}>
+            👋 {t.empty.welcomeTitle}
+          </div>
+          <div style={{ fontSize: 13, color: 'var(--muted)', lineHeight: 1.7 }}>
+            {t.empty.welcomeDesc}
+          </div>
+        </div>
+      )}
+
+      {/* Icona */}
       <div style={{
         width: 56, height: 56, background: 'rgba(30,92,255,0.1)',
         border: '1px solid rgba(30,92,255,0.2)', borderRadius: 14,
-        display: 'flex', alignItems: 'center', justifyContent: 'center', marginBottom: 8,
+        display: 'flex', alignItems: 'center', justifyContent: 'center',
       }}>
         <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="var(--azure)" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
           <path d="M3 12h4l3-9 4 18 3-9h4"/>
         </svg>
       </div>
-      <h2 style={{ fontFamily: 'var(--serif)', fontSize: 28, fontWeight: 400, letterSpacing: '-0.02em' }}>
-        {t.empty.title}
-      </h2>
-      <p style={{ fontSize: 14, color: 'var(--muted)', maxWidth: 400, lineHeight: 1.7 }}>
-        {t.empty.desc}
-      </p>
+
+      <div>
+        <h2 style={{ fontFamily: 'var(--serif)', fontSize: 26, fontWeight: 400, letterSpacing: '-0.02em', marginBottom: 10 }}>
+          {t.empty.title}
+        </h2>
+        <p style={{ fontSize: 14, color: 'var(--muted)', lineHeight: 1.7 }}>
+          {t.empty.desc}
+        </p>
+      </div>
+
+      {/* Ticker suggeriti */}
+      <div style={{ width: '100%' }}>
+        <div style={{ fontSize: 11, color: 'var(--muted)', letterSpacing: '0.08em', textTransform: 'uppercase', marginBottom: 10 }}>
+          {t.empty.suggestions}
+        </div>
+        <div style={{ display: 'flex', flexWrap: 'wrap', gap: 8, justifyContent: 'center' }}>
+          {SUGGESTED_TICKERS.map(tk => (
+            <button
+              key={tk.symbol}
+              onClick={() => handleSuggestion(tk.symbol)}
+              style={{
+                padding: '8px 14px', borderRadius: 8, fontSize: 13,
+                border: '1px solid var(--border-br)',
+                background: 'rgba(255,255,255,0.03)',
+                color: 'var(--white)', cursor: 'pointer',
+                display: 'flex', alignItems: 'center', gap: 6,
+                transition: 'border-color 0.15s, background 0.15s',
+              }}
+              onMouseEnter={e => {
+                e.currentTarget.style.borderColor = 'rgba(30,92,255,0.5)'
+                e.currentTarget.style.background = 'rgba(30,92,255,0.08)'
+              }}
+              onMouseLeave={e => {
+                e.currentTarget.style.borderColor = 'var(--border-br)'
+                e.currentTarget.style.background = 'rgba(255,255,255,0.03)'
+              }}
+            >
+              <span>{tk.flag}</span>
+              <span style={{ fontWeight: 600 }}>{tk.symbol}</span>
+              <span style={{ fontSize: 11, color: 'var(--muted)' }}>{tk.name}</span>
+            </button>
+          ))}
+        </div>
+      </div>
     </div>
   )
 }
