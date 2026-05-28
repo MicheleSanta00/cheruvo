@@ -39,7 +39,7 @@ def get_current_user(
             credentials.credentials,
             SUPABASE_JWT_SECRET,
             algorithms=["HS256"],
-            audience="authenticated",
+            options={"verify_aud": False},  # aud Supabase può essere stringa o array
         )
         return payload
     except jwt.ExpiredSignatureError:
@@ -96,7 +96,7 @@ def get_current_user_optional(
             credentials.credentials,
             SUPABASE_JWT_SECRET,
             algorithms=["HS256"],
-            audience="authenticated",
+            options={"verify_aud": False},
         )
     except Exception:
         return None
