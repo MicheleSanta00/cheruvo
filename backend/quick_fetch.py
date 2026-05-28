@@ -2,22 +2,17 @@
 quick_fetch.py — Fetch veloce senza FinBERT per Render.
 Usa VADER per il sentiment — leggero e istantaneo.
 """
-import os
 import logging
 import requests
-import psycopg2
 import psycopg2.extras
 from datetime import datetime, timedelta
 from vaderSentiment.vaderSentiment import SentimentIntensityAnalyzer
 from dateutil import parser as dateparser
+from database import get_pool
 
 logger = logging.getLogger(__name__)
 
 analyzer = SentimentIntensityAnalyzer()
-
-
-def get_connection():
-    return psycopg2.connect(os.environ["DATABASE_URL"])
 
 
 def vader_sentiment(text: str) -> float:
@@ -170,33 +165,36 @@ def fetch_european_rss(ticker: str) -> list:
 def save_news(ticker: str, news_list: list) -> int:
     if not news_list:
         return 0
-    conn = get_connection()
-    cur = conn.cursor()
-    cur.execute(
-        "SELECT lower(trim(title)), lower(trim(source)) FROM news WHERE ticker = %s",
-        (ticker,),
-    )
-    existing = set(cur.fetchall())
-    new_entries = []
-    for n in news_list:
-        tk = n["title"].lower().strip()
-        sk = n["source"].lower().strip()
-        if (tk, sk) not in existing:
-            new_entries.append((
-                ticker, n["source"], n["title"],
-                n.get("summary", ""), n["published_date"],
-                n["url"], float(n["sentiment"]),
-            ))
-            existing.add((tk, sk))
-    if new_entries:
-        psycopg2.extras.execute_values(cur, """
-            INSERT INTO news (ticker, source, title, summary, published_date, url, sentiment)
-            VALUES %s
-            ON CONFLICT (ticker, title, source) DO NOTHING
-        """, new_entries)
-        conn.commit()
-    cur.close()
-    conn.close()
+    pool = get_pool()
+    conn = pool.getconn()
+    try:
+        cur = conn.cursor()
+        cur.execute(
+            "SELECT lower(trim(title)), lower(trim(source)) FROM news WHERE ticker = %s",
+            (ticker,),
+        )
+        existing = set(cur.fetchall())
+        new_entries = []
+        for n in news_list:
+            tk = n["title"].lower().strip()
+            sk = n["source"].lower().strip()
+            if (tk, sk) not in existing:
+                new_entries.append((
+                    ticker, n["source"], n["title"],
+                    n.get("summary", ""), n["published_date"],
+                    n["url"], float(n["sentiment"]),
+                ))
+                existing.add((tk, sk))
+        if new_entries:
+            psycopg2.extras.execute_values(cur, """
+                INSERT INTO news (ticker, source, title, summary, published_date, url, sentiment)
+                VALUES %s
+                ON CONFLICT (ticker, title, source) DO NOTHING
+            """, new_entries)
+            conn.commit()
+        cur.close()
+    finally:
+        pool.putconn(conn)
     return len(new_entries)
 
 
