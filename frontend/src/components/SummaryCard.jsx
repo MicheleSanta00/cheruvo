@@ -1,6 +1,5 @@
 import { useEffect, useState } from 'react'
-
-const BASE = import.meta.env.VITE_API_BASE || 'https://financial-sentiment-analysis-20px.onrender.com/api'
+import apiFetch from '../apiFetch.js'
 
 const COLORI = {
   bullish: { accent: '#34d399', bg: 'rgba(52,211,153,0.08)', border: 'rgba(52,211,153,0.2)', badge: '#34d399', emoji: '📈' },
@@ -18,8 +17,7 @@ export default function SummaryCard({ ticker, isPro, onUpgrade }) {
     setData(null)
     setError(null)
     setLoading(true)
-    fetch(`${BASE}/summary/${ticker}`)
-      .then(r => { if (!r.ok) throw new Error(); return r.json() })
+    apiFetch(`/summary/${ticker}`)
       .then(d => setData(d))
       .catch(() => setError(true))
       .finally(() => setLoading(false))

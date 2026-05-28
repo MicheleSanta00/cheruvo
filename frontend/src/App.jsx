@@ -3,6 +3,7 @@ import Auth        from './components/Auth.jsx'
 import Profile     from './components/Profile.jsx'
 import { supabase } from './supabase.js'
 import { useLang }  from './LangContext.jsx'
+import apiFetch    from './apiFetch.js'
 
 import Sidebar     from './components/Sidebar.jsx'
 import KPIGrid     from './components/KPIGrid.jsx'
@@ -44,8 +45,7 @@ export default function App() {
 
   useEffect(() => {
     if (user) {
-      fetch(`${import.meta.env.VITE_API_BASE}/subscription/${user.id}`)
-        .then(r => r.json())
+      apiFetch(`/subscription/${user.id}`)
         .then(data => setIsPro(data.status === 'pro'))
         .catch(() => setIsPro(false))
     }
@@ -63,12 +63,10 @@ export default function App() {
   }
 
   const handleUpgrade = async () => {
-    const res = await fetch(`${import.meta.env.VITE_API_BASE}/checkout`, {
+    const data = await apiFetch('/checkout', {
       method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ email: user.email, user_id: user.id }),
     })
-    const data = await res.json()
     if (data.url) window.location.href = data.url
   }
 
