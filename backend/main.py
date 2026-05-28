@@ -260,7 +260,7 @@ def get_summary(ticker: str, request: Request,
         cur.execute(
             """SELECT title, sentiment FROM news
             WHERE ticker = %s
-            AND published_date::timestamp >= NOW() - INTERVAL '7 days'
+            AND published_date >= NOW() - INTERVAL '7 days'
             ORDER BY published_date DESC
             LIMIT 60""",
             (ticker,)

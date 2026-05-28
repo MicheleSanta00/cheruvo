@@ -26,12 +26,13 @@ def vader_sentiment(text: str) -> float:
 
 def format_date(date_str):
     if not date_str:
-        return ""
+        return None
     try:
-        return dateparser.parse(str(date_str)).strftime("%Y-%m-%d")
+        return dateparser.parse(str(date_str)).strftime("%Y-%m-%d %H:%M:%S")
     except Exception:
         s = str(date_str)
-        return s[:10] if len(s) >= 10 else ""
+        # fallback: se abbiamo almeno la data, restituiamola come mezzanotte
+        return f"{s[:10]} 00:00:00" if len(s) >= 10 else None
 
 
 def fetch_alpha_vantage(ticker: str) -> list:

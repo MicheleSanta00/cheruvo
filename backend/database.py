@@ -48,7 +48,7 @@ def init_database():
                 source           TEXT,
                 title            TEXT,
                 summary          TEXT,
-                published_date   TEXT,
+                published_date   TIMESTAMPTZ,
                 url              TEXT,
                 sentiment        REAL,
                 relevance_score  REAL DEFAULT 1.0,
