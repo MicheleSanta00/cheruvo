@@ -1,7 +1,9 @@
 """
 quick_fetch.py — Fetch veloce senza FinBERT per Render.
-Usa VADER per il sentiment — leggero e istantaneo.
+- Alpha Vantage: usa i sentiment score pre-calcolati dall'API (modello finanziario)
+- Google RSS / NewsAPI: usa VADER come fallback (nessun score fornito)
 """
+import os
 import logging
 import requests
 import psycopg2.extras
@@ -20,6 +22,37 @@ def vader_sentiment(text: str) -> float:
         return 0.0
     score = analyzer.polarity_scores(text)["compound"]
     return round(max(-1.0, min(1.0, score)), 4)
+
+
+def _av_sentiment(item: dict, ticker: str) -> float:
+    """
+    Estrae il sentiment da una news Alpha Vantage con questo ordine di priorità:
+    1. ticker_sentiment_score specifico per il ticker richiesto
+    2. overall_sentiment_score dell'articolo
+    3. VADER sul titolo+summary come fallback finale
+    """
+    # 1. Score specifico per il ticker (es. AAPL ha score diverso da MSFT
+    #    nello stesso articolo che li cita entrambi)
+    ticker_upper = ticker.upper()
+    for ts in item.get("ticker_sentiment", []):
+        if ts.get("ticker", "").upper() == ticker_upper:
+            try:
+                score = float(ts["ticker_sentiment_score"])
+                return round(max(-1.0, min(1.0, score)), 4)
+            except (KeyError, ValueError, TypeError):
+                break
+
+    # 2. Overall score dell'articolo
+    try:
+        score = float(item["overall_sentiment_score"])
+        return round(max(-1.0, min(1.0, score)), 4)
+    except (KeyError, ValueError, TypeError):
+        pass
+
+    # 3. Fallback VADER
+    title = item.get("title", "")
+    summary = item.get("summary", "")
+    return vader_sentiment(f"{title} {summary}")
 
 
 def format_date(date_str):
@@ -55,13 +88,19 @@ def fetch_alpha_vantage(ticker: str) -> list:
             if not title:
                 continue
             summary = item.get("summary", "").strip()
+
+            # Preferisci il sentiment specifico per il ticker se disponibile,
+            # altrimenti usa l'overall score dell'articolo,
+            # altrimenti fallback a VADER sul testo.
+            sentiment = _av_sentiment(item, ticker)
+
             news_list.append({
                 "source": item.get("source", "Alpha Vantage"),
                 "title": title,
                 "summary": summary[:250],
                 "published_date": format_date(item.get("time_published")),
                 "url": item.get("url", ""),
-                "sentiment": vader_sentiment(f"{title} {summary}"),
+                "sentiment": sentiment,
             })
         logger.info("QuickFetch Alpha Vantage: %d news", len(news_list))
     except Exception as e:
