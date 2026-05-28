@@ -1,22 +1,24 @@
 /**
- * apiFetch.js — wrapper di fetch che allega automaticamente il JWT Supabase.
+ * apiFetch.js — wrapper fetch con JWT Supabase + auto-refresh on 401.
  *
- * Uso:
- *   import apiFetch from './apiFetch'
- *   const data = await apiFetch('/api/news/AAPL?days=30')
+ * Supabase JS v2: getSession() ritorna il token in cache anche se scaduto.
+ * Se il backend risponde 401, questo wrapper forza refreshSession() e riprova
+ * una volta prima di fare signOut e mostrare il login.
  */
 
 import { supabase } from './supabase.js'
 
 const BASE = import.meta.env.VITE_API_BASE
 
-export default async function apiFetch(path, options = {}) {
-  // Recupera il token corrente dalla sessione Supabase
+async function _getToken() {
   const { data: { session } } = await supabase.auth.getSession()
-  const token = session?.access_token
+  return session?.access_token ?? null
+}
+
+export default async function apiFetch(path, options = {}, _isRetry = false) {
+  const token = await _getToken()
 
   if (!token) {
-    // Pulisce la sessione scaduta dal localStorage e notifica l'app via onAuthStateChange
     await supabase.auth.signOut()
     throw new Error('Sessione scaduta — effettua nuovamente il login')
   }
@@ -30,8 +32,22 @@ export default async function apiFetch(path, options = {}) {
     },
   })
 
+  // ── 401: token scaduto ── prova a fare refresh e riprova UNA volta
+  if (res.status === 401 && !_isRetry) {
+    const { data: { session: newSession }, error } = await supabase.auth.refreshSession()
+
+    if (newSession?.access_token) {
+      // Retry con il token fresco
+      return apiFetch(path, options, true)
+    }
+
+    // Refresh fallito (refresh token non valido) — logout e login
+    await supabase.auth.signOut()
+    throw new Error('Sessione scaduta — effettua nuovamente il login')
+  }
+
   if (res.status === 401) {
-    // Token scaduto — forza il logout per far rifare il login
+    // Secondo 401 dopo refresh: secret sbagliato o token davvero invalido
     await supabase.auth.signOut()
     throw new Error('Sessione scaduta — effettua nuovamente il login')
   }
