@@ -4,8 +4,10 @@ Cheruvo — FastAPI Backend
 from dotenv import load_dotenv
 load_dotenv()
 
-from fastapi import FastAPI, HTTPException, BackgroundTasks, Request
+from fastapi import FastAPI, HTTPException, BackgroundTasks, Request, Depends
 from fastapi.middleware.cors import CORSMiddleware
+from starlette.middleware.base import BaseHTTPMiddleware
+from auth import get_current_user, get_current_user_optional, require_pro, get_user_tier
 from slowapi import Limiter, _rate_limit_exceeded_handler
 from slowapi.util import get_remote_address
 from slowapi.errors import RateLimitExceeded
@@ -38,6 +40,15 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
+class SecurityHeadersMiddleware(BaseHTTPMiddleware):
+    async def dispatch(self, request, call_next):
+        response = await call_next(request)
+        response.headers["X-Content-Type-Options"] = "nosniff"
+        response.headers["X-Frame-Options"] = "DENY"
+        response.headers["Referrer-Policy"] = "strict-origin-when-cross-origin"
+        return response
+
+app.add_middleware(SecurityHeadersMiddleware)
 app.include_router(stripe_router, prefix="/api")
 
 API_KEY = {
@@ -76,7 +87,8 @@ def startup():
 
 @app.get("/api/validate/{ticker}")
 @limiter.limit("30/minute")
-def ticker_info(ticker: str, request: Request):
+def ticker_info(ticker: str, request: Request,
+                user: dict | None = Depends(get_current_user_optional)):
     cached = cache_get(f"validate:{ticker}")
     if cached:
         return cached
@@ -98,7 +110,12 @@ def ticker_info(ticker: str, request: Request):
 
 @app.get("/api/news/{ticker}")
 @limiter.limit("20/minute")
-def get_news(ticker: str, request: Request, days: int = 30):
+def get_news(ticker: str, request: Request, days: int = 30,
+             user: dict = Depends(get_current_user)):
+    # Enforce limite giorni lato server in base al tier
+    tier = get_user_tier(user["sub"])
+    if tier != "pro":
+        days = min(days, 30)
     cache_key = f"news:{ticker}:{days}"
     cached = cache_get(cache_key)
     if cached:
@@ -130,7 +147,16 @@ def get_news(ticker: str, request: Request, days: int = 30):
 
 @app.get("/api/prices/{ticker}")
 @limiter.limit("20/minute")
-def prices_endpoint(ticker: str, request: Request, period: str = "3mo"):
+def prices_endpoint(ticker: str, request: Request, period: str = "3mo",
+                    user: dict = Depends(get_current_user)):
+    # Enforce periodi disponibili in base al tier
+    tier = get_user_tier(user["sub"])
+    FREE_PERIODS = {"1mo", "3mo"}
+    if tier != "pro" and period not in FREE_PERIODS:
+        raise HTTPException(
+            status_code=403,
+            detail=f"Il periodo '{period}' richiede un abbonamento PRO"
+        )
     cache_key = f"prices:{ticker}:{period}"
     cached = cache_get(cache_key)
     if cached:
@@ -147,7 +173,8 @@ def prices_endpoint(ticker: str, request: Request, period: str = "3mo"):
 
 @app.get("/api/sentiment/{ticker}")
 @limiter.limit("20/minute")
-def sentiment_daily(ticker: str, request: Request):
+def sentiment_daily(ticker: str, request: Request,
+                    user: dict = Depends(get_current_user)):
     cache_key = f"sentiment:{ticker}"
     cached = cache_get(cache_key)
     if cached:
@@ -174,7 +201,8 @@ def sentiment_daily(ticker: str, request: Request):
 
 @app.post("/api/fetch/{ticker}")
 @limiter.limit("5/minute")
-async def fetch_news(ticker: str, request: Request, background_tasks: BackgroundTasks):
+async def fetch_news(ticker: str, request: Request, background_tasks: BackgroundTasks,
+                     user: dict = Depends(get_current_user)):
     # Invalida la cache per questo ticker dopo il fetch
     for key in list(_cache.keys()):
         if f":{ticker.upper()}:" in key or f":{ticker.upper()}" in key:
@@ -186,7 +214,7 @@ async def fetch_news(ticker: str, request: Request, background_tasks: Background
 
 @app.get("/api/tickers")
 @limiter.limit("10/minute")
-def list_tickers(request: Request):
+def list_tickers(request: Request, user: dict = Depends(get_current_user)):
     cached = cache_get("tickers:all")
     if cached:
         return cached
@@ -214,7 +242,8 @@ SUMMARY_TTL = 6 * 3600  # 6 ore
 
 @app.get("/api/summary/{ticker}")
 @limiter.limit("20/minute")
-def get_summary(ticker: str, request: Request):
+def get_summary(ticker: str, request: Request,
+                user: dict = Depends(require_pro)):
     ticker = ticker.upper()
     cache_key = f"summary:{ticker}"
 
@@ -269,4 +298,3 @@ def get_summary(ticker: str, request: Request):
     # Salva in cache con TTL 6h
     _cache[cache_key] = {"data": result, "ts": time.time()}
     return result
-

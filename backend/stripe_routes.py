@@ -102,6 +102,15 @@ async def stripe_webhook(request: Request):
                 "UPDATE subscriptions SET status = 'free' WHERE stripe_sub_id = %s",
                 (event["data"]["object"]["id"],)
             )
+        elif event["type"] == "invoice.payment_failed":
+            # Il pagamento mensile è fallito — downgrade a past_due
+            # Stripe riproverà automaticamente; se fallisce di nuovo invierà subscription.deleted
+            sub_id = event["data"]["object"].get("subscription")
+            if sub_id:
+                cur.execute(
+                    "UPDATE subscriptions SET status = 'past_due' WHERE stripe_sub_id = %s",
+                    (sub_id,)
+                )
         conn.commit()
         cur.close()
     finally:
@@ -119,4 +128,8 @@ def get_subscription(user_id: str):
         cur.close()
     finally:
         _rel(conn)
-    return {"status": row[0] if row else "free"}
+    status = row[0] if row else "free"
+    # past_due = pagamento fallito ma non ancora cancellato — trattalo come free
+    if status == "past_due":
+        status = "free"
+    return {"status": status}

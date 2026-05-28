@@ -1,6 +1,5 @@
 import { useState, useCallback } from 'react'
-
-const BASE = import.meta.env.VITE_API_BASE || 'https://financial-sentiment-analysis-20px.onrender.com/api'
+import apiFetch from '../apiFetch.js'
 
 export function useFinData() {
   const [tickerInfo, setTickerInfo]   = useState(null)
@@ -17,36 +16,33 @@ export function useFinData() {
     setError(null)
     try {
       // Validate ticker
-      const vRes = await fetch(`${BASE}/validate/${ticker}`)
-      if (!vRes.ok) throw new Error(`Ticker "${ticker}" non trovato`)
-      const vData = await vRes.json()
+      const vData = await apiFetch(`/validate/${ticker}`)
       setTickerInfo(vData)
 
       // News + stats
-      const nRes = await fetch(`${BASE}/news/${ticker}?days=${days}`)
-      const nData = await nRes.json()
+      const nData = await apiFetch(`/news/${ticker}?days=${days}`)
       setNews(nData.news || [])
       setStats({
-        total:        nData.total,
-        avg:          nData.avg_sentiment,
-        max:          nData.max_sentiment,
-        min:          nData.min_sentiment,
-        sources:      nData.sources_count,
+        total:   nData.total,
+        avg:     nData.avg_sentiment,
+        max:     nData.max_sentiment,
+        min:     nData.min_sentiment,
+        sources: nData.sources_count,
       })
 
       // Prices
-      const pRes = await fetch(`${BASE}/prices/${ticker}?period=${period}`)
-      if (pRes.ok) {
-        const pData = await pRes.json()
+      try {
+        const pData = await apiFetch(`/prices/${ticker}?period=${period}`)
         setPrices(pData.prices || [])
+      } catch (e) {
+        // Il periodo potrebbe essere PRO-only — non bloccare il resto
+        if (!e.message.includes('PRO')) throw e
+        setPrices([])
       }
 
       // Daily sentiment
-      const sRes = await fetch(`${BASE}/sentiment/${ticker}`)
-      if (sRes.ok) {
-        const sData = await sRes.json()
-        setSentiment(sData.sentiment || [])
-      }
+      const sData = await apiFetch(`/sentiment/${ticker}`)
+      setSentiment(sData.sentiment || [])
 
     } catch (e) {
       setError(e.message)
@@ -58,7 +54,10 @@ export function useFinData() {
   const triggerFetch = useCallback(async (ticker) => {
     setFetching(true)
     try {
-      await fetch(`${BASE}/fetch/${ticker}`, { method: 'POST' })
+      await apiFetch(`/fetch/${ticker}`, { method: 'POST' })
+    } catch (e) {
+      // Non bloccare l'UI per un errore di fetch in background
+      console.error('triggerFetch error:', e.message)
     } finally {
       setFetching(false)
     }
