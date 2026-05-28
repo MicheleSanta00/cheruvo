@@ -3,12 +3,15 @@ quick_fetch.py — Fetch veloce senza FinBERT per Render.
 Usa VADER per il sentiment — leggero e istantaneo.
 """
 import os
+import logging
 import requests
 import psycopg2
 import psycopg2.extras
 from datetime import datetime, timedelta
 from vaderSentiment.vaderSentiment import SentimentIntensityAnalyzer
 from dateutil import parser as dateparser
+
+logger = logging.getLogger(__name__)
 
 analyzer = SentimentIntensityAnalyzer()
 
@@ -65,9 +68,9 @@ def fetch_alpha_vantage(ticker: str) -> list:
                 "url": item.get("url", ""),
                 "sentiment": vader_sentiment(f"{title} {summary}"),
             })
-        print(f"QuickFetch Alpha Vantage: {len(news_list)} news")
+        logger.info("QuickFetch Alpha Vantage: %d news", len(news_list))
     except Exception as e:
-        print(f"QuickFetch AV error: {e}")
+        logger.error("QuickFetch AV error: %s", e)
     return news_list
 
 
@@ -96,9 +99,9 @@ def fetch_newsapi(ticker: str) -> list:
                 "url": a.get("url", ""),
                 "sentiment": vader_sentiment(f"{title} {desc}"),
             })
-        print(f"QuickFetch NewsAPI: {len(news_list)} news")
+        logger.info("QuickFetch NewsAPI: %d news", len(news_list))
     except Exception as e:
-        print(f"QuickFetch NewsAPI error: {e}")
+        logger.error("QuickFetch NewsAPI error: %s", e)
     return news_list
 
 
@@ -122,9 +125,9 @@ def fetch_google_rss(ticker: str) -> list:
                 "url": entry.get("link", ""),
                 "sentiment": vader_sentiment(f"{title} {summary}"),
             })
-        print(f"QuickFetch Google News: {len(news_list)} news")
+        logger.info("QuickFetch Google News: %d news", len(news_list))
     except Exception as e:
-        print(f"QuickFetch RSS error: {e}")
+        logger.error("QuickFetch Google RSS error: %s", e)
     return news_list
 
 def fetch_european_rss(ticker: str) -> list:
@@ -158,9 +161,9 @@ def fetch_european_rss(ticker: str) -> list:
                     "url": entry.get("link", ""),
                     "sentiment": vader_sentiment(f"{title} {summary}"),
                 })
-        print(f"QuickFetch European RSS: {len(news_list)} news")
+        logger.info("QuickFetch European RSS: %d news", len(news_list))
     except Exception as e:
-        print(f"QuickFetch European RSS error: {e}")
+        logger.error("QuickFetch European RSS error: %s", e)
     return news_list
 
 
@@ -198,7 +201,7 @@ def save_news(ticker: str, news_list: list) -> int:
 
 
 def quick_fetch(ticker: str) -> int:
-    print(f"QuickFetch {ticker}...")
+    logger.info("QuickFetch avviato per %s", ticker)
     all_news = []
     all_news.extend(fetch_alpha_vantage(ticker))
     all_news.extend(fetch_newsapi(ticker))
@@ -215,5 +218,5 @@ def quick_fetch(ticker: str) -> int:
             unique.append(n)
 
     count = save_news(ticker, unique)
-    print(f"QuickFetch {ticker}: {count} nuove news salvate")
+    logger.info("QuickFetch %s completato: %d nuove news salvate", ticker, count)
     return count

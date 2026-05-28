@@ -1,9 +1,12 @@
 """prices.py — usa Yahoo Finance v8 API direttamente senza yfinance."""
 import os
+import logging
 import requests
 import pandas as pd
 from datetime import datetime, timedelta
 import time
+
+logger = logging.getLogger(__name__)
 
 
 HEADERS = {
@@ -27,7 +30,7 @@ def get_prices(ticker: str, period: str = "3mo") -> pd.DataFrame:
     df = _yahoo_chart(ticker, period)
     if not df.empty:
         return df
-    print(f"Yahoo Chart fallito per {ticker}, provo Alpha Vantage...")
+    logger.warning("Yahoo Chart fallito per %s, provo Alpha Vantage...", ticker)
     return _alpha_vantage_daily(ticker, period)
 
 
@@ -86,11 +89,11 @@ def _yahoo_chart(ticker: str, period: str) -> pd.DataFrame:
             df = pd.DataFrame(rows)
             df["date"] = pd.to_datetime(df["date"])
             df = df.set_index("date").sort_index()
-            print(f"Yahoo Chart: {len(df)} giorni per {ticker}")
+            logger.info("Yahoo Chart: %d giorni per %s", len(df), ticker)
             return df
 
         except Exception as e:
-            print(f"Yahoo Chart attempt {attempt+1}: {e}")
+            logger.warning("Yahoo Chart attempt %d: %s", attempt + 1, e)
             time.sleep(1)
 
     return pd.DataFrame()
@@ -138,11 +141,11 @@ def _alpha_vantage_daily(ticker: str, period: str) -> pd.DataFrame:
 
         df = pd.DataFrame(rows)
         df = df.set_index("date").sort_index()
-        print(f"Alpha Vantage: {len(df)} giorni per {ticker}")
+        logger.info("Alpha Vantage: %d giorni per %s", len(df), ticker)
         return df
 
     except Exception as e:
-        print(f"Alpha Vantage error: {e}")
+        logger.error("Alpha Vantage error: %s", e)
         return pd.DataFrame()
 
 
@@ -167,7 +170,7 @@ def validate_ticker(ticker: str) -> dict:
                 "variazione": meta.get("regularMarketChangePercent"),
             }
     except Exception as e:
-        print(f"validate_ticker error: {e}")
+        logger.error("validate_ticker error per %s: %s", ticker, e)
 
     return {
         "valid":      True,

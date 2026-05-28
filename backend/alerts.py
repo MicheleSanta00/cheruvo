@@ -3,11 +3,14 @@ alerts.py — Sistema di alert sentiment per Cheruvo.
 """
 import os
 import sys
+import logging
 
 # Fix import path quando chiamato da updater.py nella root
 sys.path.insert(0, os.path.dirname(__file__))
 
 import resend
+
+logger = logging.getLogger(__name__)
 from database import get_pool
 
 resend.api_key = os.environ.get("RESEND_API_KEY", "")
@@ -132,11 +135,11 @@ def _build_email_html(alerts: list[dict]) -> str:
 
 def check_and_send_alerts():
     """Entry point principale — chiamato da updater.py."""
-    print("[Alerts] Controllo alert sentiment PRO...")
+    logger.info("[Alerts] Controllo alert sentiment PRO...")
 
     user_watchlists = get_pro_users_watchlists()
     if not user_watchlists:
-        print("[Alerts] Nessun utente PRO con watchlist. Skip.")
+        logger.info("[Alerts] Nessun utente PRO con watchlist. Skip.")
         return
 
     # Raccogli tutti i ticker unici
@@ -144,7 +147,7 @@ def check_and_send_alerts():
     alerts_by_ticker = {a["ticker"]: a for a in get_sentiment_alerts(all_tickers)}
 
     if not alerts_by_ticker:
-        print("[Alerts] Nessun movimento significativo nelle ultime 24h.")
+        logger.info("[Alerts] Nessun movimento significativo nelle ultime 24h.")
         return
 
     sent = 0
@@ -164,12 +167,12 @@ def check_and_send_alerts():
                 "subject": subject,
                 "html": _build_email_html(user_alerts),
             })
-            print(f"[Alerts] ✓ Inviato a {email} ({len(user_alerts)} ticker)")
+            logger.info("[Alerts] Inviato a %s (%d ticker)", email, len(user_alerts))
             sent += 1
         except Exception as e:
-            print(f"[Alerts] ✗ Errore per {email}: {e}")
+            logger.error("[Alerts] Errore per %s: %s", email, e)
 
-    print(f"[Alerts] Completato: {sent} email inviate.")
+    logger.info("[Alerts] Completato: %d email inviate.", sent)
 
 
 if __name__ == "__main__":

@@ -14,12 +14,21 @@ from slowapi.errors import RateLimitExceeded
 import os
 import pandas as pd
 import time
+import logging
 
 from database import SuperNewsAnalyzer, init_database, get_pool
 from prices import get_prices, validate_ticker
 from stripe_routes import router as stripe_router, init_subscriptions_table
 from quick_fetch import quick_fetch
 from summary import genera_summary, _fallback
+
+# ── Logging ───────────────────────────────────────────────────────────────
+logging.basicConfig(
+    level=logging.INFO,
+    format="%(asctime)s | %(levelname)-8s | %(name)s | %(message)s",
+    datefmt="%Y-%m-%d %H:%M:%S",
+)
+logger = logging.getLogger(__name__)
 
 # ── Rate limiter ───────────────────────────────────────────────────────────
 limiter = Limiter(key_func=get_remote_address, default_limits=["60/minute"])
