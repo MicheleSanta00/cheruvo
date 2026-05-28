@@ -1,7 +1,8 @@
 import os
 import stripe
-from fastapi import APIRouter, HTTPException, Request
+from fastapi import APIRouter, HTTPException, Request, Depends
 from database import get_pool
+from auth import get_current_user
 
 stripe.api_key = os.environ.get("STRIPE_SECRET_KEY", "")
 PRICE_ID = os.environ.get("STRIPE_PRICE_ID", "")
@@ -119,7 +120,10 @@ async def stripe_webhook(request: Request):
 
 
 @router.get("/subscription/{user_id}")
-def get_subscription(user_id: str):
+def get_subscription(user_id: str, current_user: dict = Depends(get_current_user)):
+    # Verifica che l'utente stia richiedendo info su se stesso
+    if current_user["sub"] != user_id:
+        raise HTTPException(status_code=403, detail="Non autorizzato")
     conn = _conn()
     try:
         cur = conn.cursor()
