@@ -4,10 +4,23 @@ Cheruvo — FastAPI Backend
 from dotenv import load_dotenv
 load_dotenv()
 
+import sentry_sdk
+from sentry_sdk.integrations.fastapi import FastApiIntegration
+from sentry_sdk.integrations.starlette import StarletteIntegration
+
+sentry_sdk.init(
+    dsn=__import__("os").environ.get("SENTRY_DSN", ""),
+    integrations=[StarletteIntegration(), FastApiIntegration()],
+    traces_sample_rate=0.2,   # campiona il 20% delle request per performance tracing
+    environment=__import__("os").environ.get("ENVIRONMENT", "production"),
+    send_default_pii=False,   # non inviare dati personali (email, IP) a Sentry
+)
+
 from contextlib import asynccontextmanager
 from fastapi import FastAPI, HTTPException, BackgroundTasks, Request, Depends
 from fastapi.middleware.cors import CORSMiddleware
 from starlette.middleware.base import BaseHTTPMiddleware
+from starlette.middleware.gzip import GZipMiddleware
 from auth import get_current_user, get_current_user_optional, require_pro, get_user_tier
 from slowapi import Limiter, _rate_limit_exceeded_handler
 from slowapi.util import get_remote_address
@@ -88,6 +101,7 @@ class SecurityHeadersMiddleware(BaseHTTPMiddleware):
         return response
 
 app.add_middleware(SecurityHeadersMiddleware)
+app.add_middleware(GZipMiddleware, minimum_size=500)  # comprime risposte > 500 bytes
 app.include_router(stripe_router, prefix="/api")
 
 API_KEY = {
