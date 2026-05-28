@@ -4,6 +4,7 @@ Cheruvo — FastAPI Backend
 from dotenv import load_dotenv
 load_dotenv()
 
+from contextlib import asynccontextmanager
 from fastapi import FastAPI, HTTPException, BackgroundTasks, Request, Depends
 from fastapi.middleware.cors import CORSMiddleware
 from starlette.middleware.base import BaseHTTPMiddleware
@@ -11,6 +12,7 @@ from auth import get_current_user, get_current_user_optional, require_pro, get_u
 from slowapi import Limiter, _rate_limit_exceeded_handler
 from slowapi.util import get_remote_address
 from slowapi.errors import RateLimitExceeded
+import jwt as pyjwt
 import os
 import pandas as pd
 import time
@@ -31,9 +33,37 @@ logging.basicConfig(
 logger = logging.getLogger(__name__)
 
 # ── Rate limiter ───────────────────────────────────────────────────────────
-limiter = Limiter(key_func=get_remote_address, default_limits=["60/minute"])
+def get_user_identifier(request: Request) -> str:
+    """
+    Chiave per il rate limiter: estrae lo user_id dal JWT senza verifica
+    (la verifica vera la fa già get_current_user via Supabase). Usare l'ID
+    utente invece dell'IP evita che utenti dietro NAT si blocchino a vicenda
+    e impedisce il bypass del limite cambiando IP o VPN.
+    Fallback sull'IP per endpoint pubblici o token malformati.
+    """
+    auth_header = request.headers.get("Authorization", "")
+    if auth_header.startswith("Bearer "):
+        token = auth_header[7:]
+        try:
+            # decode_without_verification: serve solo il campo 'sub' come chiave
+            payload = pyjwt.decode(token, options={"verify_signature": False})
+            sub = payload.get("sub")
+            if sub:
+                return f"user:{sub}"
+        except Exception:
+            pass
+    return get_remote_address(request)
 
-app = FastAPI(title="Cheruvo API", version="2.1.0")
+limiter = Limiter(key_func=get_user_identifier, default_limits=["60/minute"])
+
+@asynccontextmanager
+async def lifespan(app: FastAPI):
+    init_database()
+    init_subscriptions_table()
+    get_pool()
+    yield
+
+app = FastAPI(title="Cheruvo API", version="2.1.0", lifespan=lifespan)
 app.state.limiter = limiter
 app.add_exception_handler(RateLimitExceeded, _rate_limit_exceeded_handler)
 
@@ -83,13 +113,6 @@ def cache_get(key: str):
 def cache_set(key: str, data):
     _cache[key] = {"data": data, "ts": time.time()}
 
-
-# ── Startup ────────────────────────────────────────────────────────────────
-@app.on_event("startup")
-def startup():
-    init_database()
-    init_subscriptions_table()
-    get_pool()  # inizializza il pool di connessioni
 
 
 # ── Endpoints ──────────────────────────────────────────────────────────────
