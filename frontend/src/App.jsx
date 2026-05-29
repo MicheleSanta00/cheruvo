@@ -12,7 +12,8 @@ import Chart       from './components/Chart.jsx'
 import TopNews     from './components/TopNews.jsx'
 import Stats            from './components/Stats.jsx'
 import CorrelationPanel from './components/CorrelationPanel.jsx'
-import ComparePanel    from './components/ComparePanel.jsx'
+import ComparePanel       from './components/ComparePanel.jsx'
+import OnboardingTooltip  from './components/OnboardingTooltip.jsx'
 import { useFinData } from './hooks/useFinData.js'
 import { generateReport } from './utils/generatePDF.js'
 
@@ -101,6 +102,7 @@ export default function App() {
 
   return (
     <div style={{ display: 'flex', height: '100dvh', overflow: 'hidden', background: 'var(--black)', position: 'relative' }}>
+      <OnboardingTooltip hasData={hasData} />
 
       {/* Overlay mobile */}
       {sidebarOpen && (
@@ -238,7 +240,7 @@ export default function App() {
               )}
 
               {/* KPI */}
-              {stats && <KPIGrid stats={stats} />}
+              {stats && <div id="kpi-avg"><KPIGrid stats={stats} /></div>}
 
               {/* Stats PRO — collassabili */}
               {news.length > 0 && isPro && (
@@ -303,7 +305,7 @@ export default function App() {
                       <Legend color="var(--red)"    label={t.main.negative} />
                     </div>
                   </div>
-                  <Chart prices={prices} sentiment={sentiment} ticker={ticker} />
+                  <div id="chart-area"><Chart prices={prices} sentiment={sentiment} ticker={ticker} /></div>
                 </div>
               )}
 
@@ -342,7 +344,9 @@ export default function App() {
 
               {/* News */}
               {news.length > 0 && (
-                <TopNews news={news} isPro={isPro} onUpgrade={handleUpgrade} />
+                <div id="top-news">
+                  <TopNews news={news} isPro={isPro} onUpgrade={handleUpgrade} />
+                </div>
               )}
 
               <div style={{ height: 12 }} />

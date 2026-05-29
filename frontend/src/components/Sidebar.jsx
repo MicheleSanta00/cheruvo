@@ -103,7 +103,7 @@ export default function Sidebar({ ticker, days, period, onLoad, onFetch, loading
       {/* Search */}
       <div style={{ position: 'relative' }}>
         <Label>{t.sidebar.ticker}</Label>
-        <div style={{ display: 'flex', gap: 6, marginTop: 6 }}>
+        <div id="sidebar-search" style={{ display: 'flex', gap: 6, marginTop: 6 }}>
           <input
             ref={inputRef}
             value={input}
