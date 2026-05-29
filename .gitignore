@@ -32,3 +32,7 @@ data/news.db
 .idea/
 .vscode/
 *.swp
+
+# ── Landing — video frames e duplicati ──────────────────────────────────────
+landing/video/basta/
+landing/frames/
