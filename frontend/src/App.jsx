@@ -452,14 +452,8 @@ function EmptyState({ t, onLoad, days, period }) {
       )}
 
       {/* Icona */}
-      <div style={{
-        width: 56, height: 56, background: 'rgba(30,92,255,0.1)',
-        border: '1px solid rgba(30,92,255,0.2)', borderRadius: 14,
-        display: 'flex', alignItems: 'center', justifyContent: 'center',
-      }}>
-        <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="var(--azure)" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
-          <path d="M3 12h4l3-9 4 18 3-9h4"/>
-        </svg>
+      <div style={{ width: 80, height: 80, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+        <img src="/logo-new.png" alt="Cheruvo" style={{ width: 80, height: 80, mixBlendMode: 'screen', filter: 'brightness(1.4) contrast(1.2)' }} />
       </div>
 
       <div>
