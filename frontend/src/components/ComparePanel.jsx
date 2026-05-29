@@ -96,12 +96,19 @@ export default function ComparePanel({ primaryTicker, primarySentiment, isPro, o
 
     try {
       const data = await apiFetch(`/sentiment/${tk}`)
-      setExtraTickers(prev => prev.map(t =>
-        t.ticker === tk ? { ticker: tk, sentiment: data.sentiment || [], loading: false } : t
-      ))
+      const sent = data.sentiment || []
+      if (sent.length === 0) {
+        // Nessuna news — rimuovi e spiega all'utente
+        setExtraTickers(prev => prev.filter(t => t.ticker !== tk))
+        setInputError(`${tk} non ha ancora news nel database. Cercalo nella sidebar e clicca "Aggiorna news" prima di aggiungerlo al confronto.`)
+      } else {
+        setExtraTickers(prev => prev.map(t =>
+          t.ticker === tk ? { ticker: tk, sentiment: sent, loading: false } : t
+        ))
+      }
     } catch (e) {
       setExtraTickers(prev => prev.filter(t => t.ticker !== tk))
-      setInputError(`Nessun dato per ${tk}`)
+      setInputError(`Ticker non trovato: ${tk}`)
     }
   }, [primaryTicker, extraTickers])
 
