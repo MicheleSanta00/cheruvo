@@ -1,4 +1,5 @@
 import { useState, useRef, useEffect } from 'react'
+import { createPortal } from 'react-dom'
 import apiFetch from '../apiFetch.js'
 
 const SUGGESTED = [
@@ -50,7 +51,7 @@ export default function ChatWidget({ ticker, sentimentScore, topNews }) {
     }
   }
 
-  return (
+  return createPortal(
     <>
       {/* Chat panel */}
       {open && (
@@ -207,6 +208,7 @@ export default function ChatWidget({ ticker, sentimentScore, topNews }) {
       >
         {open ? '✕' : '🧠'}
       </button>
-    </>
+    </>,
+    document.body
   )
 }
