@@ -15,7 +15,7 @@ from database import get_pool
 
 resend.api_key = os.environ.get("RESEND_API_KEY", "")
 FROM_EMAIL = os.environ.get("FROM_EMAIL", "alerts@appcheruvo.com")
-FRONTEND_URL = os.environ.get("FRONTEND_URL", "https://appcheruvo.vercel.app")
+FRONTEND_URL = os.environ.get("FRONTEND_URL", "https://app.cheruvo.com")
 
 
 def _conn():

@@ -83,6 +83,9 @@ app.add_exception_handler(RateLimitExceeded, _rate_limit_exceeded_handler)
 app.add_middleware(
     CORSMiddleware,
     allow_origins=[
+        "https://app.cheruvo.com",
+        "https://cheruvo.com",
+        "https://www.cheruvo.com",
         "https://appcheruvo.vercel.app",
         "https://cheruvo.vercel.app",
         "http://localhost:5173",
