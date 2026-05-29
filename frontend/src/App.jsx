@@ -14,6 +14,7 @@ import Stats            from './components/Stats.jsx'
 import CorrelationPanel from './components/CorrelationPanel.jsx'
 import ComparePanel    from './components/ComparePanel.jsx'
 import { useFinData } from './hooks/useFinData.js'
+import { generateReport } from './utils/generatePDF.js'
 
 const DEFAULT_TICKER = 'NVDA'
 const DEFAULT_DAYS   = 30
@@ -70,6 +71,14 @@ export default function App() {
       body: JSON.stringify({ email: user.email, user_id: user.id }),
     })
     if (data.url) window.location.href = data.url
+  }
+
+  const handlePDF = async () => {
+    if (!isPro) { handleUpgrade(); return }
+    if (!tickerInfo) return
+    let summary = null
+    try { summary = await apiFetch(`/summary/${loadedTicker}`) } catch (_) {}
+    generateReport({ ticker, tickerInfo, stats, news, sentiment, summary })
   }
 
   const handleExport = () => {
@@ -158,13 +167,22 @@ export default function App() {
 
           <div style={{ marginLeft: 'auto', display: 'flex', alignItems: 'center', gap: 8, flexShrink: 0 }}>
             {news.length > 0 && (
-              <button onClick={handleExport} className="hide-mobile" style={{
-                fontSize: 11, color: isPro ? 'var(--muted)' : 'rgba(255,255,255,0.2)',
-                border: '1px solid var(--border)', borderRadius: 6,
-                padding: '4px 10px', background: 'transparent', cursor: 'pointer',
-              }}>
-                {isPro ? t.header.csv : t.header.csvLocked}
-              </button>
+              <>
+                <button onClick={handlePDF} className="hide-mobile" style={{
+                  fontSize: 11, color: isPro ? 'var(--muted)' : 'rgba(255,255,255,0.2)',
+                  border: '1px solid var(--border)', borderRadius: 6,
+                  padding: '4px 10px', background: 'transparent', cursor: 'pointer',
+                }}>
+                  {isPro ? '↓ PDF' : '🔒 PDF'}
+                </button>
+                <button onClick={handleExport} className="hide-mobile" style={{
+                  fontSize: 11, color: isPro ? 'var(--muted)' : 'rgba(255,255,255,0.2)',
+                  border: '1px solid var(--border)', borderRadius: 6,
+                  padding: '4px 10px', background: 'transparent', cursor: 'pointer',
+                }}>
+                  {isPro ? t.header.csv : t.header.csvLocked}
+                </button>
+              </>
             )}
             {loading && <Spinner />}
             {fetching && <Spinner color="var(--azure)" />}

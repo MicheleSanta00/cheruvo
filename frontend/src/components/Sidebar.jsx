@@ -172,6 +172,17 @@ export default function Sidebar({ ticker, days, period, onLoad, onFetch, loading
           {!isPro && <span style={{ fontSize: 10, color: 'var(--muted)' }}>{watchlist.length}/{MAX_WATCHLIST_FREE}</span>}
         </div>
         <div style={{ display: 'flex', flexDirection: 'column', gap: 2 }}>
+          {watchlist.length === 0 && (
+            <div style={{
+              padding: '10px', borderRadius: 8, fontSize: 12,
+              color: 'var(--muted)', lineHeight: 1.6,
+              background: 'rgba(255,255,255,0.02)',
+              border: '1px dashed rgba(255,255,255,0.07)',
+              marginBottom: 4,
+            }}>
+              {t.sidebar.watchlistEmpty}
+            </div>
+          )}
           {watchlist.map(tk => (
             <div key={tk} style={{
               display: 'flex', justifyContent: 'space-between', alignItems: 'center',

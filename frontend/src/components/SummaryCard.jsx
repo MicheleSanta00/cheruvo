@@ -35,10 +35,35 @@ export default function SummaryCard({ ticker, isPro, onUpgrade }) {
   )
 
   if (error || !data) return (
-    <div style={card()}>
-      <p style={{ fontSize: 12, color: 'var(--muted)', lineHeight: 1.6 }}>
-        ℹ️ Nessun summary disponibile — carica prima le news con il pulsante Aggiorna.
-      </p>
+    <div style={{
+      ...card(),
+      background: 'rgba(167,139,250,0.05)',
+      borderColor: 'rgba(167,139,250,0.2)',
+      textAlign: 'center', padding: '20px 16px',
+    }}>
+      <div style={{ fontSize: 20, marginBottom: 8 }}>✨</div>
+      <div style={{ fontSize: 13, fontWeight: 600, color: '#a78bfa', marginBottom: 6 }}>
+        AI Summary
+      </div>
+      {!isPro ? (
+        <>
+          <p style={{ fontSize: 12, color: 'var(--muted)', lineHeight: 1.7, marginBottom: 12 }}>
+            Ricevi un'analisi AI delle ultime notizie — giudizio bullish/bearish, riassunto e temi chiave.
+          </p>
+          <button onClick={onUpgrade} style={{
+            fontSize: 12, color: '#a78bfa', fontWeight: 600,
+            padding: '7px 16px', background: 'rgba(167,139,250,0.12)',
+            borderRadius: 100, border: '1px solid rgba(167,139,250,0.3)',
+            cursor: 'pointer', width: '100%',
+          }}>
+            🔒 Disponibile con Pro — €9/mese
+          </button>
+        </>
+      ) : (
+        <p style={{ fontSize: 12, color: 'var(--muted)', lineHeight: 1.6 }}>
+          Nessun summary disponibile — carica prima le news con il pulsante Aggiorna.
+        </p>
+      )}
     </div>
   )
 

@@ -36,6 +36,7 @@ export const translations = {
       addWatchlist: '+ Aggiungi alla watchlist',
       saving: 'Salvando...',
       proWatchlist: '⚡ Pro per watchlist illimitata',
+      watchlistEmpty: 'Aggiungi un ticker per seguirlo qui. Es: NVDA, AAPL, ENI.MI',
       refreshNews: '↻  Aggiorna news',
       updating: 'Aggiornamento...',
       locked: 'Disponibile con Pro',
@@ -53,7 +54,7 @@ export const translations = {
       noNewsHint2: 'nella sidebar per caricare i dati.',
       refreshNews: 'Aggiorna news',
       chartTitle: (t) => `${t} — Prezzo & Sentiment`,
-      chartSub: 'Candlestick OHLCV + Sentiment giornaliero FinBERT',
+      chartSub: 'Candlestick OHLCV + Sentiment giornaliero AI',
       price: 'Prezzo',
       positive: 'Positivo',
       negative: 'Negativo',
@@ -64,7 +65,10 @@ export const translations = {
     // Empty state
     empty: {
       title: 'Benvenuto in Cheruvo',
-      desc: 'Cerca un ticker nella sidebar oppure selezionane uno dalla watchlist per visualizzare sentiment, prezzi e notizie in tempo reale.',
+      desc: 'Cerca un ticker nella sidebar oppure clicca uno dei suggerimenti qui sotto per iniziare.',
+      welcomeTitle: 'Ciao, benvenuto su Cheruvo!',
+      welcomeDesc: 'Cheruvo analizza il sentiment delle notizie finanziarie in tempo reale. Seleziona un titolo per vedere come il mercato lo percepisce — bullish, bearish o neutro.',
+      suggestions: 'Inizia con un ticker popolare',
     },
     // Profile
     profile: {
@@ -140,6 +144,7 @@ export const translations = {
       addWatchlist: '+ Add to watchlist',
       saving: 'Saving...',
       proWatchlist: '⚡ Pro for unlimited watchlist',
+      watchlistEmpty: 'Add a ticker to follow it here. E.g: NVDA, AAPL, ENI.MI',
       refreshNews: '↻  Refresh news',
       updating: 'Updating...',
       locked: 'Available with Pro',
@@ -157,7 +162,7 @@ export const translations = {
       noNewsHint2: 'in the sidebar to load data.',
       refreshNews: 'Refresh news',
       chartTitle: (t) => `${t} — Price & Sentiment`,
-      chartSub: 'Candlestick OHLCV + FinBERT Daily Sentiment',
+      chartSub: 'Candlestick OHLCV + AI Daily Sentiment',
       price: 'Price',
       positive: 'Positive',
       negative: 'Negative',
@@ -168,7 +173,10 @@ export const translations = {
     // Empty state
     empty: {
       title: 'Welcome to Cheruvo',
-      desc: 'Search for a ticker in the sidebar or pick one from your watchlist to view sentiment, prices and real-time news.',
+      desc: 'Search for a ticker in the sidebar or click one of the suggestions below to get started.',
+      welcomeTitle: 'Hi, welcome to Cheruvo!',
+      welcomeDesc: 'Cheruvo analyses financial news sentiment in real time. Select a stock to see how the market perceives it — bullish, bearish or neutral.',
+      suggestions: 'Start with a popular ticker',
     },
     // Profile
     profile: {
