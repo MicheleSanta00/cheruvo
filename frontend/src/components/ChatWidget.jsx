@@ -56,7 +56,7 @@ export default function ChatWidget({ ticker, sentimentScore, topNews }) {
       {/* Chat panel */}
       {open && (
         <div style={{
-          position: 'fixed', bottom: 88, right: 24, zIndex: 1000,
+          position: 'fixed', bottom: 88, right: 24, zIndex: 9998,
           width: 360, height: 520,
           background: '#0a0d14',
           border: '1px solid rgba(30,92,255,0.3)',
@@ -193,14 +193,14 @@ export default function ChatWidget({ ticker, sentimentScore, topNews }) {
       <button
         onClick={() => setOpen(o => !o)}
         style={{
-          position: 'fixed', bottom: 24, right: 24, zIndex: 1000,
+          position: 'fixed', bottom: 24, right: 24, zIndex: 9999,
           width: 56, height: 56, borderRadius: '50%',
-          background: open ? 'rgba(30,92,255,0.8)' : 'var(--blue)',
-          border: 'none', cursor: 'pointer',
+          background: '#1e5cff',
+          border: '2px solid rgba(255,255,255,0.15)',
+          cursor: 'pointer',
           display: 'flex', alignItems: 'center', justifyContent: 'center',
-          boxShadow: '0 4px 24px rgba(30,92,255,0.5)',
-          fontSize: 22, transition: 'transform .2s, background .2s',
-          transform: open ? 'rotate(0deg)' : 'scale(1)',
+          boxShadow: '0 4px 24px rgba(30,92,255,0.6), 0 0 0 4px rgba(30,92,255,0.15)',
+          fontSize: 22, transition: 'transform .2s',
         }}
         title="Assistente AI"
         onMouseEnter={e => e.currentTarget.style.transform = 'scale(1.1)'}
