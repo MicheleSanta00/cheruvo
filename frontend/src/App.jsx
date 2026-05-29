@@ -453,7 +453,7 @@ function EmptyState({ t, onLoad, days, period }) {
 
       {/* Icona */}
       <div style={{ width: 80, height: 80, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-        <img src="/logo-new.png" alt="Cheruvo" style={{ width: 80, height: 80, mixBlendMode: 'screen', filter: 'brightness(1.4) contrast(1.2)' }} />
+        <img src="/logo-new.png" alt="Cheruvo" style={{ width: 80, height: 80 }} />
       </div>
 
       <div>

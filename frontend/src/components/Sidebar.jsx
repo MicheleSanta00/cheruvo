@@ -96,7 +96,7 @@ export default function Sidebar({ ticker, days, period, onLoad, onFetch, loading
 
       {/* Logo */}
       <div style={{ display: 'flex', alignItems: 'center', gap: 9, padding: '0 8px', marginBottom: 4 }}>
-        <img src="/logo-new.png" alt="Cheruvo" style={{ width: 32, height: 32, mixBlendMode: 'screen', filter: 'brightness(1.4) contrast(1.2)' }} />
+        <img src="/logo-new.png" alt="Cheruvo" style={{ width: 32, height: 32 }} />
         <span style={{ fontSize: 14, fontWeight: 500, letterSpacing: '-0.01em' }}>Cheruvo</span>
       </div>
 
