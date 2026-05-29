@@ -55,7 +55,7 @@ export default function Auth({ onLogin }) {
 
         {/* Logo */}
         <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 28 }}>
-          <img src="/logo.svg" alt="Cheruvo" style={{ width: 32, height: 32, borderRadius: 8 }} />
+          <img src="/logo-new.png" alt="Cheruvo" style={{ width: 32, height: 32, borderRadius: 8 }} />
           <span style={{ fontSize: 15, fontWeight: 500 }}>Cheruvo</span>
         </div>
 
