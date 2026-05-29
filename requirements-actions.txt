@@ -1,21 +1,23 @@
-# Requirements per GitHub Actions (FinBERT + tutte le fonti)
+# Requirements per GitHub Actions
+# Leggero: VADER + AV scores (niente PyTorch/FinBERT)
 # NON usare per Render — usa backend/requirements.txt
 
-# Core
+# Core DB
 psycopg2-binary==2.9.9
 pandas==2.2.2
 requests==2.32.3
 python-dotenv==1.0.1
 python-dateutil==2.9.0
+
+# News sources
 feedparser==6.0.11
 newsapi-python==0.2.7
 
-# FinBERT
-torch==2.2.2
-transformers==4.40.0
+# Sentiment (leggero, niente GPU)
+vaderSentiment==3.3.2
 
-# Reddit
-praw==7.7.1
+# Sentiment LLM (Groq — qualità finanziaria per news non-AV)
+groq==0.9.0
 
 # Alert email
 resend==2.0.0

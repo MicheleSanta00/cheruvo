@@ -1,33 +1,30 @@
 """
-updater.py — Eseguito da GitHub Actions ogni 8 ore.
-Usa FinBERT (data/database.py) per sentiment più preciso.
+updater.py — Eseguito da GitHub Actions ogni 6 ore.
+Usa quick_fetch (VADER + Alpha Vantage scores) — leggero, niente PyTorch.
 """
 import os
 import sys
+import logging
 from datetime import datetime, timezone
 
-# Aggiunge i path necessari
+# Path setup
 BASE_DIR    = os.path.dirname(os.path.abspath(__file__))
 BACKEND_DIR = os.path.join(BASE_DIR, 'backend')
-DATA_DIR    = os.path.join(BASE_DIR, 'data')
+sys.path.insert(0, BACKEND_DIR)
 
-sys.path.insert(0, DATA_DIR)     # data/database.py  (FinBERT)
-sys.path.insert(0, BACKEND_DIR)  # backend/alerts.py, backend/database.py
-sys.path.insert(0, BASE_DIR)
+from database import init_database, get_pool
+from quick_fetch import quick_fetch
+from alerts import check_and_send_alerts
+from sentiment_groq import rescore_all_tickers
 
-from database import SuperNewsAnalyzer, init_database, get_pool   # data/database.py
-from alerts import check_and_send_alerts                           # backend/alerts.py
+logging.basicConfig(
+    level=logging.INFO,
+    format="%(asctime)s | %(levelname)-8s | %(message)s",
+    datefmt="%Y-%m-%d %H:%M:%S",
+)
+logger = logging.getLogger(__name__)
 
-API_KEY = {
-    "ALPHA_VANTAGE": os.environ.get("ALPHA_VANTAGE", ""),
-    "NEWSAPI":       os.environ.get("NEWSAPI", ""),
-    "FMP":           os.environ.get("FMP", ""),
-    "REDDIT": {
-        "client_id":     os.environ.get("REDDIT_CLIENT_ID", ""),
-        "client_secret": os.environ.get("REDDIT_CLIENT_SECRET", ""),
-    },
-}
-
+# Ticker di default — aggiornati ad ogni run anche senza utenti registrati
 DEFAULT_TICKERS = [
     # USA
     'NVDA', 'AAPL', 'TSLA', 'MSFT', 'GOOGL', 'META', 'AMD', 'AMZN',
@@ -37,79 +34,129 @@ DEFAULT_TICKERS = [
     'LVMH.PA', 'SAP.DE', 'ASML.AS', 'SHEL.L',
 ]
 
+# Quanti ticker processare per run
+MAX_TICKERS = 12
+
+
+def get_watchlist_tickers() -> list[str]:
+    """
+    Recupera tutti i ticker presenti nelle watchlist degli utenti.
+    Così i ticker personalizzati vengono aggiornati automaticamente.
+    """
+    try:
+        pool = get_pool()
+        conn = pool.getconn()
+        try:
+            cur = conn.cursor()
+            cur.execute("SELECT DISTINCT ticker FROM watchlist ORDER BY ticker")
+            tickers = [r[0] for r in cur.fetchall()]
+            cur.close()
+        finally:
+            pool.putconn(conn)
+        logger.info("Watchlist tickers: %s", tickers)
+        return tickers
+    except Exception as e:
+        logger.warning("Impossibile leggere watchlist: %s", e)
+        return []
+
 
 def get_tickers_by_priority() -> list[str]:
     """
-    Restituisce tutti i ticker ordinati per priorità di aggiornamento:
-    quelli aggiornati meno di recente vengono prima.
-    I ticker DEFAULT che non hanno mai news vengono aggiunti in fondo.
+    Ordina tutti i ticker (watchlist + default) per priorità:
+    quelli con news più vecchie vengono prima.
+    I ticker mai fetchati hanno la priorità massima.
     """
-    conn = _get_raw_conn()
+    watchlist = get_watchlist_tickers()
+    # Unione: watchlist + default senza duplicati, mantenendo l'ordine
+    all_tickers = list(dict.fromkeys(watchlist + DEFAULT_TICKERS))
+
     try:
-        cur = conn.cursor()
-        # Ticker nel DB con data dell'ultima news (proxy di "ultimo aggiornamento")
-        cur.execute("""
-            SELECT ticker, MAX(published_date) as last_news
-            FROM news
-            GROUP BY ticker
-            ORDER BY last_news ASC NULLS FIRST
-        """)
-        rows = cur.fetchall()
-        cur.close()
-    finally:
-        conn.close()
+        pool = get_pool()
+        conn = pool.getconn()
+        try:
+            cur = conn.cursor()
+            cur.execute("""
+                SELECT ticker, MAX(published_date) as last_news
+                FROM news
+                GROUP BY ticker
+                ORDER BY last_news ASC NULLS FIRST
+            """)
+            rows = cur.fetchall()
+            cur.close()
+        finally:
+            pool.putconn(conn)
 
-    db_tickers = [r[0] for r in rows]
-    # Aggiunge i DEFAULT che non sono ancora nel DB (mai fetchati)
-    missing = [t for t in DEFAULT_TICKERS if t not in db_tickers]
-    return missing + db_tickers  # i mai-fetchati hanno la priorità massima
+        db_tickers_ordered = [r[0] for r in rows]
+        db_set = set(db_tickers_ordered)
 
+        # Prima i mai-fetchati, poi quelli più vecchi per data
+        never_fetched = [t for t in all_tickers if t not in db_set]
+        in_db_ordered = [t for t in db_tickers_ordered if t in set(all_tickers)]
 
-def _get_raw_conn():
-    """Connessione diretta (senza pool) — usata solo nell'updater batch."""
-    import psycopg2
-    database_url = os.environ.get("DATABASE_URL", "")
-    if not database_url:
-        raise RuntimeError("DATABASE_URL non trovata")
-    return psycopg2.connect(database_url)
+        return never_fetched + in_db_ordered
+
+    except Exception as e:
+        logger.warning("Errore priorità ticker: %s — uso lista piatta", e)
+        return all_tickers
 
 
 if __name__ == "__main__":
-    print("=" * 50)
-    print("Cheruvo Updater — FinBERT mode (priority queue)")
-    print("=" * 50)
+    start = datetime.now(timezone.utc)
+    logger.info("=" * 55)
+    logger.info("Cheruvo Updater — avviato alle %s", start.strftime("%Y-%m-%d %H:%M UTC"))
+    logger.info("=" * 55)
 
-    # Init DB
+    # Init DB (crea tabelle se non esistono)
     init_database()
 
     # Raccogli ticker ordinati per priorità
     try:
         tickers = get_tickers_by_priority()
     except Exception as e:
-        print(f"Errore lettura ticker dal DB: {e} — uso DEFAULT")
+        logger.error("Errore lettura ticker: %s — uso DEFAULT", e)
         tickers = DEFAULT_TICKERS[:]
 
-    # 5 ticker per run con sistema a priorità
-    # (quelli meno aggiornati vengono sempre prima)
-    selected = tickers[:5]
-    print(f"Ticker selezionati (priorità): {selected}")
-    print(f"(FinBERT verrà caricato al primo ticker — ~30s)\n")
+    selected = tickers[:MAX_TICKERS]
+    logger.info("Ticker da aggiornare (%d): %s", len(selected), selected)
 
+    total_new = 0
+    errors = 0
     for ticker in selected:
-        print(f"\n{'─'*40}")
-        print(f"Aggiornando {ticker} con FinBERT...")
+        logger.info("─── %s ───", ticker)
         try:
-            analyzer = SuperNewsAnalyzer(ticker, API_KEY)
-            count = analyzer.mega_fetch_silent()
-            print(f"✓ {ticker}: {count} nuove news salvate")
+            count = quick_fetch(ticker)
+            total_new += count
+            logger.info("✓ %s: %d nuove news", ticker, count)
         except Exception as e:
-            print(f"✗ Errore su {ticker}: {e}")
+            logger.error("✗ Errore su %s: %s", ticker, e)
+            errors += 1
 
-    print(f"\n{'─'*40}")
-    print("Controllo alert PRO...")
+    logger.info("─" * 55)
+    logger.info("Fetch completato: %d nuove news, %d errori su %d ticker",
+                total_new, errors, len(selected))
+
+    # Ri-classifica le news non-AV con Groq per score di qualità finanziaria
+    if os.environ.get("GROQ_API_KEY"):
+        logger.info("Ri-classificazione sentiment con Groq (news non-AV)...")
+        try:
+            rescored = rescore_all_tickers(selected)
+            logger.info("Groq: %d articoli aggiornati", rescored)
+        except Exception as e:
+            logger.error("Errore Groq rescore: %s", e)
+    else:
+        logger.warning("GROQ_API_KEY non trovata — skip rescore")
+
+    # Alert PRO (invia email se ci sono movimenti significativi)
+    logger.info("Controllo alert sentiment PRO...")
     try:
         check_and_send_alerts()
     except Exception as e:
-        print(f"Errore alert: {e}")
+        logger.error("Errore alert: %s", e)
 
-    print("\nDone.")
+    elapsed = (datetime.now(timezone.utc) - start).total_seconds()
+    logger.info("Done in %.1fs", elapsed)
+
+    # Exit code non-zero se troppi errori (GitHub Actions lo segnala come failed)
+    if errors > len(selected) // 2:
+        logger.error("Troppi errori (%d/%d) — exit 1", errors, len(selected))
+        sys.exit(1)
