@@ -2,6 +2,18 @@ import { useState, useRef, useEffect } from 'react'
 import { createPortal } from 'react-dom'
 import apiFetch from '../apiFetch.js'
 
+// Crea un container nel body se non esiste
+function getPortalContainer() {
+  let el = document.getElementById('chat-portal')
+  if (!el) {
+    el = document.createElement('div')
+    el.id = 'chat-portal'
+    el.style.cssText = 'position:fixed;bottom:0;right:0;z-index:9999;pointer-events:none;'
+    document.body.appendChild(el)
+  }
+  return el
+}
+
 const SUGGESTED = [
   'Cosa significa il sentiment score?',
   'Cos\'è un\'azione bearish?',
@@ -51,12 +63,14 @@ export default function ChatWidget({ ticker, sentimentScore, topNews }) {
     }
   }
 
+  const [container] = useState(() => getPortalContainer())
+
   return createPortal(
     <>
       {/* Chat panel */}
       {open && (
         <div style={{
-          position: 'fixed', bottom: 88, right: 24, zIndex: 9998,
+          position: 'fixed', bottom: 88, right: 24, zIndex: 9998, pointerEvents: 'all',
           width: 360, height: 520,
           background: '#0a0d14',
           border: '1px solid rgba(30,92,255,0.3)',
@@ -193,7 +207,7 @@ export default function ChatWidget({ ticker, sentimentScore, topNews }) {
       <button
         onClick={() => setOpen(o => !o)}
         style={{
-          position: 'fixed', bottom: 24, right: 24, zIndex: 9999,
+          position: 'fixed', bottom: 24, right: 24, zIndex: 9999, pointerEvents: 'all',
           width: 56, height: 56, borderRadius: '50%',
           background: '#1e5cff',
           border: '2px solid rgba(255,255,255,0.15)',
@@ -209,6 +223,6 @@ export default function ChatWidget({ ticker, sentimentScore, topNews }) {
         {open ? '✕' : '🧠'}
       </button>
     </>,
-    document.body
+    container
   )
 }
