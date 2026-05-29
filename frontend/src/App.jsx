@@ -12,6 +12,7 @@ import Chart       from './components/Chart.jsx'
 import TopNews     from './components/TopNews.jsx'
 import Stats            from './components/Stats.jsx'
 import CorrelationPanel from './components/CorrelationPanel.jsx'
+import ComparePanel    from './components/ComparePanel.jsx'
 import { useFinData } from './hooks/useFinData.js'
 
 const DEFAULT_TICKER = 'NVDA'
@@ -299,6 +300,16 @@ export default function App() {
                     {t.main.noNewsHint} <b style={{ color: 'var(--white)' }}>{t.main.refreshNews}</b> {t.main.noNewsHint2}
                   </div>
                 </div>
+              )}
+
+              {/* Confronto multi-ticker */}
+              {sentiment.length > 0 && (
+                <ComparePanel
+                  primaryTicker={ticker}
+                  primarySentiment={sentiment}
+                  isPro={isPro}
+                  onUpgrade={handleUpgrade}
+                />
               )}
 
               {/* Correlazione sentiment/prezzo */}
