@@ -344,3 +344,64 @@ def get_summary(ticker: str, request: Request,
     # Salva in cache con TTL 6h
     _cache[cache_key] = {"data": result, "ts": time.time()}
     return result
+
+
+# ── AI Chat ────────────────────────────────────────────────────────────────
+
+from pydantic import BaseModel
+from groq import Groq
+
+class ChatRequest(BaseModel):
+    message: str
+    ticker: str | None = None
+    sentiment_score: float | None = None
+    top_news: list[str] | None = None
+
+@app.post("/api/chat")
+@limiter.limit("20/minute")
+async def chat(body: ChatRequest, request: Request,
+               user: dict = Depends(get_current_user)):
+
+    groq_client = Groq(api_key=os.environ.get("GROQ_API_KEY", ""))
+
+    # Costruisce il contesto del ticker se disponibile
+    context = ""
+    if body.ticker:
+        score = body.sentiment_score
+        label = "positivo (mercato ottimista)" if score and score > 0.1 else \
+                "negativo (mercato pessimista)" if score and score < -0.1 else "neutro"
+        context = f"\n\nContesto attuale: l'utente sta analizzando {body.ticker} con sentiment score {score} ({label})."
+        if body.top_news:
+            context += f"\nUltime notizie: {'; '.join(body.top_news[:3])}"
+
+    system_prompt = f"""Sei un assistente finanziario integrato in Cheruvo, una piattaforma di analisi del sentiment delle notizie finanziarie.
+
+Il tuo ruolo è:
+- Spiegare concetti finanziari in modo semplice e accessibile
+- Aiutare l'utente a capire i dati di sentiment che vede
+- Rispondere a domande su azioni, mercati, indicatori
+- Contestualizzare i dati del ticker analizzato
+
+Regole:
+- Rispondi sempre in italiano (a meno che l'utente scriva in inglese)
+- Sii chiaro, conciso e accessibile anche a chi non è esperto
+- Non dare mai consigli di investimento diretti
+- Aggiungi sempre un disclaimer se la domanda implica decisioni finanziarie
+- Usa esempi pratici per spiegare concetti complessi
+{context}"""
+
+    try:
+        response = groq_client.chat.completions.create(
+            model="llama-3.3-70b-versatile",
+            messages=[
+                {"role": "system", "content": system_prompt},
+                {"role": "user", "content": body.message},
+            ],
+            max_tokens=600,
+            temperature=0.7,
+        )
+        reply = response.choices[0].message.content
+        return {"reply": reply}
+    except Exception as e:
+        logger.error("Chat error: %s", e)
+        raise HTTPException(status_code=503, detail="Servizio AI momentaneamente non disponibile")

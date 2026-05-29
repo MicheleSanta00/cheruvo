@@ -14,6 +14,7 @@ import Stats            from './components/Stats.jsx'
 import CorrelationPanel from './components/CorrelationPanel.jsx'
 import ComparePanel       from './components/ComparePanel.jsx'
 import OnboardingTooltip  from './components/OnboardingTooltip.jsx'
+import ChatWidget         from './components/ChatWidget.jsx'
 import { useFinData } from './hooks/useFinData.js'
 import { generateReport } from './utils/generatePDF.js'
 
@@ -103,6 +104,11 @@ export default function App() {
   return (
     <div style={{ display: 'flex', height: '100dvh', overflow: 'hidden', background: 'var(--black)', position: 'relative' }}>
       <OnboardingTooltip hasData={hasData} />
+      <ChatWidget
+        ticker={loadedTicker}
+        sentimentScore={stats?.avg}
+        topNews={news}
+      />
 
       {/* Overlay mobile */}
       {sidebarOpen && (
