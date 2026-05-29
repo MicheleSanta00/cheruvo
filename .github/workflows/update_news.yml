@@ -19,11 +19,13 @@ jobs:
       - name: Ping backend
         run: |
           STATUS=$(curl -s -o /dev/null -w "%{http_code}" \
-            --max-time 30 \
+            --max-time 60 \
+            --retry 2 \
+            --retry-delay 5 \
             "${{ secrets.BACKEND_URL }}/health")
           echo "Health check status: $STATUS"
           if [ "$STATUS" != "200" ]; then
-            echo "Warning: backend returned $STATUS"
+            echo "Warning: backend returned $STATUS (potrebbe essere in cold start)"
           fi
 
   # ── Test ────────────────────────────────────────────────────────────────
