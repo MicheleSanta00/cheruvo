@@ -307,6 +307,13 @@ export default function Chart({ prices, sentiment, ticker, stats }) {
 
   const CandleShape = useMemo(() => makeCandleShape(minP, maxP), [minP, maxP])
 
+  // Filtra sentiment per includere solo le date nel range dei prezzi
+  const filteredSentiment = useMemo(() => {
+    if (!prices.length) return sentiment
+    const dateSet = new Set(prices.map(p => p.date))
+    return sentiment.filter(s => dateSet.has(s.date))
+  }, [sentiment, prices])
+
   if (!prices.length) return (
     <div style={{ height: 200, display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#64748b', fontSize: 14 }}>
       Nessun dato prezzi disponibile.
@@ -322,7 +329,7 @@ export default function Chart({ prices, sentiment, ticker, stats }) {
 
   return (
     <div>
-      <DataPanel prices={prices} sentiment={sentiment} stats={stats} correlation={correlation} />
+      <DataPanel prices={prices} sentiment={filteredSentiment} stats={stats} correlation={correlation} />
 
       {/* Toggle Linea/Candele + MA */}
       <div style={{ display: 'flex', gap: 8, marginBottom: 12, justifyContent: 'flex-end', flexWrap: 'wrap' }}>

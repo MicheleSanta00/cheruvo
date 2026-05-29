@@ -39,5 +39,5 @@ export default function KPIGrid({ stats }) {
 
 function fmt(v) {
   if (v == null || isNaN(v)) return '—'
-  return (v >= 0 ? '+' : '') + Number(v).toFixed(3)
+  return (v > 0 ? '+' : '') + Number(v).toFixed(3)
 }
