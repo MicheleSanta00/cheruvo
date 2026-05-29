@@ -74,31 +74,55 @@
     .hero-glow-2 { display: none; }
 
     /* ── BLOB BACKGROUND ─────────────────────────────────────────────────── */
-    .blob-container { position: absolute; inset: 0; overflow: hidden; pointer-events: none; z-index: 0; filter: blur(80px); }
-    .blob { position: absolute; border-radius: 50%; opacity: 0.55; }
-    .blob-1 { width: 600px; height: 600px; background: radial-gradient(circle, rgba(30,92,255,0.7) 0%, transparent 70%); top: -10%; left: 20%; animation: blobMove1 12s ease-in-out infinite; }
-    .blob-2 { width: 500px; height: 500px; background: radial-gradient(circle, rgba(96,165,250,0.5) 0%, transparent 70%); top: 30%; right: -5%; animation: blobMove2 15s ease-in-out infinite; }
-    .blob-3 { width: 400px; height: 400px; background: radial-gradient(circle, rgba(10,50,180,0.6) 0%, transparent 70%); bottom: 0%; left: -5%; animation: blobMove3 18s ease-in-out infinite; }
-    .blob-4 { width: 350px; height: 350px; background: radial-gradient(circle, rgba(30,92,255,0.35) 0%, transparent 70%); bottom: 20%; right: 25%; animation: blobMove4 20s ease-in-out infinite; }
+    .blob-container { position: absolute; inset: 0; overflow: hidden; pointer-events: none; z-index: 0; }
+    .blob { position: absolute; border-radius: 50%; }
+    .blob-1 {
+      width: 800px; height: 800px;
+      background: radial-gradient(circle, rgba(30,92,255,0.9) 0%, rgba(30,92,255,0.4) 35%, transparent 70%);
+      top: -20%; left: 10%;
+      filter: blur(60px);
+      animation: blobMove1 14s ease-in-out infinite;
+    }
+    .blob-2 {
+      width: 600px; height: 600px;
+      background: radial-gradient(circle, rgba(96,165,250,0.8) 0%, rgba(30,92,255,0.3) 40%, transparent 70%);
+      top: 10%; right: -10%;
+      filter: blur(70px);
+      animation: blobMove2 18s ease-in-out infinite;
+    }
+    .blob-3 {
+      width: 500px; height: 500px;
+      background: radial-gradient(circle, rgba(15,40,160,0.95) 0%, rgba(10,30,120,0.5) 40%, transparent 70%);
+      bottom: -10%; left: -5%;
+      filter: blur(50px);
+      animation: blobMove3 20s ease-in-out infinite;
+    }
+    .blob-4 {
+      width: 400px; height: 400px;
+      background: radial-gradient(circle, rgba(60,120,255,0.7) 0%, transparent 65%);
+      top: 40%; left: 40%;
+      filter: blur(80px);
+      animation: blobMove4 22s ease-in-out infinite;
+    }
 
     @keyframes blobMove1 {
       0%,100% { transform: translate(0, 0) scale(1); }
-      33%      { transform: translate(80px, 60px) scale(1.1); }
-      66%      { transform: translate(-40px, 100px) scale(0.95); }
+      33%      { transform: translate(120px, 80px) scale(1.15); }
+      66%      { transform: translate(-60px, 140px) scale(0.9); }
     }
     @keyframes blobMove2 {
       0%,100% { transform: translate(0, 0) scale(1); }
-      33%      { transform: translate(-100px, 80px) scale(1.05); }
-      66%      { transform: translate(60px, -60px) scale(1.1); }
+      33%      { transform: translate(-140px, 100px) scale(1.1); }
+      66%      { transform: translate(80px, -80px) scale(1.2); }
     }
     @keyframes blobMove3 {
       0%,100% { transform: translate(0, 0) scale(1); }
-      33%      { transform: translate(120px, -80px) scale(1.08); }
-      66%      { transform: translate(40px, 60px) scale(0.92); }
+      33%      { transform: translate(160px, -100px) scale(1.1); }
+      66%      { transform: translate(60px, 80px) scale(0.88); }
     }
     @keyframes blobMove4 {
       0%,100% { transform: translate(0, 0) scale(1); }
-      50%      { transform: translate(-80px, -100px) scale(1.12); }
+      50%      { transform: translate(-120px, -140px) scale(1.2); }
     }
     .hero > *:not(.blob-container) { position: relative; z-index: 1; }
     .hero-badge {
