@@ -17,6 +17,7 @@ import OnboardingTooltip  from './components/OnboardingTooltip.jsx'
 import ChatWidget         from './components/ChatWidget.jsx'
 import { useFinData } from './hooks/useFinData.js'
 import { generateReport } from './utils/generatePDF.js'
+import { identifyUser, resetUser, track } from './analytics.js'
 
 const DEFAULT_TICKER = 'NVDA'
 const DEFAULT_DAYS   = 30
@@ -45,13 +46,18 @@ export default function App() {
     })
     supabase.auth.onAuthStateChange((_event, session) => {
       setUser(session?.user ?? null)
+      if (!session) resetUser()  // logout: resetta identità PostHog
     })
   }, [])
 
   useEffect(() => {
     if (user) {
       apiFetch(`/subscription/${user.id}`)
-        .then(data => setIsPro(data.status === 'pro'))
+        .then(data => {
+          const pro = data.status === 'pro'
+          setIsPro(pro)
+          identifyUser(user.id, user.email, pro ? 'pro' : 'free')
+        })
         .catch(() => setIsPro(false))
     }
   }, [user])
@@ -60,14 +66,17 @@ export default function App() {
     await load(tk, d, p)
     setLoadedTicker(tk)
     setSidebarOpen(false)
+    track('ticker_searched', { ticker: tk, days: d, period: p })
   }
 
   const handleFetch = async (tk) => {
+    track('news_refreshed', { ticker: tk })
     await triggerFetch(tk)
     setTimeout(() => handleLoad(tk, days, period), 3000)
   }
 
   const handleUpgrade = async () => {
+    track('upgrade_clicked', { ticker: loadedTicker, from: 'app' })
     const data = await apiFetch('/checkout', {
       method: 'POST',
       body: JSON.stringify({ email: user.email, user_id: user.id }),
@@ -78,6 +87,7 @@ export default function App() {
   const handlePDF = async () => {
     if (!isPro) { handleUpgrade(); return }
     if (!tickerInfo) return
+    track('pdf_exported', { ticker: loadedTicker })
     let summary = null
     try { summary = await apiFetch(`/summary/${loadedTicker}`) } catch (_) {}
     generateReport({ ticker, tickerInfo, stats, news, sentiment, summary })
@@ -85,6 +95,7 @@ export default function App() {
 
   const handleExport = () => {
     if (!isPro) { handleUpgrade(); return }
+    track('csv_exported', { ticker: loadedTicker })
     if (!news.length) return
     const headers = ['title', 'source', 'published_date', 'sentiment', 'url']
     const rows = news.map(n => headers.map(h => `"${(n[h] || '').toString().replace(/"/g, '""')}`).join(','))
