@@ -1,5 +1,5 @@
 // Cheruvo Service Worker — cache-first per asset statici, network-first per API
-const CACHE  = 'cheruvo-v1'
+const CACHE  = 'cheruvo-v2'
 const STATIC = ['/']
 
 self.addEventListener('install', e => {
