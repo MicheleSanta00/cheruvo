@@ -13,7 +13,7 @@ export default function SummaryCard({ ticker, isPro, onUpgrade }) {
   const [error, setError]     = useState(null)
 
   useEffect(() => {
-    if (!ticker) return
+    if (!ticker || !isPro) return  // utenti free vedono già il banner, inutile chiamare l'API
     setData(null)
     setError(null)
     setLoading(true)
@@ -21,7 +21,7 @@ export default function SummaryCard({ ticker, isPro, onUpgrade }) {
       .then(d => setData(d))
       .catch(() => setError(true))
       .finally(() => setLoading(false))
-  }, [ticker])
+  }, [ticker, isPro])
 
   if (loading) return (
     <div style={card()}>
