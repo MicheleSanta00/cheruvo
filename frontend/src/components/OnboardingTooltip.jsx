@@ -39,7 +39,11 @@ export default function OnboardingTooltip({ hasData }) {
   }, [])
 
   useEffect(() => {
-    // Dal secondo step in poi aspetta che ci siano dati
+    // Quando arrivano i dati e siamo ancora allo step 0, avanza automaticamente
+    if (hasData && step === 0) {
+      setStep(1)
+      return
+    }
     if (step > 0 && !hasData) return
     updatePosition()
   }, [step, hasData])
@@ -60,12 +64,21 @@ export default function OnboardingTooltip({ hasData }) {
 
   const next = () => {
     if (step < STEPS.length - 1) {
-      // Se non ci sono ancora dati salta gli step che richiedono dati
-      if (step + 1 > 0 && !hasData) {
+      const nextStep = step + 1
+      // Se il prossimo step richiede dati e non ci sono, salta fino al primo step senza dati
+      if (nextStep >= 1 && !hasData) {
+        // Rimani sul tooltip attuale ma aggiorna il messaggio
+        setStep(0)
+        return
+      }
+      // Controlla che l'elemento target esista, altrimenti salta
+      const nextTarget = STEPS[nextStep].target
+      const el = document.getElementById(nextTarget)
+      if (!el) {
         finish()
         return
       }
-      setStep(s => s + 1)
+      setStep(nextStep)
     } else {
       finish()
     }
@@ -161,7 +174,7 @@ export default function OnboardingTooltip({ hasData }) {
               borderRadius: 8, padding: '7px 18px', cursor: 'pointer',
             }}
           >
-            {step < STEPS.length - 1 ? 'Avanti →' : 'Inizia →'}
+            {step === 0 ? 'Cerca un ticker per continuare →' : step < STEPS.length - 1 ? 'Avanti →' : 'Inizia →'}
           </button>
         </div>
       </div>
