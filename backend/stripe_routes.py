@@ -2,7 +2,7 @@ import os
 import stripe
 from fastapi import APIRouter, HTTPException, Request, Depends
 from database import get_pool
-from auth import get_current_user
+from auth import get_current_user, invalidate_tier_cache
 
 stripe.api_key = os.environ.get("STRIPE_SECRET_KEY", "")
 PRICE_ID = os.environ.get("STRIPE_PRICE_ID", "")
@@ -90,6 +90,7 @@ async def stripe_webhook(request: Request):
         cur = conn.cursor()
         if event["type"] == "checkout.session.completed":
             s = event["data"]["object"]
+            user_id = s["metadata"]["user_id"]
             cur.execute("""
                 INSERT INTO subscriptions (user_id, email, stripe_customer_id, stripe_sub_id, status)
                 VALUES (%s, %s, %s, %s, 'pro')
@@ -97,21 +98,28 @@ async def stripe_webhook(request: Request):
                     stripe_customer_id = EXCLUDED.stripe_customer_id,
                     stripe_sub_id = EXCLUDED.stripe_sub_id,
                     status = 'pro'
-            """, (s["metadata"]["user_id"], s["customer_email"], s["customer"], s["subscription"]))
+            """, (user_id, s["customer_email"], s["customer"], s["subscription"]))
+            invalidate_tier_cache(user_id)  # upgrade immediato, senza aspettare TTL cache
         elif event["type"] == "customer.subscription.deleted":
             cur.execute(
-                "UPDATE subscriptions SET status = 'free' WHERE stripe_sub_id = %s",
+                "UPDATE subscriptions SET status = 'free' WHERE stripe_sub_id = %s RETURNING user_id",
                 (event["data"]["object"]["id"],)
             )
+            row = cur.fetchone()
+            if row:
+                invalidate_tier_cache(row[0])  # downgrade immediato
         elif event["type"] == "invoice.payment_failed":
             # Il pagamento mensile è fallito — downgrade a past_due
             # Stripe riproverà automaticamente; se fallisce di nuovo invierà subscription.deleted
             sub_id = event["data"]["object"].get("subscription")
             if sub_id:
                 cur.execute(
-                    "UPDATE subscriptions SET status = 'past_due' WHERE stripe_sub_id = %s",
+                    "UPDATE subscriptions SET status = 'past_due' WHERE stripe_sub_id = %s RETURNING user_id",
                     (sub_id,)
                 )
+                row = cur.fetchone()
+                if row:
+                    invalidate_tier_cache(row[0])
         conn.commit()
         cur.close()
     finally:

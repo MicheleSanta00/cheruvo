@@ -7,10 +7,34 @@ bastano SUPABASE_URL e SUPABASE_ANON_KEY (le stesse già usate dal frontend).
 """
 
 import os
+import time
 import httpx
 from fastapi import HTTPException, Depends
 from fastapi.security import HTTPBearer, HTTPAuthorizationCredentials
 from database import get_pool
+
+# ── Cache tier utente ──────────────────────────────────────────────────────
+# Evita una query DB a ogni richiesta autenticata.
+# TTL di 5 minuti: il tier viene aggiornato immediatamente dallo Stripe webhook,
+# quindi al massimo 5 minuti di lag dopo un upgrade/downgrade manuale.
+_tier_cache: dict[str, tuple[str, float]] = {}  # {user_id: (tier, timestamp)}
+TIER_CACHE_TTL = 300  # 5 minuti
+
+
+def _get_cached_tier(user_id: str) -> str | None:
+    entry = _tier_cache.get(user_id)
+    if entry and time.time() - entry[1] < TIER_CACHE_TTL:
+        return entry[0]
+    return None
+
+
+def _set_cached_tier(user_id: str, tier: str) -> None:
+    _tier_cache[user_id] = (tier, time.time())
+
+
+def invalidate_tier_cache(user_id: str) -> None:
+    """Chiamare dopo un upgrade/downgrade Stripe per invalidare subito la cache."""
+    _tier_cache.pop(user_id, None)
 
 SUPABASE_URL     = os.environ.get("SUPABASE_URL", "")
 SUPABASE_ANON_KEY = os.environ.get("SUPABASE_ANON_KEY", "")
@@ -64,6 +88,10 @@ async def get_current_user(
 
 
 def get_user_tier(user_id: str) -> str:
+    cached = _get_cached_tier(user_id)
+    if cached is not None:
+        return cached
+
     pool = get_pool()
     conn = pool.getconn()
     try:
@@ -73,7 +101,10 @@ def get_user_tier(user_id: str) -> str:
         cur.close()
     finally:
         pool.putconn(conn)
-    return row[0] if row else "free"
+
+    tier = row[0] if row else "free"
+    _set_cached_tier(user_id, tier)
+    return tier
 
 
 async def require_pro(user: dict = Depends(get_current_user)) -> dict:
