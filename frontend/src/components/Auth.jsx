@@ -55,7 +55,7 @@ export default function Auth({ onLogin }) {
 
         {/* Logo */}
         <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 28 }}>
-          <img src="/logo-new.png" alt="Cheruvo" style={{ width: 32, height: 32, borderRadius: 8 }} />
+          <img src="/logo-new.png" alt="Cheruvo" style={{ width: 32, height: 32, filter: 'brightness(1) drop-shadow(0 0 8px rgba(255,255,255,0.9)) drop-shadow(0 0 16px rgba(255,255,255,0.4))' }} />
           <span style={{ fontSize: 15, fontWeight: 500 }}>Cheruvo</span>
         </div>
 
