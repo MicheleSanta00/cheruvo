@@ -1,6 +1,7 @@
 import { useState } from 'react'
 import { supabase } from '../supabase'
 import { useLang } from '../LangContext.jsx'
+import apiFetch from '../apiFetch.js'
 
 export default function Auth({ onLogin }) {
   const { lang, t, toggleLang } = useLang()
@@ -21,9 +22,16 @@ export default function Auth({ onLogin }) {
       if (error) setError(error.message)
       else onLogin(data.user)
     } else {
-      const { error } = await supabase.auth.signUp({ email, password })
-      if (error) setError(error.message)
-      else setMessage(t.auth.confirmEmail)
+      const { data, error } = await supabase.auth.signUp({ email, password })
+      if (error) {
+        setError(error.message)
+      } else {
+        setMessage(t.auth.confirmEmail)
+        // Invia email di benvenuto (giorno 0) — fire and forget, non blocca l'UI
+        if (data?.session) {
+          apiFetch('/onboarding/welcome', { method: 'POST' }).catch(() => {})
+        }
+      }
     }
     setLoading(false)
   }

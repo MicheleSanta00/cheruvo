@@ -16,6 +16,7 @@ from database import init_database, get_pool
 from quick_fetch import quick_fetch
 from alerts import check_and_send_alerts
 from sentiment_groq import rescore_all_tickers
+from onboarding import init_onboarding_table, check_and_send_onboarding_emails
 
 logging.basicConfig(
     level=logging.INFO,
@@ -108,6 +109,7 @@ if __name__ == "__main__":
 
     # Init DB (crea tabelle se non esistono)
     init_database()
+    init_onboarding_table()
 
     # Raccogli ticker ordinati per priorità
     try:
@@ -152,6 +154,13 @@ if __name__ == "__main__":
         check_and_send_alerts()
     except Exception as e:
         logger.error("Errore alert: %s", e)
+
+    # Email onboarding giorno 3 e 7
+    logger.info("Controllo email onboarding (giorno 3 e 7)...")
+    try:
+        check_and_send_onboarding_emails()
+    except Exception as e:
+        logger.error("Errore onboarding emails: %s", e)
 
     elapsed = (datetime.now(timezone.utc) - start).total_seconds()
     logger.info("Done in %.1fs", elapsed)

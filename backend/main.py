@@ -36,6 +36,7 @@ from prices import get_prices, validate_ticker
 from stripe_routes import router as stripe_router, init_subscriptions_table
 from quick_fetch import quick_fetch
 from summary import genera_summary, _fallback
+from onboarding import init_onboarding_table, send_welcome
 
 # ── Logging ───────────────────────────────────────────────────────────────
 logging.basicConfig(
@@ -73,6 +74,7 @@ limiter = Limiter(key_func=get_user_identifier, default_limits=["60/minute"])
 async def lifespan(app: FastAPI):
     init_database()
     init_subscriptions_table()
+    init_onboarding_table()
     get_pool()
     yield
 
@@ -347,6 +349,23 @@ def get_summary(ticker: str, request: Request,
     # Salva in cache con TTL 6h
     _cache[cache_key] = {"data": result, "ts": time.time()}
     return result
+
+
+# ── Onboarding ────────────────────────────────────────────────────────────
+
+@app.post("/api/onboarding/welcome")
+@limiter.limit("3/minute")
+async def onboarding_welcome(request: Request, user: dict = Depends(get_current_user)):
+    """
+    Chiamato dal frontend subito dopo la registrazione.
+    Registra l'utente nella tabella onboarding e invia l'email di benvenuto (giorno 0).
+    Idempotente: se l'utente è già registrato, non invia una seconda email.
+    """
+    try:
+        send_welcome(user["sub"], user["email"])
+    except Exception as e:
+        logger.error("Errore onboarding welcome per %s: %s", user.get("email"), e)
+    return {"status": "ok"}
 
 
 # ── AI Chat ────────────────────────────────────────────────────────────────
