@@ -172,8 +172,9 @@ def validate_ticker(ticker: str) -> dict:
     except Exception as e:
         logger.error("validate_ticker error per %s: %s", ticker, e)
 
+    # Ticker non trovato su Yahoo Finance
     return {
-        "valid":      True,
+        "valid":      False,
         "ticker":     ticker.upper(),
         "nome":       ticker.upper(),
         "settore":    "N/A",

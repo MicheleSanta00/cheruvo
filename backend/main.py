@@ -28,7 +28,6 @@ from slowapi.errors import RateLimitExceeded
 import jwt as pyjwt
 import os
 import pandas as pd
-import time
 import logging
 
 from database import SuperNewsAnalyzer, init_database, get_pool
@@ -37,6 +36,7 @@ from stripe_routes import router as stripe_router, init_subscriptions_table
 from quick_fetch import quick_fetch
 from summary import genera_summary, _fallback
 from onboarding import init_onboarding_table, send_welcome
+from cache import cache_get, cache_set, cache_delete_pattern, cache_stats, CACHE_TTL, SUMMARY_TTL, VALIDATE_TTL, TICKERS_TTL
 
 # ── Logging ───────────────────────────────────────────────────────────────
 logging.basicConfig(
@@ -119,18 +119,7 @@ API_KEY = {
     },
 }
 
-# ── In-memory cache ────────────────────────────────────────────────────────
-_cache: dict = {}
-CACHE_TTL = 300  # 5 minuti
-
-def cache_get(key: str):
-    entry = _cache.get(key)
-    if entry and time.time() - entry["ts"] < CACHE_TTL:
-        return entry["data"]
-    return None
-
-def cache_set(key: str, data):
-    _cache[key] = {"data": data, "ts": time.time()}
+# Cache: importata da cache.py (Redis con fallback in-memory)
 
 
 
@@ -140,7 +129,7 @@ def cache_set(key: str, data):
 @limiter.limit("30/minute")
 def ticker_info(ticker: str, request: Request,
                 user: dict | None = Depends(get_current_user_optional)):
-    cached = cache_get(f"validate:{ticker}")
+    cached = cache_get(f"validate:{ticker}", ttl=VALIDATE_TTL)
     if cached:
         return cached
     info = validate_ticker(ticker.upper())
@@ -153,9 +142,9 @@ def ticker_info(ticker: str, request: Request,
             "prezzo": None,
             "variazione": None,
         }
-        cache_set(f"validate:{ticker}", result)
+        cache_set(f"validate:{ticker}", result, ttl=VALIDATE_TTL)
         return result
-    cache_set(f"validate:{ticker}", info)
+    cache_set(f"validate:{ticker}", info, ttl=VALIDATE_TTL)
     return info
 
 
@@ -255,9 +244,7 @@ def sentiment_daily(ticker: str, request: Request,
 async def fetch_news(ticker: str, request: Request, background_tasks: BackgroundTasks,
                      user: dict = Depends(get_current_user)):
     # Invalida la cache per questo ticker dopo il fetch
-    for key in list(_cache.keys()):
-        if f":{ticker.upper()}:" in key or f":{ticker.upper()}" in key:
-            _cache.pop(key, None)
+    cache_delete_pattern(ticker.upper())
     background_tasks.add_task(quick_fetch, ticker.upper())
     return {"status": "started", "ticker": ticker.upper(),
             "message": "Fetching news in background..."}
@@ -279,17 +266,16 @@ def list_tickers(request: Request, user: dict = Depends(get_current_user)):
     finally:
         pool.putconn(conn)
     result = {"tickers": tickers}
-    cache_set("tickers:all", result)
+    cache_set("tickers:all", result, ttl=TICKERS_TTL)
     return result
 
 
 @app.get("/health")
 def health():
-    return {"status": "ok", "cache_entries": len(_cache)}
+    return {"status": "ok", **cache_stats()}
 
 # ── AI Summary ─────────────────────────────────────────────────────────────
 
-SUMMARY_TTL = 6 * 3600  # 6 ore
 
 @app.get("/api/summary/{ticker}")
 @limiter.limit("20/minute")
@@ -298,10 +284,10 @@ def get_summary(ticker: str, request: Request,
     ticker = ticker.upper()
     cache_key = f"summary:{ticker}"
 
-    # Cache con TTL 6 ore (override del TTL globale di 5 min)
-    entry = _cache.get(cache_key)
-    if entry and time.time() - entry["ts"] < SUMMARY_TTL:
-        return entry["data"]
+    # Cache con TTL 6 ore
+    cached = cache_get(cache_key, ttl=SUMMARY_TTL)
+    if cached:
+        return cached
 
     # Recupera news dal DB
     pool = get_pool()
@@ -347,7 +333,7 @@ def get_summary(ticker: str, request: Request,
     result["news_analizzate"] = len(headlines)
 
     # Salva in cache con TTL 6h
-    _cache[cache_key] = {"data": result, "ts": time.time()}
+    cache_set(cache_key, result, ttl=SUMMARY_TTL)
     return result
 
 
