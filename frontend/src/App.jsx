@@ -18,6 +18,7 @@ import ChatWidget         from './components/ChatWidget.jsx'
 import { useFinData } from './hooks/useFinData.js'
 import { generateReport } from './utils/generatePDF.js'
 import { identifyUser, resetUser, track } from './analytics.js'
+import Academy from './academy/Academy.jsx'
 
 const DEFAULT_TICKER = 'NVDA'
 const DEFAULT_DAYS   = 30
@@ -36,6 +37,7 @@ export default function App() {
   const [sidebarOpen, setSidebarOpen] = useState(false)
   const [loadedTicker, setLoadedTicker] = useState(null)
   const [showStats, setShowStats]     = useState(false)
+  const [showAcademy, setShowAcademy] = useState(false)
 
   const { tickerInfo, news, stats, prices, sentiment, loading, fetching, error, load, triggerFetch } = useFinData()
 
@@ -109,6 +111,7 @@ export default function App() {
 
   if (authLoading) return null
   if (!user) return <Auth onLogin={setUser} />
+  if (showAcademy) return <Academy user={user} onExit={() => setShowAcademy(false)} />
 
   const hasData = !!tickerInfo && !loading
 
@@ -215,6 +218,11 @@ export default function App() {
                 border: 'none', borderRadius: 6, padding: '4px 10px', cursor: 'pointer', fontWeight: 500,
               }}>{t.header.upgradePro}</button>
             )}
+            <button onClick={() => setShowAcademy(true)} title="Cheruvo Academy" style={{
+              fontSize: 11, color: 'var(--white)', background: 'transparent',
+              border: '1px solid var(--border)', borderRadius: 6, padding: '4px 10px',
+              cursor: 'pointer', fontWeight: 500,
+            }}>🎓 Academy</button>
             <button onClick={toggleLang} style={{
               fontSize: 13, background: 'transparent', border: '1px solid var(--border)',
               borderRadius: 6, padding: '3px 7px', cursor: 'pointer', lineHeight: 1,
