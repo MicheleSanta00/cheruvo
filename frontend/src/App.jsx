@@ -149,6 +149,7 @@ export default function App() {
           onTickerChange={setTicker} onDaysChange={setDays} onPeriodChange={setPeriod}
           onLoad={(tk, d, p) => handleLoad(tk, d, p)}
           onFetch={handleFetch} onUpgrade={handleUpgrade}
+          onAcademy={() => setShowAcademy(true)}
         />
       </div>
 
@@ -244,7 +245,24 @@ export default function App() {
           /* Empty / loading state — full width */
           <div style={{ flex: 1, overflowY: 'auto', padding: '20px 20px' }}>
             {error && <ErrorBanner msg={error} />}
-            {!loading && !error && <EmptyState t={t} onLoad={handleLoad} days={days} period={period} />}
+            {!loading && !error && (
+              <>
+                <div onClick={() => setShowAcademy(true)} style={{
+                  display: 'flex', alignItems: 'center', gap: 14, cursor: 'pointer',
+                  background: 'linear-gradient(120deg, rgba(52,211,153,0.12), rgba(52,211,153,0.03))',
+                  border: '1px solid rgba(52,211,153,0.35)', borderRadius: 14,
+                  padding: '16px 18px', marginBottom: 18,
+                }}>
+                  <span style={{ fontSize: 26 }}>🎓</span>
+                  <div style={{ flex: 1 }}>
+                    <div style={{ fontSize: 15, fontWeight: 600, color: 'var(--white)' }}>Cheruvo Academy</div>
+                    <div style={{ fontSize: 13, color: 'var(--muted)' }}>{lang === 'it' ? 'Impara la finanza giocando — quiz, simulatori e altro' : 'Learn finance by playing — quizzes, simulators and more'}</div>
+                  </div>
+                  <span style={{ color: '#34d399', fontWeight: 600, fontSize: 14 }}>{lang === 'it' ? 'Apri →' : 'Open →'}</span>
+                </div>
+                <EmptyState t={t} onLoad={handleLoad} days={days} period={period} />
+              </>
+            )}
             {loading && <LoadingState />}
           </div>
         ) : (

@@ -98,11 +98,12 @@ export default function OnboardingTooltip({ hasData }) {
     <>
       {/* Overlay scuro semi-trasparente */}
       <div
-        onClick={finish}
+        onClick={step === 0 ? undefined : finish}
         style={{
           position: 'fixed', inset: 0, zIndex: 998,
-          background: 'rgba(0,0,0,0.5)',
-          backdropFilter: 'blur(1px)',
+          background: step === 0 ? 'transparent' : 'rgba(0,0,0,0.5)',
+          backdropFilter: step === 0 ? 'none' : 'blur(1px)',
+          pointerEvents: step === 0 ? 'none' : 'all',
         }}
       />
 
@@ -159,22 +160,22 @@ export default function OnboardingTooltip({ hasData }) {
           {current.desc}
         </div>
 
-        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: 12 }}>
           <button
             onClick={finish}
-            style={{ fontSize: 12, color: 'var(--muted)', background: 'transparent', border: 'none', cursor: 'pointer' }}
+            style={{ fontSize: 12, color: 'var(--muted)', background: 'transparent', border: 'none', cursor: 'pointer', flexShrink: 0 }}
           >
             Salta
           </button>
           <button
-            onClick={next}
+            onClick={step === 0 ? finish : next}
             style={{
               fontSize: 13, fontWeight: 500, color: 'white',
               background: 'var(--blue)', border: 'none',
-              borderRadius: 8, padding: '7px 18px', cursor: 'pointer',
+              borderRadius: 8, padding: '7px 18px', cursor: 'pointer', whiteSpace: 'nowrap',
             }}
           >
-            {step === 0 ? 'Cerca un ticker per continuare →' : step < STEPS.length - 1 ? 'Avanti →' : 'Inizia →'}
+            {step === 0 ? 'Ho capito 👍' : step < STEPS.length - 1 ? 'Avanti →' : 'Inizia →'}
           </button>
         </div>
       </div>

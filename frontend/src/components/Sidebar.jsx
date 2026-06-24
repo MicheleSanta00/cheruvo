@@ -10,7 +10,7 @@ const MAX_WATCHLIST_FREE = 3
 const MAX_DAYS_FREE = 30
 const MAX_DAYS_PRO = 90
 
-export default function Sidebar({ ticker, days, period, onLoad, onFetch, loading, fetching, onTickerChange, onDaysChange, onPeriodChange, isPro, onUpgrade }) {
+export default function Sidebar({ ticker, days, period, onLoad, onFetch, loading, fetching, onTickerChange, onDaysChange, onPeriodChange, isPro, onUpgrade, onAcademy }) {
   const { t } = useLang()
   const [input, setInput] = useState(ticker)
   const [watchlist, setWatchlist] = useState([])
@@ -99,6 +99,16 @@ export default function Sidebar({ ticker, days, period, onLoad, onFetch, loading
         <img src="/logo-v2.png" alt="Cheruvo" style={{ width: 28, height: 28, filter: 'brightness(1) drop-shadow(0 0 6px rgba(255,255,255,0.8)) drop-shadow(0 0 12px rgba(255,255,255,0.4))' }} />
         <span style={{ fontSize: 14, fontWeight: 500, letterSpacing: '-0.01em' }}>Cheruvo</span>
       </div>
+
+      {/* Academy */}
+      <button onClick={onAcademy} style={{
+        display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 8,
+        background: 'rgba(52,211,153,0.10)', border: '1px solid rgba(52,211,153,0.35)',
+        color: '#34d399', borderRadius: 10, padding: '10px 12px', cursor: 'pointer',
+        fontSize: 13, fontWeight: 600,
+      }}>
+        🎓 Academy
+      </button>
 
       {/* Search */}
       <div style={{ position: 'relative' }}>
