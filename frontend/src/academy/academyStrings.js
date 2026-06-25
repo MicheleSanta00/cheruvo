@@ -38,6 +38,7 @@ export const STRINGS = {
     term: 'Termine', definition: 'Definizione', example: 'Esempio', addCard: '+ Aggiungi carta',
     scene: 'Scena', startScene: 'inizio', sceneText: 'Testo della scena', scnTicker: 'Titolo collegato (opz.)',
     choiceLabel: 'Scelta', feedback: 'Feedback', goesTo: 'Va a', theEnd: 'Fine', addChoice: '+ Scelta', addNode: '+ Aggiungi scena',
+    level: 'Livello', levelBase: 'Base', levelInter: 'Intermedio', levelAdv: 'Avanzato',
   },
   en: {
     brand: 'Academy', backToApp: '← App', workspace: 'Workspace',
@@ -73,6 +74,7 @@ export const STRINGS = {
     term: 'Term', definition: 'Definition', example: 'Example', addCard: '+ Add card',
     scene: 'Scene', startScene: 'start', sceneText: 'Scene text', scnTicker: 'Linked ticker (opt.)',
     choiceLabel: 'Choice', feedback: 'Feedback', goesTo: 'Goes to', theEnd: 'The end', addChoice: '+ Choice', addNode: '+ Add scene',
+    level: 'Level', levelBase: 'Beginner', levelInter: 'Intermediate', levelAdv: 'Advanced',
   },
 }
 

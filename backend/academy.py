@@ -85,6 +85,7 @@ def init_academy_tables():
                 leaderboard_opt_in BOOLEAN DEFAULT FALSE,
                 created_at         TIMESTAMPTZ DEFAULT NOW()
             );
+            ALTER TABLE academy_lessons ADD COLUMN IF NOT EXISTS level TEXT DEFAULT 'base';
         """)
         conn.commit()
         cur.close()
@@ -134,6 +135,7 @@ class LessonIn(BaseModel):
     content: dict
     sort_order: int = 0
     status: Literal["draft", "published"] = "draft"
+    level: str = "base"
 
 class ProgressIn(BaseModel):
     lesson_id: str
@@ -146,6 +148,7 @@ class ProfileIn(BaseModel):
 
 class AIDraftIn(BaseModel):
     topic: str
+    type: str = "quiz"
     n: int = 5
 
 
@@ -249,7 +252,7 @@ def list_paths(user: dict = Depends(get_current_user)):
         by_id = {p["id"]: p for p in paths}
 
         cur.execute("""
-            SELECT l.id, l.path_id, l.type, l.title, l.sort_order,
+            SELECT l.id, l.path_id, l.type, l.title, l.sort_order, l.level,
                    COALESCE(pg.status, '') AS pstatus
             FROM academy_lessons l
             LEFT JOIN academy_progress pg
@@ -261,7 +264,7 @@ def list_paths(user: dict = Depends(get_current_user)):
             p = by_id.get(r[1])
             if p:
                 p["lessons"].append({"id": r[0], "type": r[2], "title": _j(r[3]),
-                                     "sort_order": r[4], "completed": r[5] == "done"})
+                                     "sort_order": r[4], "level": r[5] or "base", "completed": r[6] == "done"})
         cur.close()
     finally:
         _rel(conn)
@@ -274,7 +277,7 @@ def get_lesson(lesson_id: str, user: dict = Depends(get_current_user)):
     conn = _conn()
     try:
         cur = conn.cursor()
-        cur.execute("SELECT id, path_id, type, title, content, status FROM academy_lessons WHERE id = %s", (lesson_id,))
+        cur.execute("SELECT id, path_id, type, title, content, status, level FROM academy_lessons WHERE id = %s", (lesson_id,))
         row = cur.fetchone()
         cur.close()
     finally:
@@ -284,7 +287,7 @@ def get_lesson(lesson_id: str, user: dict = Depends(get_current_user)):
     if row[5] != "published" and not is_admin:
         raise HTTPException(status_code=403, detail="Lezione non disponibile")
     return {"id": row[0], "path_id": row[1], "type": row[2], "title": _j(row[3]),
-            "content": _j(row[4]), "status": row[5]}
+            "content": _j(row[4]), "status": row[5], "level": row[6] or "base"}
 
 
 @router.post("/progress")
@@ -346,11 +349,11 @@ def admin_list_lessons(user: dict = Depends(require_admin)):
     try:
         cur = conn.cursor()
         cur.execute("""
-            SELECT id, path_id, type, title, status, sort_order
+            SELECT id, path_id, type, title, status, sort_order, level
             FROM academy_lessons ORDER BY sort_order, created_at
         """)
         rows = [{"id": r[0], "path_id": r[1], "type": r[2], "title": _j(r[3]),
-                 "status": r[4], "sort_order": r[5]} for r in cur.fetchall()]
+                 "status": r[4], "sort_order": r[5], "level": r[6] or "base"} for r in cur.fetchall()]
         cur.close()
     finally:
         _rel(conn)
@@ -369,11 +372,11 @@ def create_lesson(body: LessonIn, user: dict = Depends(require_admin)):
             r = cur.fetchone()
             path_id = r[0] if r else None
         cur.execute("""
-            INSERT INTO academy_lessons (path_id, type, title, content, sort_order, status, created_by)
-            VALUES (%s, %s, %s::jsonb, %s::jsonb, %s, %s, %s)
+            INSERT INTO academy_lessons (path_id, type, title, content, sort_order, status, level, created_by)
+            VALUES (%s, %s, %s::jsonb, %s::jsonb, %s, %s, %s, %s)
             RETURNING id
         """, (path_id, body.type, json.dumps(body.title.model_dump()), json.dumps(content),
-              body.sort_order, body.status, user["sub"]))
+              body.sort_order, body.status, body.level, user["sub"]))
         new_id = cur.fetchone()[0]
         conn.commit()
         cur.close()
@@ -391,10 +394,10 @@ def update_lesson(lesson_id: str, body: LessonIn, user: dict = Depends(require_a
         cur.execute("""
             UPDATE academy_lessons
                SET title = %s::jsonb, content = %s::jsonb, type = %s,
-                   sort_order = %s, status = %s, updated_at = NOW()
+                   sort_order = %s, status = %s, level = %s, updated_at = NOW()
              WHERE id = %s
         """, (json.dumps(body.title.model_dump()), json.dumps(content), body.type,
-              body.sort_order, body.status, lesson_id))
+              body.sort_order, body.status, body.level, lesson_id))
         updated = cur.rowcount
         conn.commit()
         cur.close()
@@ -480,34 +483,47 @@ def remove_admin(uid: str, user: dict = Depends(require_admin)):
     return {"status": "ok"}
 
 
+_AI_SCHEMAS = {
+    "quiz": '{"questions":[{"q":{"it":"","en":""},"options":[{"it":"","en":""},{"it":"","en":""},{"it":"","en":""},{"it":"","en":""}],"correct":<indice 0-3>,"explain":{"it":"","en":""}}]}',
+    "flashcard": '{"deck":[{"term":{"it":"","en":""},"definition":{"it":"","en":""},"example":{"it":"","en":""}}]}',
+    "scenario": '{"start":"n1","nodes":{"n1":{"text":{"it":"","en":""},"choices":[{"label":{"it":"","en":""},"feedback":{"it":"","en":""},"goto":"n2 oppure stringa vuota per finire"}]}}}',
+    "simulator": '{"model":"uno tra: compound_interest, pac, inflation, budget_50_30_20","teach":{"it":"","en":""}}',
+}
+_AI_ASK = {
+    "quiz": "Genera {n} domande a risposta multipla (4 opzioni ciascuna) su: {topic}.",
+    "flashcard": "Genera {n} flashcard (termine, definizione, esempio) su: {topic}.",
+    "scenario": "Genera una breve storia a bivi (2-3 scene, id nodo n1/n2/...) di educazione finanziaria su: {topic}.",
+    "simulator": "Scegli il modello più adatto e scrivi una spiegazione 'in parole povere' su: {topic}.",
+}
+
+
 @router.post("/ai/draft")
 def ai_draft(body: AIDraftIn, user: dict = Depends(require_admin)):
-    """Genera una bozza di quiz bilingue (IT/EN) via Groq. L'admin la rivede e pubblica."""
+    """Genera una bozza bilingue (IT/EN) via Groq per il tipo richiesto. L'admin la rivede e pubblica."""
+    t = body.type if body.type in _AI_SCHEMAS else "quiz"
+    n = max(1, min(body.n, 10))
     from groq import Groq
     client = Groq(api_key=os.environ.get("GROQ_API_KEY", ""))
-    n = max(1, min(body.n, 10))
     system = (
-        "Sei un autore di quiz di educazione finanziaria per investitori retail. "
-        "Rispondi SOLO con JSON valido, senza testo extra. "
-        "Schema: {\"questions\":[{\"q\":{\"it\":\"\",\"en\":\"\"},"
-        "\"options\":[{\"it\":\"\",\"en\":\"\"}],\"correct\":<indice 0-based>,"
-        "\"explain\":{\"it\":\"\",\"en\":\"\"}}]}. "
-        "Ogni domanda ha 4 opzioni. Linguaggio semplice, niente consigli di investimento."
+        "Sei un autore di educazione finanziaria per investitori retail. "
+        "Rispondi SOLO con JSON valido, senza testo extra. Tutti i testi sono bilingui "
+        "{\"it\":\"...\",\"en\":\"...\"}. Linguaggio semplice, niente consigli di investimento. "
+        "Schema da seguire: " + _AI_SCHEMAS[t]
     )
-    prompt = f"Genera {n} domande a risposta multipla sull'argomento: {body.topic}. In italiano e inglese."
+    prompt = _AI_ASK[t].format(n=n, topic=body.topic)
     try:
         resp = client.chat.completions.create(
             model="llama-3.3-70b-versatile",
             messages=[{"role": "system", "content": system},
                       {"role": "user", "content": prompt}],
-            max_tokens=1800,
+            max_tokens=2200,
             temperature=0.5,
             response_format={"type": "json_object"},
         )
         data = json.loads(resp.choices[0].message.content)
-        # Valida con lo stesso schema dei quiz
-        content = QuizContent(timer_sec=30, pass_score=70, questions=data["questions"]).model_dump()
-        return content
+        return _validate_content(t, data)   # valida/normalizza come un salvataggio
+    except HTTPException:
+        raise
     except Exception as e:
         logger.error("AI draft error: %s", e)
         raise HTTPException(status_code=503, detail="Generazione AI non riuscita, riprova")

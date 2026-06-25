@@ -15,7 +15,7 @@ const TYPES = [
   { t: 'flashcard', icon: '🃏', label: { it: 'Flashcard', en: 'Flashcards' } },
   { t: 'scenario', icon: '🌿', label: { it: 'Scenario', en: 'Scenario' } },
 ]
-const newLesson = (type) => ({ id: null, type, title: { it: '', en: '' }, status: 'draft', content: blankContent(type) })
+const newLesson = (type) => ({ id: null, type, title: { it: '', en: '' }, status: 'draft', level: 'base', content: blankContent(type) })
 
 export default function Workspace({ lang, strings, user }) {
   const s = strings
@@ -33,14 +33,14 @@ export default function Workspace({ lang, strings, user }) {
     setErr('')
     try {
       const full = await getLesson(l.id)
-      setEditing({ id: full.id, type: full.type, title: full.title || { it: '', en: '' }, status: full.status, content: full.content || blankContent(full.type) })
+      setEditing({ id: full.id, type: full.type, title: full.title || { it: '', en: '' }, status: full.status, level: full.level || 'base', content: full.content || blankContent(full.type) })
     } catch (e) { setErr(e.message) }
   }
 
   const save = async (status) => {
     setBusy(true); setErr('')
     try {
-      const payload = { type: editing.type, title: editing.title, content: editing.content, status }
+      const payload = { type: editing.type, title: editing.title, content: editing.content, status, level: editing.level }
       if (editing.id) await updateLesson(editing.id, payload)
       else await createLesson(payload)
       setEditing(null); reload()
@@ -50,7 +50,7 @@ export default function Workspace({ lang, strings, user }) {
   const onAI = async (topic) => {
     if (!topic) return
     setBusy(true); setErr('')
-    try { const c = await aiDraft(topic, 5); setEditing((p) => ({ ...p, content: c })) }
+    try { const c = await aiDraft(topic, editing.type, 5); setEditing((p) => ({ ...p, content: c })) }
     catch (e) { setErr(e.message) } finally { setBusy(false) }
   }
 
@@ -70,6 +70,14 @@ export default function Workspace({ lang, strings, user }) {
             <div style={{ display: 'flex', gap: 8, marginBottom: 12, flexWrap: 'wrap' }}>
               <input style={{ ...inp, flex: '1 1 140px', width: 'auto' }} placeholder={s.title + ' (IT)'} value={editing.title.it} onChange={(e) => setEditing((p) => ({ ...p, title: { ...p.title, it: e.target.value } }))} />
               <input style={{ ...inp, flex: '1 1 140px', width: 'auto' }} placeholder={s.title + ' (EN)'} value={editing.title.en} onChange={(e) => setEditing((p) => ({ ...p, title: { ...p.title, en: e.target.value } }))} />
+            </div>
+            <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 12 }}>
+              <label style={{ fontSize: 12.5, color: 'var(--muted)' }}>{s.level}</label>
+              <select style={{ ...inp, marginBottom: 0, flex: 1 }} value={editing.level} onChange={(e) => setEditing((p) => ({ ...p, level: e.target.value }))}>
+                <option value="base">{s.levelBase}</option>
+                <option value="intermedio">{s.levelInter}</option>
+                <option value="avanzato">{s.levelAdv}</option>
+              </select>
             </div>
             <LessonForm type={editing.type} content={editing.content} onContent={(c) => setEditing((p) => ({ ...p, content: c }))} lang={lang} s={s} onAI={onAI} aiBusy={busy} />
             <div style={{ display: 'flex', gap: 8, marginTop: 16 }}>
@@ -125,8 +133,9 @@ export default function Workspace({ lang, strings, user }) {
           <div style={{ display: 'grid', gap: 8, marginTop: 16 }}>
             {lessons.map((l) => (
               <div key={l.id} style={listRow}>
-                <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+                <div style={{ display: 'flex', alignItems: 'center', gap: 10, flexWrap: 'wrap' }}>
                   <span style={typeBadge}>{l.type}</span>
+                  <span style={levelBadge(l.level)}>{l.level === 'avanzato' ? s.levelAdv : l.level === 'intermedio' ? s.levelInter : s.levelBase}</span>
                   <span style={{ fontSize: 14 }}>{pick(l.title, lang) || '—'}</span>
                 </div>
                 <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
@@ -156,6 +165,7 @@ const tabOn = { ...tabOff, color: 'var(--white)', borderColor: '#34d399' }
 const pickCard = { background: 'var(--near-black)', border: '1px solid var(--border)', borderRadius: 12, padding: 14, cursor: 'pointer', textAlign: 'center', color: 'var(--white)' }
 const listRow = { display: 'flex', alignItems: 'center', justifyContent: 'space-between', background: 'var(--near-black)', border: '1px solid var(--border)', borderRadius: 10, padding: '11px 13px' }
 const typeBadge = { fontSize: 10.5, fontWeight: 600, padding: '2px 8px', borderRadius: 99, background: 'rgba(106,166,255,0.16)', color: '#9cc0ff' }
+const levelBadge = (lvl) => ({ fontSize: 10.5, fontWeight: 600, padding: '2px 8px', borderRadius: 99, background: lvl === 'avanzato' ? 'rgba(242,114,155,0.16)' : lvl === 'intermedio' ? 'rgba(245,196,81,0.16)' : 'rgba(52,211,153,0.16)', color: lvl === 'avanzato' ? '#ffa6c2' : lvl === 'intermedio' ? '#f5c451' : '#7fe9c6' })
 const livePill = { fontSize: 10.5, fontWeight: 600, padding: '2px 8px', borderRadius: 99, background: 'rgba(52,211,153,0.16)', color: '#7fe9c6' }
 const draftPill = { fontSize: 10.5, fontWeight: 600, padding: '2px 8px', borderRadius: 99, background: 'rgba(245,196,81,0.16)', color: '#f5c451' }
 const errBox = { background: 'rgba(242,114,155,0.12)', border: '1px solid rgba(242,114,155,0.3)', color: '#f2729b', borderRadius: 10, padding: '10px 13px', fontSize: 13 }

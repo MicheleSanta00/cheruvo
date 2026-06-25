@@ -85,7 +85,10 @@ export default function Academy({ user, onExit }) {
                       <div style={{ display: 'grid', gap: 6 }}>
                         {p.lessons.map(l => (
                           <button key={l.id} onClick={() => openLesson(l.id)} style={lessonRow}>
-                            <span>{pick(l.title, lang)}</span>
+                            <span style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+                              <span style={lvlBadge(l.level)}>{l.level === 'avanzato' ? s.levelAdv : l.level === 'intermedio' ? s.levelInter : s.levelBase}</span>
+                              {pick(l.title, lang)}
+                            </span>
                             <span style={{ color: l.completed ? ACC : 'var(--muted)', fontSize: 12, whiteSpace: 'nowrap' }}>
                               {l.completed ? '✓ ' + s.done : s.start + ' →'}
                             </span>
@@ -133,5 +136,6 @@ const ghost = { fontSize: 13, background: 'transparent', border: '1px solid var(
 const card = { background: 'var(--near-black)', border: '1px solid var(--border)', borderRadius: 14, padding: 16 }
 const eyebrow = { fontSize: 12.5, letterSpacing: '.1em', textTransform: 'uppercase', color: ACC, fontWeight: 600 }
 const lessonRow = { display: 'flex', justifyContent: 'space-between', alignItems: 'center', background: 'var(--black)', border: '1px solid var(--border)', borderRadius: 10, padding: '10px 12px', cursor: 'pointer', color: 'var(--white)', fontSize: 13.5, textAlign: 'left' }
+const lvlBadge = (lvl) => ({ fontSize: 10, fontWeight: 600, padding: '2px 7px', borderRadius: 99, background: lvl === 'avanzato' ? 'rgba(242,114,155,0.16)' : lvl === 'intermedio' ? 'rgba(245,196,81,0.16)' : 'rgba(52,211,153,0.16)', color: lvl === 'avanzato' ? '#ffa6c2' : lvl === 'intermedio' ? '#f5c451' : '#7fe9c6' })
 const lbRow = { display: 'flex', justifyContent: 'space-between', alignItems: 'center', background: 'var(--black)', border: '1px solid var(--border)', borderRadius: 10, padding: '9px 12px', marginBottom: 7, fontSize: 13.5 }
 const errBox = { background: 'rgba(242,114,155,0.12)', border: '1px solid rgba(242,114,155,0.3)', color: '#f2729b', borderRadius: 10, padding: '10px 13px', fontSize: 13, marginBottom: 14 }

@@ -15,7 +15,7 @@ export const adminLessons = ()        => apiFetch('/academy/admin/lessons')
 export const createLesson = (body)    => apiFetch('/academy/lessons', { method: 'POST', body: JSON.stringify(body) })
 export const updateLesson = (id, body) => apiFetch(`/academy/lessons/${id}`, { method: 'PUT', body: JSON.stringify(body) })
 export const deleteLesson = (id)      => apiFetch(`/academy/lessons/${id}`, { method: 'DELETE' })
-export const aiDraft      = (topic, n = 5) => apiFetch('/academy/ai/draft', { method: 'POST', body: JSON.stringify({ topic, n }) })
+export const aiDraft      = (topic, type = 'quiz', n = 5) => apiFetch('/academy/ai/draft', { method: 'POST', body: JSON.stringify({ topic, type, n }) })
 
 // Gestione amministratori
 export const listAdmins   = ()       => apiFetch('/academy/admin/admins')
