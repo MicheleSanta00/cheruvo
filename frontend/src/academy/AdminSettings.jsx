@@ -57,8 +57,8 @@ export default function AdminSettings({ lang, strings, user }) {
       <div style={card}>
         <div style={h}>{s.adminsTitle}</div>
         <div style={{ color: 'var(--muted)', fontSize: 12.5, marginBottom: 12 }}>{s.adminsHelp}</div>
-        <div style={{ display: 'flex', gap: 8 }}>
-          <input style={inp} type="email" placeholder={s.addByEmail} value={email}
+        <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
+          <input style={{ ...inp, flex: '1 1 180px', width: 'auto' }} type="email" placeholder={s.addByEmail} value={email}
             onChange={e => setEmail(e.target.value)}
             onKeyDown={e => { if (e.key === 'Enter') promote() }} />
           <button style={primary} disabled={busy} onClick={promote}>{s.makeAdmin}</button>

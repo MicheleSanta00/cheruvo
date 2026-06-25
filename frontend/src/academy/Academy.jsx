@@ -101,7 +101,7 @@ export default function Academy({ user, onExit }) {
                 </div>
 
                 <div style={{ ...eyebrow, marginTop: 28, marginBottom: 12 }}>{s.leaderboard}</div>
-                <div style={{ display: 'grid', gridTemplateColumns: '1.4fr 1fr', gap: 14 }}>
+                <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(220px, 1fr))', gap: 14 }}>
                   <div style={card}>
                     {board.length ? board.map(e => (
                       <div key={e.rank} style={{ ...lbRow, ...(e.is_you ? { borderColor: ACC } : {}) }}>
@@ -128,7 +128,7 @@ export default function Academy({ user, onExit }) {
 }
 
 const ACC = '#34d399'
-const hdr = { height: 52, borderBottom: '1px solid var(--border)', display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '0 16px', background: 'var(--near-black)', position: 'sticky', top: 0, zIndex: 10 }
+const hdr = { minHeight: 52, borderBottom: '1px solid var(--border)', display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexWrap: 'wrap', gap: 8, padding: '8px 14px', background: 'var(--near-black)', position: 'sticky', top: 0, zIndex: 10 }
 const chip = { fontSize: 12, background: 'transparent', border: '1px solid var(--border)', borderRadius: 8, padding: '5px 10px', cursor: 'pointer', color: 'var(--white)' }
 const chipOn = { ...chip, borderColor: ACC, color: ACC }
 const ghost = { fontSize: 13, background: 'transparent', border: '1px solid var(--border)', borderRadius: 8, padding: '7px 12px', cursor: 'pointer', color: 'var(--white)' }

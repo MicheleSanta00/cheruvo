@@ -114,12 +114,12 @@ export default function Workspace({ lang, strings, user }) {
       <button style={ghost} onClick={() => setEditing(null)}>{s.backToList}</button>
       {err && <div style={{ ...errBox, marginTop: 12 }}>{err}</div>}
 
-      <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 16, marginTop: 14 }}>
+      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(280px, 1fr))', gap: 16, marginTop: 14 }}>
         {/* form */}
         <div style={card}>
-          <div style={{ display: 'flex', gap: 8, marginBottom: 12 }}>
-            <input style={inp} placeholder={s.title + ' (IT)'} value={editing.title.it} onChange={e => up(n => n.title.it = e.target.value)} />
-            <input style={inp} placeholder={s.title + ' (EN)'} value={editing.title.en} onChange={e => up(n => n.title.en = e.target.value)} />
+          <div style={{ display: 'flex', gap: 8, marginBottom: 12, flexWrap: 'wrap' }}>
+            <input style={{ ...inp, flex: '1 1 140px', width: 'auto' }} placeholder={s.title + ' (IT)'} value={editing.title.it} onChange={e => up(n => n.title.it = e.target.value)} />
+            <input style={{ ...inp, flex: '1 1 140px', width: 'auto' }} placeholder={s.title + ' (EN)'} value={editing.title.en} onChange={e => up(n => n.title.en = e.target.value)} />
           </div>
 
           <div style={aiBox}>
@@ -137,10 +137,10 @@ export default function Workspace({ lang, strings, user }) {
               <input style={inp} placeholder={s.question + ' (EN)'} value={q.q.en} onChange={e => up(n => n.content.questions[qi].q.en = e.target.value)} />
               <div style={{ fontSize: 12, color: 'var(--muted)', margin: '6px 0' }}>{s.options}</div>
               {q.options.map((o, oi) => (
-                <div key={oi} style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 6 }}>
+                <div key={oi} style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 6, flexWrap: 'wrap' }}>
                   <input type="radio" name={`c-${qi}`} checked={q.correct === oi} onChange={() => up(n => n.content.questions[qi].correct = oi)} />
-                  <input style={{ ...inp, marginBottom: 0 }} placeholder={`IT ${oi + 1}`} value={o.it} onChange={e => up(n => n.content.questions[qi].options[oi].it = e.target.value)} />
-                  <input style={{ ...inp, marginBottom: 0 }} placeholder={`EN ${oi + 1}`} value={o.en} onChange={e => up(n => n.content.questions[qi].options[oi].en = e.target.value)} />
+                  <input style={{ ...inp, marginBottom: 0, flex: '1 1 130px', width: 'auto' }} placeholder={`IT ${oi + 1}`} value={o.it} onChange={e => up(n => n.content.questions[qi].options[oi].it = e.target.value)} />
+                  <input style={{ ...inp, marginBottom: 0, flex: '1 1 130px', width: 'auto' }} placeholder={`EN ${oi + 1}`} value={o.en} onChange={e => up(n => n.content.questions[qi].options[oi].en = e.target.value)} />
                 </div>
               ))}
               <input style={{ ...inp, marginTop: 6 }} placeholder={s.explanation + ' (IT)'} value={q.explain.it} onChange={e => up(n => n.content.questions[qi].explain.it = e.target.value)} />
@@ -175,7 +175,7 @@ const tabOn = { ...tabOff, color: 'var(--white)', borderColor: '#34d399' }
 const card = { background: 'var(--near-black)', border: '1px solid var(--border)', borderRadius: 14, padding: 16 }
 const inp = { flex: 1, width: '100%', background: 'var(--black)', border: '1px solid var(--border)', borderRadius: 8, color: 'var(--white)', padding: '8px 10px', fontSize: 13, marginBottom: 6 }
 const qBlock = { border: '1px solid var(--border)', borderRadius: 10, padding: 12, margin: '12px 0' }
-const aiBox = { display: 'flex', gap: 8, alignItems: 'center', background: 'rgba(245,196,81,0.06)', border: '1px solid rgba(245,196,81,0.2)', borderRadius: 10, padding: 8, marginBottom: 12 }
+const aiBox = { display: 'flex', gap: 8, alignItems: 'center', flexWrap: 'wrap', background: 'rgba(245,196,81,0.06)', border: '1px solid rgba(245,196,81,0.2)', borderRadius: 10, padding: 8, marginBottom: 12 }
 const primary = { border: 'none', borderRadius: 9, padding: '9px 16px', cursor: 'pointer', fontSize: 13, fontWeight: 600, background: '#34d399', color: '#04221a' }
 const gold = { border: 'none', borderRadius: 9, padding: '9px 14px', cursor: 'pointer', fontSize: 12.5, fontWeight: 600, background: '#f5c451', color: '#3a2a02', whiteSpace: 'nowrap' }
 const ghost = { border: '1px solid var(--border)', borderRadius: 9, padding: '9px 14px', cursor: 'pointer', fontSize: 13, fontWeight: 600, background: 'transparent', color: 'var(--white)' }

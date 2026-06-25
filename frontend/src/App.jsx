@@ -222,7 +222,7 @@ export default function App() {
               fontSize: 11, color: 'var(--white)', background: 'transparent',
               border: '1px solid var(--border)', borderRadius: 6, padding: '4px 10px',
               cursor: 'pointer', fontWeight: 500,
-            }}>🎓 Academy</button>
+            }}>🎓<span className="hide-mobile"> Academy</span></button>
             <button onClick={toggleLang} style={{
               fontSize: 13, background: 'transparent', border: '1px solid var(--border)',
               borderRadius: 6, padding: '3px 7px', cursor: 'pointer', lineHeight: 1,
