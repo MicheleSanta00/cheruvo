@@ -7,7 +7,7 @@ import { useState, useEffect } from 'react'
 import { useLang } from '../LangContext.jsx'
 import { STRINGS, pick } from './academyStrings.js'
 import { getMe, getPaths, getLesson, saveProgress, getLeaderboard } from './academyApi.js'
-import QuizEngine from './QuizEngine.jsx'
+import LessonRenderer from './LessonRenderer.jsx'
 import Workspace from './Workspace.jsx'
 
 export default function Academy({ user, onExit }) {
@@ -64,9 +64,7 @@ export default function Academy({ user, onExit }) {
             <button style={ghost} onClick={() => { setView('hub'); setLesson(null) }}>{s.backToHub}</button>
             <div style={{ ...card, marginTop: 14, maxWidth: 640 }}>
               <div style={{ fontSize: 18, fontWeight: 600, marginBottom: 14 }}>{pick(lesson.title, lang)}</div>
-              {lesson.type === 'quiz'
-                ? <QuizEngine content={lesson.content} lang={lang} mode="play" strings={s} onComplete={completeLesson} />
-                : <div style={{ color: 'var(--muted)' }}>{s.comingSoon}</div>}
+              <LessonRenderer type={lesson.type} content={lesson.content} lang={lang} mode="play" strings={s} onComplete={completeLesson} />
             </div>
           </div>
         )}

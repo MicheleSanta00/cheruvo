@@ -32,6 +32,12 @@ export const STRINGS = {
     adminsHelp: 'Gli admin possono creare/modificare le lezioni e gestire gli altri admin.',
     addByEmail: "Email dell'utente da promuovere", makeAdmin: 'Rendi admin',
     you: '(tu)', remove: 'Rimuovi',
+    chooseType: 'Scegli il tipo di gioco', continue: 'Continua', cardsLeft: 'rimaste',
+    flip: 'Tocca per girare', knew: 'La sapevo', again: 'Da rivedere',
+    simModel: 'Modello', teachText: 'Spiegazione "in parole povere"',
+    term: 'Termine', definition: 'Definizione', example: 'Esempio', addCard: '+ Aggiungi carta',
+    scene: 'Scena', startScene: 'inizio', sceneText: 'Testo della scena', scnTicker: 'Titolo collegato (opz.)',
+    choiceLabel: 'Scelta', feedback: 'Feedback', goesTo: 'Va a', theEnd: 'Fine', addChoice: '+ Scelta', addNode: '+ Aggiungi scena',
   },
   en: {
     brand: 'Academy', backToApp: '← App', workspace: 'Workspace',
@@ -61,6 +67,12 @@ export const STRINGS = {
     adminsHelp: 'Admins can create/edit lessons and manage other admins.',
     addByEmail: 'Email of the user to promote', makeAdmin: 'Make admin',
     you: '(you)', remove: 'Remove',
+    chooseType: 'Choose a game type', continue: 'Continue', cardsLeft: 'left',
+    flip: 'Tap to flip', knew: 'I knew it', again: 'Review again',
+    simModel: 'Model', teachText: 'Plain-language explanation',
+    term: 'Term', definition: 'Definition', example: 'Example', addCard: '+ Add card',
+    scene: 'Scene', startScene: 'start', sceneText: 'Scene text', scnTicker: 'Linked ticker (opt.)',
+    choiceLabel: 'Choice', feedback: 'Feedback', goesTo: 'Goes to', theEnd: 'The end', addChoice: '+ Choice', addNode: '+ Add scene',
   },
 }
 

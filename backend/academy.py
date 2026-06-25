@@ -11,7 +11,7 @@ import json
 import logging
 
 from fastapi import APIRouter, Depends, HTTPException, Request
-from pydantic import BaseModel
+from pydantic import BaseModel, Field, ValidationError
 from typing import Literal, Optional
 
 from database import get_pool
@@ -149,11 +149,55 @@ class AIDraftIn(BaseModel):
     n: int = 5
 
 
+# Simulatore (i parametri/calcoli vivono nel frontend; qui validiamo modello + testo)
+SIM_MODELS = {"compound_interest", "pac", "inflation", "budget_50_30_20"}
+
+class SimulatorContent(BaseModel):
+    model: str
+    teach: Localized = Field(default_factory=Localized)
+
+# Flashcard
+class Flashcard(BaseModel):
+    term: Localized
+    definition: Localized
+    example: Optional[Localized] = None
+
+class FlashcardContent(BaseModel):
+    deck: list[Flashcard]
+
+# Scenario (storia a bivi)
+class ScenarioChoice(BaseModel):
+    label: Localized
+    feedback: Localized = Field(default_factory=Localized)
+    goto: str = ""   # id del nodo successivo, "" = fine
+
+class ScenarioNode(BaseModel):
+    text: Localized
+    choices: list[ScenarioChoice]
+
+class ScenarioContent(BaseModel):
+    start: str
+    ticker: Optional[str] = None
+    nodes: dict[str, ScenarioNode]
+
+
 def _validate_content(ltype: str, content: dict) -> dict:
-    """Valida il content in base al tipo. Per ora il quiz è validato a fondo."""
-    if ltype == "quiz":
-        return QuizContent(**content).model_dump()
-    return content  # simulator/flashcard/scenario: validati nelle fasi successive
+    """Valida e normalizza il content in base al tipo (422 se non valido)."""
+    try:
+        if ltype == "quiz":
+            return QuizContent(**content).model_dump()
+        if ltype == "simulator":
+            c = SimulatorContent(**content)
+            if c.model not in SIM_MODELS:
+                raise ValueError("modello simulatore non valido")
+            return c.model_dump()
+        if ltype == "flashcard":
+            return FlashcardContent(**content).model_dump()
+        if ltype == "scenario":
+            return ScenarioContent(**content).model_dump()
+        return content
+    except (ValidationError, ValueError) as e:
+        raise HTTPException(status_code=422, detail="Contenuto non valido: " + str(e)[:200])
 
 
 # ── Endpoint studente (login richiesto) ─────────────────────────────────────
