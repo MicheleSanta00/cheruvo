@@ -37,6 +37,7 @@ from quick_fetch import quick_fetch
 from summary import genera_summary, _fallback
 from onboarding import init_onboarding_table, send_welcome
 from academy import router as academy_router, init_academy_tables
+from classroom import router as classroom_router, init_classroom_tables
 from cache import cache_get, cache_set, cache_delete_pattern, cache_stats, CACHE_TTL, SUMMARY_TTL, VALIDATE_TTL, TICKERS_TTL
 
 # ── Logging ───────────────────────────────────────────────────────────────
@@ -77,6 +78,7 @@ async def lifespan(app: FastAPI):
     init_subscriptions_table()
     init_onboarding_table()
     init_academy_tables()
+    init_classroom_tables()
     get_pool()
     yield
 
@@ -111,6 +113,7 @@ app.add_middleware(SecurityHeadersMiddleware)
 app.add_middleware(GZipMiddleware, minimum_size=500)  # comprime risposte > 500 bytes
 app.include_router(stripe_router, prefix="/api")
 app.include_router(academy_router, prefix="/api")
+app.include_router(classroom_router, prefix="/api")
 
 API_KEY = {
     "ALPHA_VANTAGE": os.environ.get("ALPHA_VANTAGE", ""),

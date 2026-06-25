@@ -86,6 +86,7 @@ def init_academy_tables():
                 created_at         TIMESTAMPTZ DEFAULT NOW()
             );
             ALTER TABLE academy_lessons ADD COLUMN IF NOT EXISTS level TEXT DEFAULT 'base';
+            ALTER TABLE academy_profiles ADD COLUMN IF NOT EXISTS role TEXT;
         """)
         conn.commit()
         cur.close()
@@ -145,6 +146,7 @@ class ProgressIn(BaseModel):
 class ProfileIn(BaseModel):
     display_name: Optional[str] = None
     leaderboard_opt_in: bool = False
+    role: Optional[str] = None
 
 class AIDraftIn(BaseModel):
     topic: str
@@ -209,12 +211,12 @@ def get_me(user: dict = Depends(get_current_user)):
     conn = _conn()
     try:
         cur = conn.cursor()
-        cur.execute("SELECT display_name, leaderboard_opt_in FROM academy_profiles WHERE user_id = %s", (user["sub"],))
+        cur.execute("SELECT display_name, leaderboard_opt_in, role FROM academy_profiles WHERE user_id = %s", (user["sub"],))
         row = cur.fetchone()
         cur.close()
     finally:
         _rel(conn)
-    profile = {"display_name": row[0], "leaderboard_opt_in": row[1]} if row else {"display_name": None, "leaderboard_opt_in": False}
+    profile = {"display_name": row[0], "leaderboard_opt_in": row[1], "role": row[2]} if row else {"display_name": None, "leaderboard_opt_in": False, "role": None}
     return {"is_admin": _is_admin(user["sub"]), "profile": profile}
 
 
@@ -224,12 +226,13 @@ def update_me(body: ProfileIn, user: dict = Depends(get_current_user)):
     try:
         cur = conn.cursor()
         cur.execute("""
-            INSERT INTO academy_profiles (user_id, display_name, leaderboard_opt_in)
-            VALUES (%s, %s, %s)
+            INSERT INTO academy_profiles (user_id, display_name, leaderboard_opt_in, role)
+            VALUES (%s, %s, %s, %s)
             ON CONFLICT (user_id) DO UPDATE
               SET display_name = EXCLUDED.display_name,
-                  leaderboard_opt_in = EXCLUDED.leaderboard_opt_in
-        """, (user["sub"], body.display_name, body.leaderboard_opt_in))
+                  leaderboard_opt_in = EXCLUDED.leaderboard_opt_in,
+                  role = COALESCE(EXCLUDED.role, academy_profiles.role)
+        """, (user["sub"], body.display_name, body.leaderboard_opt_in, body.role))
         conn.commit()
         cur.close()
     finally:

@@ -6,9 +6,12 @@
 import { useState, useEffect } from 'react'
 import { useLang } from '../LangContext.jsx'
 import { STRINGS, pick } from './academyStrings.js'
-import { getMe, getPaths, getLesson, saveProgress, getLeaderboard } from './academyApi.js'
+import { getMe, getPaths, getLesson, saveProgress, getLeaderboard, updateMe } from './academyApi.js'
 import LessonRenderer from './LessonRenderer.jsx'
 import Workspace from './Workspace.jsx'
+import Classroom from './Classroom.jsx'
+import ClassView from './ClassView.jsx'
+import UserSettings from './UserSettings.jsx'
 
 export default function Academy({ user, onExit }) {
   const { lang, toggleLang } = useLang()
@@ -19,6 +22,7 @@ export default function Academy({ user, onExit }) {
   const [paths, setPaths] = useState([])
   const [board, setBoard] = useState([])
   const [lesson, setLesson] = useState(null)
+  const [classId, setClassId] = useState(null)
   const [loading, setLoading] = useState(true)
   const [err, setErr] = useState('')
 
@@ -41,23 +45,49 @@ export default function Academy({ user, onExit }) {
     setLesson(null); setView('hub'); loadHub()
   }
 
+  const pickRole = (role) => {
+    updateMe({ role, display_name: me?.profile?.display_name || null, leaderboard_opt_in: !!me?.profile?.leaderboard_opt_in })
+      .then(() => getMe().then(setMe)).catch(() => {})
+  }
+
   return (
     <div style={{ height: '100dvh', overflow: 'auto', background: 'var(--black)', color: 'var(--white)' }}>
       <header style={hdr}>
-        <span style={{ fontSize: 16, fontWeight: 600 }}>Cheruvo <span style={{ color: ACC }}>{s.brand}</span></span>
-        <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+        <span onClick={() => setView('hub')} style={{ fontSize: 16, fontWeight: 600, cursor: 'pointer' }}>Cheruvo <span style={{ color: ACC }}>{s.brand}</span></span>
+        <div style={{ display: 'flex', alignItems: 'center', gap: 8, flexWrap: 'wrap' }}>
+          <button style={view === 'classes' || view === 'class' ? chipOn : chip} onClick={() => { setClassId(null); setView('classes') }}>{s.classes}</button>
           {me?.is_admin && (
             <button style={view === 'workspace' ? chipOn : chip} onClick={() => setView(view === 'workspace' ? 'hub' : 'workspace')}>{s.workspace}</button>
           )}
+          <button style={view === 'settings' ? chipOn : chip} onClick={() => setView('settings')} title={s.settings}>⚙</button>
           <button style={chip} onClick={toggleLang}>{lang === 'it' ? '🇮🇹' : '🇬🇧'}</button>
           <button style={chip} onClick={onExit}>{s.backToApp}</button>
         </div>
       </header>
 
       <div style={{ maxWidth: 900, margin: '0 auto', padding: '22px 18px 60px' }}>
+        {me && !me.profile?.role && (
+          <div style={{ position: 'fixed', inset: 0, zIndex: 100, background: 'rgba(0,0,0,0.72)', display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 20 }}>
+            <div style={{ ...card, maxWidth: 420, textAlign: 'center' }}>
+              <div style={{ fontSize: 30 }}>🎓</div>
+              <div style={{ fontSize: 18, fontWeight: 600, margin: '8px 0 4px' }}>{s.chooseRole}</div>
+              <div style={{ color: 'var(--muted)', fontSize: 13.5, marginBottom: 16 }}>{s.chooseRoleSub}</div>
+              <div style={{ display: 'flex', gap: 10 }}>
+                <button style={roleBtn} onClick={() => pickRole('student')}>🧑‍🎓 {s.roleStudent}</button>
+                <button style={roleBtn} onClick={() => pickRole('teacher')}>🧑‍🏫 {s.roleTeacher}</button>
+              </div>
+            </div>
+          </div>
+        )}
         {err && <div style={errBox}>{err}</div>}
 
         {view === 'workspace' && me?.is_admin && <Workspace lang={lang} strings={s} user={user} />}
+
+        {view === 'classes' && <Classroom s={s} isTeacher={me?.profile?.role === 'teacher'} onOpen={(id) => { setClassId(id); setView('class') }} />}
+
+        {view === 'class' && classId && <ClassView classId={classId} s={s} lang={lang} onBack={() => setView('classes')} onOpenLesson={(id) => openLesson(id)} />}
+
+        {view === 'settings' && <UserSettings s={s} onSaved={() => getMe().then(setMe)} />}
 
         {view === 'lesson' && lesson && (
           <div>
@@ -134,6 +164,7 @@ const chip = { fontSize: 12, background: 'transparent', border: '1px solid var(-
 const chipOn = { ...chip, borderColor: ACC, color: ACC }
 const ghost = { fontSize: 13, background: 'transparent', border: '1px solid var(--border)', borderRadius: 8, padding: '7px 12px', cursor: 'pointer', color: 'var(--white)' }
 const card = { background: 'var(--near-black)', border: '1px solid var(--border)', borderRadius: 14, padding: 16 }
+const roleBtn = { flex: 1, border: '1px solid var(--border)', background: 'var(--black)', color: 'var(--white)', borderRadius: 10, padding: '12px', cursor: 'pointer', fontSize: 14, fontWeight: 600 }
 const eyebrow = { fontSize: 12.5, letterSpacing: '.1em', textTransform: 'uppercase', color: ACC, fontWeight: 600 }
 const lessonRow = { display: 'flex', justifyContent: 'space-between', alignItems: 'center', background: 'var(--black)', border: '1px solid var(--border)', borderRadius: 10, padding: '10px 12px', cursor: 'pointer', color: 'var(--white)', fontSize: 13.5, textAlign: 'left' }
 const lvlBadge = (lvl) => ({ fontSize: 10, fontWeight: 600, padding: '2px 7px', borderRadius: 99, background: lvl === 'avanzato' ? 'rgba(242,114,155,0.16)' : lvl === 'intermedio' ? 'rgba(245,196,81,0.16)' : 'rgba(52,211,153,0.16)', color: lvl === 'avanzato' ? '#ffa6c2' : lvl === 'intermedio' ? '#f5c451' : '#7fe9c6' })
