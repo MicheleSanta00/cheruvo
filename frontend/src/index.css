@@ -135,6 +135,11 @@ input  { font-family: var(--sans); }
     grid-template-rows: auto auto !important;
     overflow-y: auto !important;
   }
+  /* I due pannelli non scrollano più da soli: un unico blocco scorrevole */
+  .dashboard-grid > div {
+    overflow: visible !important;
+    height: auto !important;
+  }
   .dashboard-grid > div:first-child {
     border-right: none !important;
     border-bottom: 1px solid var(--border);
