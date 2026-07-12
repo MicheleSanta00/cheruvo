@@ -65,6 +65,14 @@
     .lang-btn:hover { border-color: rgba(255,255,255,0.25); }
     .nav-cta { background: var(--blue); color: white; border: none; border-radius: 9px; padding: 9px 20px; font-size: 14px; font-weight: 500; transition: opacity .2s, transform .2s; }
     .nav-cta:hover { opacity: .88; transform: translateY(-1px); }
+    .nav-apps { position: relative; }
+    .apps-menu { position: absolute; top: calc(100% + 8px); right: 0; background: var(--card); border: 1px solid var(--border-strong); border-radius: 12px; padding: 6px; min-width: 250px; display: none; flex-direction: column; gap: 2px; box-shadow: 0 14px 44px rgba(0,0,0,0.55); z-index: 200; }
+    .apps-menu.open { display: flex; }
+    .apps-item { display: flex; align-items: center; gap: 12px; padding: 10px 12px; border-radius: 9px; transition: background .15s; }
+    .apps-item:hover { background: rgba(255,255,255,0.05); }
+    .apps-ic { width: 38px; height: 38px; border-radius: 10px; display: flex; align-items: center; justify-content: center; font-size: 19px; flex-shrink: 0; }
+    .apps-item b { font-size: 14px; font-weight: 500; }
+    .apps-sub { font-size: 12px; color: var(--muted); }
 
     /* ── HERO ─────────────────────────────────────────────────────────────── */
     .hero {
@@ -275,12 +283,21 @@
     <a href="#features" class="nav-link" data-i18n="navFeatures">Funzionalità</a>
     <a href="#pricing" class="nav-link" data-i18n="navPricing">Prezzi</a>
     <a href="#faq" class="nav-link">FAQ</a>
-    <a href="https://app.cheruvo.com/?academy=1" target="_blank" class="nav-link" data-i18n="navAcademy" style="color:var(--green)">Academy</a>
   </div>
   <button class="lang-btn" id="lang-btn" onclick="toggleLang()">🇬🇧</button>
-  <a href="https://app.cheruvo.com" target="_blank">
-    <button class="nav-cta" data-i18n="navCta">Apri l'Analyzer →</button>
-  </a>
+  <div class="nav-apps" id="nav-apps">
+    <button class="nav-cta" onclick="toggleApps(event)"><span data-i18n="navCta">Apri Cheruvo</span> <span style="font-size:11px;opacity:.75">▾</span></button>
+    <div class="apps-menu" id="apps-menu">
+      <a href="https://app.cheruvo.com" target="_blank" class="apps-item">
+        <span class="apps-ic" style="background:rgba(96,165,250,0.15)">📊</span>
+        <span><b>Sentiment Analyzer</b><br/><span class="apps-sub" data-i18n="appAnalyzerShort">Analizza il mercato</span></span>
+      </a>
+      <a href="https://app.cheruvo.com/?academy=1" target="_blank" class="apps-item">
+        <span class="apps-ic" style="background:rgba(52,211,153,0.15)">🎓</span>
+        <span><b>Academy</b><br/><span class="apps-sub" data-i18n="appAcademyShort">Impara la finanza</span></span>
+      </a>
+    </div>
+  </div>
 </nav>
 
 <!-- HERO -->
@@ -560,7 +577,7 @@
     <a href="#features" class="footer-link" data-i18n="navFeatures">Funzionalità</a>
     <a href="#pricing" class="footer-link" data-i18n="navPricing">Prezzi</a>
     <a href="#faq" class="footer-link">FAQ</a>
-    <a href="https://app.cheruvo.com" target="_blank" class="footer-link" style="color:var(--azure)" data-i18n="footerLink">Apri l'Analyzer →</a>
+    <a href="#apps" class="footer-link" style="color:var(--azure)" data-i18n="footerLink">Le nostre app →</a>
   </div>
   <span class="footer-copy" data-i18n="footerCopy">© 2026 Cheruvo · Solo a scopo informativo · Non è consulenza finanziaria</span>
 </footer>
@@ -583,8 +600,8 @@ document.querySelectorAll('.reveal').forEach(el => observer.observe(el))
 // ── i18n ──────────────────────────────────────────────────────────────────
 const tr = {
   it: {
-    navHow:'Come funziona', navFeatures:'Funzionalità', navPricing:'Prezzi', navCta:"Apri l'Analyzer →",
-    navAcademy:'Academy', appsLabel:'Le nostre app', appsTitle:'Una suite, <em>due strumenti</em>', appAnalyzer:"Analizza l'umore del mercato su qualsiasi azione: sentiment AI, prezzi e notizie in tempo reale.", appAcademy:"Impara la finanza giocando: quiz, simulatori, scenari e classi. Gratis, contro l'analfabetismo finanziario.", appOpen:'Apri →',
+    navHow:'Come funziona', navFeatures:'Funzionalità', navPricing:'Prezzi', navCta:"Apri Cheruvo",
+    navAcademy:'Academy', appsLabel:'Le nostre app', appsTitle:'Una suite, <em>due strumenti</em>', appAnalyzer:"Analizza l'umore del mercato su qualsiasi azione: sentiment AI, prezzi e notizie in tempo reale.", appAcademy:"Impara la finanza giocando: quiz, simulatori, scenari e classi. Gratis, contro l'analfabetismo finanziario.", appOpen:'Apri →', appAnalyzerShort:'Analizza il mercato', appAcademyShort:'Impara la finanza',
     heroBadge:'La piattaforma per investitori retail',
     heroTitle:"Investi con <em>consapevolezza</em>.",
     heroSub:"La piattaforma che ti fa capire il mercato e crescere come investitore: analisi del sentiment ed educazione finanziaria, in un unico posto.",
@@ -613,11 +630,11 @@ const tr = {
     faq4q:'Posso disdire il piano Pro quando voglio?', faq4a:'Sì, puoi disdire in qualsiasi momento dal tuo profilo. Nessun vincolo o costo nascosto.',
     faq5q:'Il sentiment predice davvero i movimenti di prezzo?', faq5a:'È un indicatore ausiliario, non una previsione. Cheruvo mostra la correlazione statistica così puoi valutarla tu stesso. Non è consulenza finanziaria.',
     ctaTitle:'Inizia a leggere la mente del mercato', ctaSub:'Gratis da subito. Nessuna carta di credito. Operativo in 30 secondi.', ctaBtn:'Apri Cheruvo →',
-    footerCopy:'© 2026 Cheruvo · Solo a scopo informativo · Non è consulenza finanziaria', footerLink:"Apri l'Analyzer →",
+    footerCopy:'© 2026 Cheruvo · Solo a scopo informativo · Non è consulenza finanziaria', footerLink:"Le nostre app →",
   },
   en: {
-    navHow:'How it works', navFeatures:'Features', navPricing:'Pricing', navCta:'Open the Analyzer →',
-    navAcademy:'Academy', appsLabel:'Our apps', appsTitle:'One suite, <em>two tools</em>', appAnalyzer:"Track the market's mood on any stock: AI sentiment, prices and news in real time.", appAcademy:'Learn finance by playing: quizzes, simulators, scenarios and classes. Free, fighting financial illiteracy.', appOpen:'Open →',
+    navHow:'How it works', navFeatures:'Features', navPricing:'Pricing', navCta:'Open Cheruvo',
+    navAcademy:'Academy', appsLabel:'Our apps', appsTitle:'One suite, <em>two tools</em>', appAnalyzer:"Track the market's mood on any stock: AI sentiment, prices and news in real time.", appAcademy:'Learn finance by playing: quizzes, simulators, scenarios and classes. Free, fighting financial illiteracy.', appOpen:'Open →', appAnalyzerShort:'Analyze the market', appAcademyShort:'Learn finance',
     heroBadge:'The platform for retail investors',
     heroTitle:"Invest with <em>clarity</em>.",
     heroSub:"The platform that helps you understand the market and grow as an investor: news sentiment and financial education, all in one place.",
@@ -646,7 +663,7 @@ const tr = {
     faq4q:'Can I cancel the Pro plan anytime?', faq4a:'Yes, you can cancel anytime from your profile. No commitments or hidden fees.',
     faq5q:'Does sentiment really predict price movements?', faq5a:"It's an auxiliary indicator, not a prediction. Cheruvo shows the statistical correlation so you can evaluate it yourself. Not financial advice.",
     ctaTitle:"Start reading the market's mind", ctaSub:'Free right now. No credit card. Up and running in 30 seconds.', ctaBtn:'Open Cheruvo →',
-    footerCopy:'© 2026 Cheruvo · For informational purposes only · Not financial advice', footerLink:'Open the Analyzer →',
+    footerCopy:'© 2026 Cheruvo · For informational purposes only · Not financial advice', footerLink:'Our apps →',
   }
 }
 
@@ -660,6 +677,8 @@ function applyLang() {
   document.documentElement.lang = lang
 }
 function toggleLang() { lang = lang === 'it' ? 'en' : 'it'; localStorage.setItem('lang', lang); applyLang() }
+function toggleApps(e) { if (e) e.stopPropagation(); document.getElementById('apps-menu').classList.toggle('open') }
+document.addEventListener('click', function(e) { var a = document.getElementById('nav-apps'); var m = document.getElementById('apps-menu'); if (a && m && !a.contains(e.target)) m.classList.remove('open') })
 applyLang()
 </script>
 </body>
