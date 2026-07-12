@@ -275,10 +275,11 @@
     <a href="#features" class="nav-link" data-i18n="navFeatures">Funzionalità</a>
     <a href="#pricing" class="nav-link" data-i18n="navPricing">Prezzi</a>
     <a href="#faq" class="nav-link">FAQ</a>
+    <a href="https://app.cheruvo.com/?academy=1" target="_blank" class="nav-link" data-i18n="navAcademy" style="color:var(--green)">Academy</a>
   </div>
   <button class="lang-btn" id="lang-btn" onclick="toggleLang()">🇬🇧</button>
   <a href="https://app.cheruvo.com" target="_blank">
-    <button class="nav-cta" data-i18n="navCta">Apri l'app →</button>
+    <button class="nav-cta" data-i18n="navCta">Apri l'Analyzer →</button>
   </a>
 </nav>
 
@@ -294,10 +295,10 @@
   <div class="hero-glow-2"></div>
   <div class="hero-badge">
     <span class="dot"></span>
-    <span data-i18n="heroBadge">Live · Powered by AI</span>
+    <span data-i18n="heroBadge">La piattaforma per investitori retail</span>
   </div>
-  <h1 class="hero-title" data-i18n="heroTitle">Leggi l'umore del mercato<br/><em>prima che si muova</em></h1>
-  <p class="hero-sub" data-i18n="heroSub">Cheruvo aggrega migliaia di notizie finanziarie e le analizza con AI per mostrare cosa pensa davvero il mercato su qualsiasi azione — in tempo reale.</p>
+  <h1 class="hero-title" data-i18n="heroTitle">Investi con <em>consapevolezza</em>.</h1>
+  <p class="hero-sub" data-i18n="heroSub">La piattaforma che ti fa capire il mercato e crescere come investitore: analisi del sentiment ed educazione finanziaria, in un unico posto.</p>
   <div class="hero-actions">
     <a href="https://app.cheruvo.com" target="_blank"><button class="btn-primary" data-i18n="heroBtn">Inizia gratis →</button></a>
     <a href="#how-it-works"><button class="btn-secondary" data-i18n="heroHow">Scopri come funziona</button></a>
@@ -312,6 +313,32 @@
 </div>
 
 <hr class="divider-fade"/>
+
+<!-- LE NOSTRE APP -->
+<div class="section" id="apps">
+  <div class="s-label reveal" data-i18n="appsLabel">Le nostre app</div>
+  <h2 class="s-title reveal" data-i18n="appsTitle">Una suite, <em>due strumenti</em></h2>
+  <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(280px,1fr));gap:20px;max-width:880px;margin:44px auto 0;padding:0 24px;">
+    <a href="https://app.cheruvo.com" target="_blank" style="display:block">
+      <div class="reveal" style="background:var(--card);border:1px solid var(--border);border-radius:18px;padding:28px;height:100%;transition:border-color .2s,transform .2s" onmouseover="this.style.borderColor='rgba(96,165,250,0.5)';this.style.transform='translateY(-4px)'" onmouseout="this.style.borderColor='var(--border)';this.style.transform='none'">
+        <div style="font-size:32px;margin-bottom:12px">📊</div>
+        <div style="font-size:20px;font-weight:600;margin-bottom:8px">Sentiment Analyzer</div>
+        <div style="color:var(--off-white);font-size:14.5px;line-height:1.6;margin-bottom:18px" data-i18n="appAnalyzer">Analizza l'umore del mercato su qualsiasi azione: sentiment AI, prezzi e notizie in tempo reale.</div>
+        <span style="color:var(--azure);font-weight:500;font-size:14px" data-i18n="appOpen">Apri →</span>
+      </div>
+    </a>
+    <a href="https://app.cheruvo.com/?academy=1" target="_blank" style="display:block">
+      <div class="reveal reveal-delay-1" style="background:var(--card);border:1px solid var(--border);border-radius:18px;padding:28px;height:100%;transition:border-color .2s,transform .2s" onmouseover="this.style.borderColor='rgba(52,211,153,0.5)';this.style.transform='translateY(-4px)'" onmouseout="this.style.borderColor='var(--border)';this.style.transform='none'">
+        <div style="font-size:32px;margin-bottom:12px">🎓</div>
+        <div style="font-size:20px;font-weight:600;margin-bottom:8px">Cheruvo Academy</div>
+        <div style="color:var(--off-white);font-size:14.5px;line-height:1.6;margin-bottom:18px" data-i18n="appAcademy">Impara la finanza giocando: quiz, simulatori, scenari e classi. Gratis, contro l'analfabetismo finanziario.</div>
+        <span style="color:var(--green);font-weight:500;font-size:14px" data-i18n="appOpen">Apri →</span>
+      </div>
+    </a>
+  </div>
+</div>
+
+<hr class="divider"/>
 
 <!-- STATS BAR -->
 <div class="stats-bar">
@@ -533,7 +560,7 @@
     <a href="#features" class="footer-link" data-i18n="navFeatures">Funzionalità</a>
     <a href="#pricing" class="footer-link" data-i18n="navPricing">Prezzi</a>
     <a href="#faq" class="footer-link">FAQ</a>
-    <a href="https://app.cheruvo.com" target="_blank" class="footer-link" style="color:var(--azure)" data-i18n="footerLink">Apri l'app →</a>
+    <a href="https://app.cheruvo.com" target="_blank" class="footer-link" style="color:var(--azure)" data-i18n="footerLink">Apri l'Analyzer →</a>
   </div>
   <span class="footer-copy" data-i18n="footerCopy">© 2026 Cheruvo · Solo a scopo informativo · Non è consulenza finanziaria</span>
 </footer>
@@ -556,10 +583,11 @@ document.querySelectorAll('.reveal').forEach(el => observer.observe(el))
 // ── i18n ──────────────────────────────────────────────────────────────────
 const tr = {
   it: {
-    navHow:'Come funziona', navFeatures:'Funzionalità', navPricing:'Prezzi', navCta:"Apri l'app →",
-    heroBadge:'Live · Powered by AI',
-    heroTitle:"Leggi l'umore del mercato<br/><em>prima che si muova</em>",
-    heroSub:"Cheruvo aggrega migliaia di notizie finanziarie e le analizza con AI per mostrare cosa pensa davvero il mercato su qualsiasi azione — in tempo reale.",
+    navHow:'Come funziona', navFeatures:'Funzionalità', navPricing:'Prezzi', navCta:"Apri l'Analyzer →",
+    navAcademy:'Academy', appsLabel:'Le nostre app', appsTitle:'Una suite, <em>due strumenti</em>', appAnalyzer:"Analizza l'umore del mercato su qualsiasi azione: sentiment AI, prezzi e notizie in tempo reale.", appAcademy:"Impara la finanza giocando: quiz, simulatori, scenari e classi. Gratis, contro l'analfabetismo finanziario.", appOpen:'Apri →',
+    heroBadge:'La piattaforma per investitori retail',
+    heroTitle:"Investi con <em>consapevolezza</em>.",
+    heroSub:"La piattaforma che ti fa capire il mercato e crescere come investitore: analisi del sentiment ed educazione finanziaria, in un unico posto.",
     heroBtn:'Inizia gratis →', heroHow:'Scopri come funziona',
     bullish:'Rialzista', bearish:'Ribassista', neutral:'Neutro',
     stat1:'Fonti monitorate', stat2:'Aggiornamenti al giorno', stat3:'Giorni di storico (Pro)', stat4:'Per iniziare',
@@ -585,13 +613,14 @@ const tr = {
     faq4q:'Posso disdire il piano Pro quando voglio?', faq4a:'Sì, puoi disdire in qualsiasi momento dal tuo profilo. Nessun vincolo o costo nascosto.',
     faq5q:'Il sentiment predice davvero i movimenti di prezzo?', faq5a:'È un indicatore ausiliario, non una previsione. Cheruvo mostra la correlazione statistica così puoi valutarla tu stesso. Non è consulenza finanziaria.',
     ctaTitle:'Inizia a leggere la mente del mercato', ctaSub:'Gratis da subito. Nessuna carta di credito. Operativo in 30 secondi.', ctaBtn:'Apri Cheruvo →',
-    footerCopy:'© 2026 Cheruvo · Solo a scopo informativo · Non è consulenza finanziaria', footerLink:"Apri l'app →",
+    footerCopy:'© 2026 Cheruvo · Solo a scopo informativo · Non è consulenza finanziaria', footerLink:"Apri l'Analyzer →",
   },
   en: {
-    navHow:'How it works', navFeatures:'Features', navPricing:'Pricing', navCta:'Launch app →',
-    heroBadge:'Live · Powered by AI',
-    heroTitle:"Know the market's mood<br/><em>before it moves</em>",
-    heroSub:"Cheruvo aggregates thousands of financial news articles and scores them with AI to surface what the crowd is really thinking about any stock — in real time.",
+    navHow:'How it works', navFeatures:'Features', navPricing:'Pricing', navCta:'Open the Analyzer →',
+    navAcademy:'Academy', appsLabel:'Our apps', appsTitle:'One suite, <em>two tools</em>', appAnalyzer:"Track the market's mood on any stock: AI sentiment, prices and news in real time.", appAcademy:'Learn finance by playing: quizzes, simulators, scenarios and classes. Free, fighting financial illiteracy.', appOpen:'Open →',
+    heroBadge:'The platform for retail investors',
+    heroTitle:"Invest with <em>clarity</em>.",
+    heroSub:"The platform that helps you understand the market and grow as an investor: news sentiment and financial education, all in one place.",
     heroBtn:'Start for free →', heroHow:'See how it works',
     bullish:'Bullish', bearish:'Bearish', neutral:'Neutral',
     stat1:'Sources monitored', stat2:'Updates per day', stat3:'Days of history (Pro)', stat4:'To get started',
@@ -617,7 +646,7 @@ const tr = {
     faq4q:'Can I cancel the Pro plan anytime?', faq4a:'Yes, you can cancel anytime from your profile. No commitments or hidden fees.',
     faq5q:'Does sentiment really predict price movements?', faq5a:"It's an auxiliary indicator, not a prediction. Cheruvo shows the statistical correlation so you can evaluate it yourself. Not financial advice.",
     ctaTitle:"Start reading the market's mind", ctaSub:'Free right now. No credit card. Up and running in 30 seconds.', ctaBtn:'Open Cheruvo →',
-    footerCopy:'© 2026 Cheruvo · For informational purposes only · Not financial advice', footerLink:'Launch app →',
+    footerCopy:'© 2026 Cheruvo · For informational purposes only · Not financial advice', footerLink:'Open the Analyzer →',
   }
 }
 

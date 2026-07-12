@@ -52,6 +52,14 @@ export default function App() {
     })
   }, [])
 
+  // Apri direttamente l'Academy se si arriva dal sottodominio academy.* o con ?academy
+  useEffect(() => {
+    const params = new URLSearchParams(window.location.search)
+    if (window.location.hostname.startsWith('academy.') || params.get('academy') !== null) {
+      setShowAcademy(true)
+    }
+  }, [])
+
   useEffect(() => {
     if (user) {
       apiFetch(`/subscription/${user.id}`)
