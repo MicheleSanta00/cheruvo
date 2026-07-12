@@ -55,6 +55,7 @@ export default function Academy({ user, onExit }) {
       <header style={hdr}>
         <span onClick={() => setView('hub')} style={{ fontSize: 16, fontWeight: 600, cursor: 'pointer' }}>Cheruvo <span style={{ color: ACC }}>{s.brand}</span></span>
         <div style={{ display: 'flex', alignItems: 'center', gap: 8, flexWrap: 'wrap' }}>
+          <button style={view === 'hub' || view === 'lesson' ? chipOn : chip} onClick={() => { setLesson(null); setView('hub') }}>{s.paths}</button>
           <button style={view === 'classes' || view === 'class' ? chipOn : chip} onClick={() => { setClassId(null); setView('classes') }}>{s.classes}</button>
           {me?.is_admin && (
             <button style={view === 'workspace' ? chipOn : chip} onClick={() => setView(view === 'workspace' ? 'hub' : 'workspace')}>{s.workspace}</button>
