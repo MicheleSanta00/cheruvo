@@ -3,10 +3,10 @@
 <head>
   <meta charset="UTF-8"/>
   <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
-  <title>Cheruvo — AI Stock Sentiment Intelligence</title>
-  <meta name="description" content="Analisi del sentiment AI in tempo reale per azioni. Monitora l'umore del mercato da migliaia di fonti finanziarie. Gratis, nessuna carta richiesta."/>
-  <meta property="og:title" content="Cheruvo — AI Stock Sentiment Intelligence"/>
-  <meta property="og:description" content="Leggi l'umore del mercato prima che si muova. Sentiment AI su qualsiasi azione USA ed europea."/>
+  <title>Cheruvo — La piattaforma per l'investitore retail</title>
+  <meta name="description" content="Cheruvo è la piattaforma per l'investitore retail: analizza il sentiment delle notizie con l'AI e impara la finanza con l'Academy. Gratis, nessuna carta richiesta."/>
+  <meta property="og:title" content="Cheruvo — La piattaforma per l'investitore retail"/>
+  <meta property="og:description" content="Capisci il mercato e impara la finanza: analisi del sentiment ed educazione finanziaria in un unico posto."/>
   <meta property="og:url" content="https://cheruvo.com"/>
   <meta property="og:type" content="website"/>
   <meta name="twitter:card" content="summary_large_image"/>
@@ -465,6 +465,34 @@
 <hr class="divider"/>
 
 <!-- PRICING -->
+<!-- ACADEMY -->
+<div class="section" id="academy">
+  <div class="s-label reveal" data-i18n="acLabel" style="color:var(--green)">Academy</div>
+  <h2 class="s-title reveal" data-i18n="acTitle">Non solo analisi: <em>impara la finanza</em></h2>
+  <div class="steps">
+    <div class="step reveal">
+      <div class="step-num" style="color:var(--green)">🎮</div>
+      <div class="step-title" data-i18n="ac1t">Impari giocando</div>
+      <div class="step-desc" data-i18n="ac1d">Quiz, simulatori interattivi, flashcard e scenari a bivi: capisci i concetti facendo, non leggendo muri di testo.</div>
+    </div>
+    <div class="step reveal reveal-delay-1">
+      <div class="step-num" style="color:var(--green)">📚</div>
+      <div class="step-title" data-i18n="ac2t">Percorsi per ogni livello</div>
+      <div class="step-desc" data-i18n="ac2d">Dalle basi al rischio alla psicologia dell'investitore, con contenuti bilingui e livelli da principiante ad avanzato.</div>
+    </div>
+    <div class="step reveal reveal-delay-2">
+      <div class="step-num" style="color:var(--green)">👥</div>
+      <div class="step-title" data-i18n="ac3t">Classi e community</div>
+      <div class="step-desc" data-i18n="ac3d">I docenti creano classi, assegnano lezioni e chattano con gli studenti. Educazione finanziaria, insieme.</div>
+    </div>
+  </div>
+  <div style="text-align:center;margin-top:40px;">
+    <a href="https://app.cheruvo.com/?academy=1" target="_blank"><button class="btn-secondary" data-i18n="acBtn">Esplora l'Academy →</button></a>
+  </div>
+</div>
+
+<hr class="divider"/>
+
 <div class="section pricing-wrap" id="pricing">
   <div class="s-label reveal" data-i18n="pricingLabel">Prezzi</div>
   <h2 class="s-title reveal" data-i18n="pricingTitle">Semplice e trasparente</h2>
@@ -557,10 +585,10 @@
 
 <!-- CTA BOTTOM -->
 <div class="cta-bottom">
-  <h2 class="reveal" data-i18n="ctaTitle">Inizia a leggere la mente del mercato</h2>
-  <p class="reveal" data-i18n="ctaSub">Gratis da subito. Nessuna carta di credito. Operativo in 30 secondi.</p>
+  <h2 class="reveal" data-i18n="ctaTitle">Inizia a investire con consapevolezza</h2>
+  <p class="reveal" data-i18n="ctaSub">Gratis, senza carta. Scegli la tua app e parti in 30 secondi.</p>
   <div class="reveal">
-    <a href="https://app.cheruvo.com" target="_blank">
+    <a href="#apps">
       <button class="btn-primary" style="padding:17px 40px;font-size:16px;" data-i18n="ctaBtn">Apri Cheruvo →</button>
     </a>
   </div>
@@ -621,6 +649,7 @@ const tr = {
     f5Desc:'Scarica dataset completo o report PDF con KPI, summary AI e top news per qualsiasi ticker.',
     f6Desc:'Ricevi una notifica automatica quando il sentiment dei tuoi ticker cambia drasticamente.',
     f8Title:'Aggiornamento on-demand', f8Desc:'Fetch manuale per qualsiasi ticker con un click. Database aggiornato automaticamente ogni 6 ore.',
+    acLabel:'Academy', acTitle:'Non solo analisi: <em>impara la finanza</em>', ac1t:'Impari giocando', ac1d:'Quiz, simulatori interattivi, flashcard e scenari a bivi: capisci i concetti facendo, non leggendo muri di testo.', ac2t:'Percorsi per ogni livello', ac2d:"Dalle basi al rischio alla psicologia dell'investitore, con contenuti bilingui e livelli da principiante ad avanzato.", ac3t:'Classi e community', ac3d:'I docenti creano classi, assegnano lezioni e chattano con gli studenti. Educazione finanziaria, insieme.', acBtn:"Esplora l'Academy →",
     pricingLabel:'Prezzi', pricingTitle:'Semplice e trasparente',
     freePeriod:'per sempre · nessuna carta', free1:'Qualsiasi ticker USA ed europeo', free2:'Storico sentiment 30 giorni', free3:'Top 3 news bullish/bearish', free4:'Grafico prezzo + sentiment', free5:'Watchlist fino a 3 ticker', free6:'Export CSV e PDF', free7:'Storico 90 giorni', free8:'Alert email', freeCta:'Inizia gratis',
     proBadge:'Più popolare', proPeriod:'al mese · disdici quando vuoi', pro1:'Tutto il piano Free', pro2:'Storico sentiment 90 giorni', pro3:'Feed notizie illimitato', pro4:'Export CSV e PDF', pro5:'Watchlist illimitata', pro6:'Alert email automatici', proCta:'⚡ Passa a Pro →',
@@ -629,7 +658,7 @@ const tr = {
     faq3q:'Come funziona il sentiment score?', faq3a:'Ogni notizia riceve uno score da −1 a +1 calcolato da un modello AI specializzato nel linguaggio finanziario. Lo score giornaliero è la media delle notizie di quel giorno.',
     faq4q:'Posso disdire il piano Pro quando voglio?', faq4a:'Sì, puoi disdire in qualsiasi momento dal tuo profilo. Nessun vincolo o costo nascosto.',
     faq5q:'Il sentiment predice davvero i movimenti di prezzo?', faq5a:'È un indicatore ausiliario, non una previsione. Cheruvo mostra la correlazione statistica così puoi valutarla tu stesso. Non è consulenza finanziaria.',
-    ctaTitle:'Inizia a leggere la mente del mercato', ctaSub:'Gratis da subito. Nessuna carta di credito. Operativo in 30 secondi.', ctaBtn:'Apri Cheruvo →',
+    ctaTitle:'Inizia a investire con consapevolezza', ctaSub:'Gratis, senza carta. Scegli la tua app e parti in 30 secondi.', ctaBtn:'Apri Cheruvo →',
     footerCopy:'© 2026 Cheruvo · Solo a scopo informativo · Non è consulenza finanziaria', footerLink:"Le nostre app →",
   },
   en: {
@@ -654,6 +683,7 @@ const tr = {
     f5Desc:'Download full dataset or PDF report with KPIs, AI summary and top news for any ticker.',
     f6Desc:'Get an automatic notification when the sentiment of your tickers shifts dramatically.',
     f8Title:'On-demand refresh', f8Desc:'Manual fetch for any ticker in one click. Database updated automatically every 6 hours.',
+    acLabel:'Academy', acTitle:'More than analysis: <em>learn finance</em>', ac1t:'Learn by playing', ac1d:'Quizzes, interactive simulators, flashcards and branching scenarios: grasp concepts by doing, not by reading walls of text.', ac2t:'Paths for every level', ac2d:'From the basics to risk to investor psychology, with bilingual content and levels from beginner to advanced.', ac3t:'Classes and community', ac3d:'Teachers create classes, assign lessons and chat with students. Financial education, together.', acBtn:'Explore the Academy →',
     pricingLabel:'Pricing', pricingTitle:'Simple and transparent',
     freePeriod:'forever · no card needed', free1:'Any US and European ticker', free2:'30-day sentiment history', free3:'Top 3 bullish/bearish headlines', free4:'Price + sentiment chart', free5:'Watchlist up to 3 tickers', free6:'CSV & PDF export', free7:'90-day history', free8:'Email alerts', freeCta:'Start for free',
     proBadge:'Most popular', proPeriod:'per month · cancel anytime', pro1:'Everything in Free', pro2:'90-day sentiment history', pro3:'Unlimited news feed', pro4:'CSV & PDF export', pro5:'Unlimited watchlist', pro6:'Automatic email alerts', proCta:'⚡ Upgrade to Pro →',
@@ -662,7 +692,7 @@ const tr = {
     faq3q:'How does the sentiment score work?', faq3a:'Each article gets a score from −1 to +1 calculated by an AI model specialized in financial language. The daily score is the average of all articles for that day.',
     faq4q:'Can I cancel the Pro plan anytime?', faq4a:'Yes, you can cancel anytime from your profile. No commitments or hidden fees.',
     faq5q:'Does sentiment really predict price movements?', faq5a:"It's an auxiliary indicator, not a prediction. Cheruvo shows the statistical correlation so you can evaluate it yourself. Not financial advice.",
-    ctaTitle:"Start reading the market's mind", ctaSub:'Free right now. No credit card. Up and running in 30 seconds.', ctaBtn:'Open Cheruvo →',
+    ctaTitle:'Start investing with clarity', ctaSub:'Free, no card. Pick your app and get going in 30 seconds.', ctaBtn:'Open Cheruvo →',
     footerCopy:'© 2026 Cheruvo · For informational purposes only · Not financial advice', footerLink:'Our apps →',
   }
 }
