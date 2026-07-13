@@ -4,7 +4,7 @@
  */
 import { useState, useEffect, useRef } from 'react'
 import { getClass, createPost, deletePost, getMessages, sendMessage, leaveClass, uploadClassFile } from './classroomApi.js'
-import { getPaths } from './academyApi.js'
+import { getPaths, myLessons } from './academyApi.js'
 import { pick } from './academyStrings.js'
 
 const ACC = '#34d399'
@@ -29,7 +29,15 @@ export default function ClassView({ classId, s, lang, onBack, onOpenLesson }) {
 
   useEffect(() => {
     load()
-    getPaths().then((d) => { const ls = []; d.paths.forEach((p) => p.lessons.forEach((l) => ls.push(l))); setLessons(ls) }).catch(() => {})
+    // Nel selettore "Assegna lezione": prima le lezioni del docente (create dal
+    // wizard "Lezioni dal libro"), poi i contenuti Academy pubblicati.
+    Promise.all([
+      myLessons().then((d) => (d.lessons || []).filter((l) => l.status === 'published')).catch(() => []),
+      getPaths().then((d) => { const ls = []; d.paths.forEach((p) => p.lessons.forEach((l) => ls.push(l))); return ls }).catch(() => []),
+    ]).then(([mine, global]) => {
+      const seen = new Set()
+      setLessons([...mine, ...global].filter((l) => (seen.has(l.id) ? false : seen.add(l.id))))
+    })
   }, [classId])
 
   useEffect(() => {

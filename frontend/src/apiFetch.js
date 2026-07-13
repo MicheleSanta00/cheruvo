@@ -23,10 +23,13 @@ export default async function apiFetch(path, options = {}, _isRetry = false) {
     throw new Error('Sessione scaduta — effettua nuovamente il login')
   }
 
+  // Con FormData (upload) il Content-Type lo imposta il browser (boundary inclusa)
+  const isForm = typeof FormData !== 'undefined' && options.body instanceof FormData
+
   const res = await fetch(`${BASE}${path}`, {
     ...options,
     headers: {
-      'Content-Type': 'application/json',
+      ...(isForm ? {} : { 'Content-Type': 'application/json' }),
       'Authorization': `Bearer ${token}`,
       ...(options.headers || {}),
     },
@@ -53,7 +56,10 @@ export default async function apiFetch(path, options = {}, _isRetry = false) {
   }
 
   if (res.status === 403) {
-    throw new Error('Questa funzione richiede un abbonamento PRO')
+    // Mostra il motivo vero se il backend lo fornisce (es. "solo docenti"),
+    // altrimenti il default storico (paywall PRO)
+    const body = await res.json().catch(() => ({}))
+    throw new Error(body.detail || 'Questa funzione richiede un abbonamento PRO')
   }
 
   if (!res.ok) {

@@ -12,6 +12,7 @@ import Workspace from './Workspace.jsx'
 import Classroom from './Classroom.jsx'
 import ClassView from './ClassView.jsx'
 import UserSettings from './UserSettings.jsx'
+import BookWizard from './BookWizard.jsx'
 
 export default function Academy({ user, onExit }) {
   const { lang, toggleLang } = useLang()
@@ -57,6 +58,9 @@ export default function Academy({ user, onExit }) {
         <div style={{ display: 'flex', alignItems: 'center', gap: 8, flexWrap: 'wrap' }}>
           <button style={view === 'hub' || view === 'lesson' ? chipOn : chip} onClick={() => { setLesson(null); setView('hub') }}>{s.paths}</button>
           <button style={view === 'classes' || view === 'class' ? chipOn : chip} onClick={() => { setClassId(null); setView('classes') }}>{s.classes}</button>
+          {(me?.profile?.role === 'teacher' || me?.is_admin) && (
+            <button style={view === 'book' ? chipOn : chip} onClick={() => setView('book')}>📖 {s.bookChip}</button>
+          )}
           {me?.is_admin && (
             <button style={view === 'workspace' ? chipOn : chip} onClick={() => setView(view === 'workspace' ? 'hub' : 'workspace')}>{s.workspace}</button>
           )}
@@ -83,6 +87,10 @@ export default function Academy({ user, onExit }) {
         {err && <div style={errBox}>{err}</div>}
 
         {view === 'workspace' && me?.is_admin && <Workspace lang={lang} strings={s} user={user} />}
+
+        {view === 'book' && (me?.profile?.role === 'teacher' || me?.is_admin) && (
+          <BookWizard lang={lang} s={s} onDone={(cid) => { if (cid) { setClassId(cid); setView('class') } else { setView('hub') } }} />
+        )}
 
         {view === 'classes' && <Classroom s={s} isTeacher={me?.profile?.role === 'teacher'} onOpen={(id) => { setClassId(id); setView('class') }} />}
 

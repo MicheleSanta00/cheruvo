@@ -132,10 +132,12 @@ export default function LessonForm({ type, content, onContent, lang, s, onAI, ai
 
   return (
     <div>
-      <div style={aiBox}>
-        <input style={{ ...inp, marginBottom: 0, flex: '1 1 160px' }} placeholder={s.aiTopic} value={topic} onChange={(e) => setTopic(e.target.value)} />
-        <button style={gold} disabled={aiBusy} onClick={() => onAI(topic)}>{s.genAI}</button>
-      </div>
+      {onAI && (
+        <div style={aiBox}>
+          <input style={{ ...inp, marginBottom: 0, flex: '1 1 160px' }} placeholder={s.aiTopic} value={topic} onChange={(e) => setTopic(e.target.value)} />
+          <button style={gold} disabled={aiBusy} onClick={() => onAI(topic)}>{s.genAI}</button>
+        </div>
+      )}
       {body()}
     </div>
   )

@@ -87,6 +87,8 @@ def init_academy_tables():
             );
             ALTER TABLE academy_lessons ADD COLUMN IF NOT EXISTS level TEXT DEFAULT 'base';
             ALTER TABLE academy_profiles ADD COLUMN IF NOT EXISTS role TEXT;
+            -- 'global' = contenuto Academy (admin), 'class' = creato da un docente per le sue classi
+            ALTER TABLE academy_lessons ADD COLUMN IF NOT EXISTS visibility TEXT DEFAULT 'global';
         """)
         conn.commit()
         cur.close()
@@ -261,6 +263,7 @@ def list_paths(user: dict = Depends(get_current_user)):
             LEFT JOIN academy_progress pg
               ON pg.lesson_id = l.id AND pg.user_id = %s
             WHERE l.status = 'published'
+              AND COALESCE(l.visibility, 'global') = 'global'
             ORDER BY l.sort_order, l.created_at
         """, (user["sub"],))
         for r in cur.fetchall():
@@ -276,21 +279,42 @@ def list_paths(user: dict = Depends(get_current_user)):
 
 @router.get("/lessons/{lesson_id}")
 def get_lesson(lesson_id: str, user: dict = Depends(get_current_user)):
+    """Accesso: contenuto 'global' pubblicato → tutti; contenuto 'class' → il
+    docente che l'ha creato sempre, gli studenti se è pubblicato e assegnato
+    (post) in una classe di cui sono membri; gli admin sempre."""
     is_admin = _is_admin(user["sub"])
     conn = _conn()
     try:
         cur = conn.cursor()
-        cur.execute("SELECT id, path_id, type, title, content, status, level FROM academy_lessons WHERE id = %s", (lesson_id,))
+        cur.execute("""SELECT id, path_id, type, title, content, status, level,
+                              COALESCE(visibility, 'global'), created_by
+                       FROM academy_lessons WHERE id = %s""", (lesson_id,))
         row = cur.fetchone()
+        assigned = False
+        if row and row[7] == "class":
+            cur.execute("""
+                SELECT 1 FROM class_posts p
+                JOIN class_members m ON m.class_id = p.class_id AND m.user_id = %s
+                WHERE p.lesson_id = %s LIMIT 1
+            """, (user["sub"], lesson_id))
+            assigned = cur.fetchone() is not None
         cur.close()
     finally:
         _rel(conn)
     if not row:
         raise HTTPException(status_code=404, detail="Lezione non trovata")
-    if row[5] != "published" and not is_admin:
+    is_owner = row[8] is not None and str(row[8]) == user["sub"]
+    visibility = row[7]
+    allowed = (
+        is_admin or is_owner
+        or (visibility == "global" and row[5] == "published")
+        or (visibility == "class" and row[5] == "published" and assigned)
+    )
+    if not allowed:
         raise HTTPException(status_code=403, detail="Lezione non disponibile")
     return {"id": row[0], "path_id": row[1], "type": row[2], "title": _j(row[3]),
-            "content": _j(row[4]), "status": row[5], "level": row[6] or "base"}
+            "content": _j(row[4]), "status": row[5], "level": row[6] or "base",
+            "visibility": visibility}
 
 
 @router.post("/progress")
@@ -345,6 +369,27 @@ def leaderboard(range: str = "all", user: dict = Depends(get_current_user)):
     return {"leaderboard": top, "range": range}
 
 
+@router.get("/my/lessons")
+def my_lessons(user: dict = Depends(get_current_user)):
+    """Le lezioni create dall'utente (docente): per il wizard 'Lezioni dal libro'
+    e per assegnarle in classe. Ordinate dalla più recente."""
+    conn = _conn()
+    try:
+        cur = conn.cursor()
+        cur.execute("""
+            SELECT id, type, title, status, level, created_at
+            FROM academy_lessons
+            WHERE created_by = %s AND COALESCE(visibility,'global') = 'class'
+            ORDER BY created_at DESC LIMIT 200
+        """, (user["sub"],))
+        rows = [{"id": r[0], "type": r[1], "title": _j(r[2]), "status": r[3],
+                 "level": r[4] or "base"} for r in cur.fetchall()]
+        cur.close()
+    finally:
+        _rel(conn)
+    return {"lessons": rows}
+
+
 # ── Endpoint workspace (admin) ──────────────────────────────────────────────
 @router.get("/admin/lessons")
 def admin_list_lessons(user: dict = Depends(require_admin)):
@@ -388,8 +433,27 @@ def create_lesson(body: LessonIn, user: dict = Depends(require_admin)):
     return {"id": new_id, "status": "created"}
 
 
+def _require_lesson_owner(lesson_id: str, user: dict):
+    """Admin: sempre. Docente: solo le lezioni create da lui (visibility 'class')."""
+    if _is_admin(user["sub"]):
+        return
+    conn = _conn()
+    try:
+        cur = conn.cursor()
+        cur.execute("SELECT created_by, COALESCE(visibility,'global') FROM academy_lessons WHERE id = %s", (lesson_id,))
+        r = cur.fetchone()
+        cur.close()
+    finally:
+        _rel(conn)
+    if not r:
+        raise HTTPException(status_code=404, detail="Lezione non trovata")
+    if r[1] != "class" or r[0] is None or str(r[0]) != user["sub"]:
+        raise HTTPException(status_code=403, detail="Puoi modificare solo le lezioni create da te")
+
+
 @router.put("/lessons/{lesson_id}")
-def update_lesson(lesson_id: str, body: LessonIn, user: dict = Depends(require_admin)):
+def update_lesson(lesson_id: str, body: LessonIn, user: dict = Depends(get_current_user)):
+    _require_lesson_owner(lesson_id, user)
     content = _validate_content(body.type, body.content)
     conn = _conn()
     try:
@@ -412,7 +476,8 @@ def update_lesson(lesson_id: str, body: LessonIn, user: dict = Depends(require_a
 
 
 @router.delete("/lessons/{lesson_id}")
-def delete_lesson(lesson_id: str, user: dict = Depends(require_admin)):
+def delete_lesson(lesson_id: str, user: dict = Depends(get_current_user)):
+    _require_lesson_owner(lesson_id, user)
     conn = _conn()
     try:
         cur = conn.cursor()

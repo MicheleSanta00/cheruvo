@@ -21,3 +21,17 @@ export const aiDraft      = (topic, type = 'quiz', n = 5) => apiFetch('/academy/
 export const listAdmins   = ()       => apiFetch('/academy/admin/admins')
 export const addAdmin     = (email)  => apiFetch('/academy/admin/admins', { method: 'POST', body: JSON.stringify({ email }) })
 export const removeAdmin  = (uid)    => apiFetch(`/academy/admin/admins/${uid}`, { method: 'DELETE' })
+
+// Docente: le proprie lezioni (create dal wizard "Lezioni dal libro")
+export const myLessons    = ()       => apiFetch('/academy/my/lessons')
+
+// Lezioni dal Libro (wizard docente)
+export const bookUpload = (files) => {
+  const fd = new FormData()
+  files.forEach((f) => fd.append('files', f))
+  return apiFetch('/academy/book/upload', { method: 'POST', body: fd })
+}
+export const bookJob        = (id)   => apiFetch(`/academy/book/jobs/${id}`)
+export const bookGenerate   = (body) => apiFetch('/academy/book/generate', { method: 'POST', body: JSON.stringify(body) })
+export const bookRegenerate = (body) => apiFetch('/academy/book/regenerate', { method: 'POST', body: JSON.stringify(body) })
+export const bookPublish    = (body) => apiFetch('/academy/book/publish', { method: 'POST', body: JSON.stringify(body) })
