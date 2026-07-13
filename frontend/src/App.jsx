@@ -15,6 +15,7 @@ import CorrelationPanel from './components/CorrelationPanel.jsx'
 import ComparePanel       from './components/ComparePanel.jsx'
 import OnboardingTooltip  from './components/OnboardingTooltip.jsx'
 import ChatWidget         from './components/ChatWidget.jsx'
+import Icon               from './components/Icon.jsx'
 import { useFinData } from './hooks/useFinData.js'
 import { generateReport } from './utils/generatePDF.js'
 import { identifyUser, resetUser, track } from './analytics.js'
@@ -230,7 +231,7 @@ export default function App() {
               fontSize: 11, color: 'var(--white)', background: 'transparent',
               border: '1px solid var(--border)', borderRadius: 6, padding: '4px 10px',
               cursor: 'pointer', fontWeight: 500,
-            }}>🎓<span className="hide-mobile"> Academy</span></button>
+            }}><Icon name="academy" size={14} /><span className="hide-mobile"> Academy</span></button>
             <button onClick={toggleLang} style={{
               fontSize: 13, background: 'transparent', border: '1px solid var(--border)',
               borderRadius: 6, padding: '3px 7px', cursor: 'pointer', lineHeight: 1,

@@ -5,6 +5,7 @@ import {
 } from 'recharts'
 import apiFetch from '../apiFetch.js'
 import { TICKERS } from '../data/tickers.js'
+import Icon from './Icon.jsx'
 
 const MAX_COMPARE = 3
 
@@ -129,7 +130,7 @@ export default function ComparePanel({ primaryTicker, primarySentiment, isPro, o
         background: 'rgba(30,92,255,0.04)', border: '1px solid rgba(30,92,255,0.15)',
         borderRadius: 10, padding: '20px', textAlign: 'center',
       }}>
-        <div style={{ fontSize: 22, marginBottom: 8 }}>📊</div>
+        <div style={{ marginBottom: 8 }}><Icon name="compare" size={24} color="#60a5fa" /></div>
         <div style={{ fontSize: 13, color: 'var(--off-white)', fontWeight: 500, marginBottom: 6 }}>
           Confronto multi-ticker disponibile con Pro
         </div>
@@ -329,8 +330,8 @@ function Header() {
           color: '#60a5fa', background: 'rgba(96,165,250,0.1)',
           padding: '3px 9px', borderRadius: 100,
           border: '1px solid rgba(96,165,250,0.2)',
-          textTransform: 'uppercase',
-        }}>📊 Confronto</span>
+          textTransform: 'uppercase', display: 'inline-flex', alignItems: 'center', gap: 5,
+        }}><Icon name="compare" size={11} /> Confronto</span>
         <h3 style={{ fontFamily: 'var(--serif)', fontSize: 18, fontWeight: 400, letterSpacing: '-0.02em', margin: 0 }}>
           Multi-ticker sentiment
         </h3>

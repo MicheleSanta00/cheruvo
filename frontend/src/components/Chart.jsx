@@ -4,6 +4,7 @@ import {
   XAxis, YAxis, CartesianGrid, Tooltip,
   ResponsiveContainer, ReferenceLine, Cell, Brush,
 } from 'recharts'
+import Icon from './Icon.jsx'
 
 // ── Tooltip hover ─────────────────────────────────────────────────────────
 function CustomTooltip({ active, payload, label }) {
@@ -198,8 +199,8 @@ function DataPanel({ prices, sentiment, stats, correlation }) {
     <div style={{ marginBottom: 20 }}>
 
       {/* Prezzi */}
-      <div style={{ fontSize: 10, color: '#475569', letterSpacing: '0.08em', textTransform: 'uppercase', marginBottom: 8 }}>
-        📈 Prezzi
+      <div style={{ fontSize: 10, color: '#475569', letterSpacing: '0.08em', textTransform: 'uppercase', marginBottom: 8, display: 'flex', alignItems: 'center', gap: 5 }}>
+        <Icon name="analyzer" size={12} /> Prezzi
       </div>
       <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(130px, 1fr))', gap: 8, marginBottom: 16 }}>
         <Block label="Ultimo prezzo" value={`$${last.Close?.toFixed(2)}`} big
@@ -221,8 +222,8 @@ function DataPanel({ prices, sentiment, stats, correlation }) {
       {/* Sentiment + Correlazione */}
       {(avgSent != null || sentVals.length > 0) && (
         <>
-          <div style={{ fontSize: 10, color: '#475569', letterSpacing: '0.08em', textTransform: 'uppercase', marginBottom: 8 }}>
-            🧠 Sentiment & Correlazione
+          <div style={{ fontSize: 10, color: '#475569', letterSpacing: '0.08em', textTransform: 'uppercase', marginBottom: 8, display: 'flex', alignItems: 'center', gap: 5 }}>
+            <Icon name="ai-brain" size={12} /> Sentiment & Correlazione
           </div>
           <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(130px, 1fr))', gap: 8 }}>
             <Block label="Sentiment recente" value={fmt(lastSent)} big

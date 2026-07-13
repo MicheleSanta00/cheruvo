@@ -1,5 +1,6 @@
 import { useEffect, useState } from 'react'
 import apiFetch from '../apiFetch.js'
+import Icon from './Icon.jsx'
 
 const COLORI = {
   bullish: { accent: '#34d399', bg: 'rgba(52,211,153,0.08)', border: 'rgba(52,211,153,0.2)', badge: '#34d399', emoji: '📈' },
@@ -41,7 +42,7 @@ export default function SummaryCard({ ticker, isPro, onUpgrade }) {
       borderColor: 'rgba(167,139,250,0.2)',
       textAlign: 'center', padding: '20px 16px',
     }}>
-      <div style={{ fontSize: 20, marginBottom: 8 }}>✨</div>
+      <div style={{ marginBottom: 8 }}><Icon name="ai-summary" size={22} color="#a78bfa" /></div>
       <div style={{ fontSize: 13, fontWeight: 600, color: '#a78bfa', marginBottom: 6 }}>
         AI Summary
       </div>
@@ -80,8 +81,8 @@ export default function SummaryCard({ ticker, isPro, onUpgrade }) {
           color: '#a78bfa', background: 'rgba(167,139,250,0.12)',
           padding: '3px 9px', borderRadius: 100,
           border: '1px solid rgba(167,139,250,0.25)',
-          textTransform: 'uppercase',
-        }}>✨ AI Summary</span>
+          textTransform: 'uppercase', display: 'inline-flex', alignItems: 'center', gap: 5,
+        }}><Icon name="ai-summary" size={11} /> AI Summary</span>
 
         <span style={{
           fontSize: 10, fontWeight: 700, letterSpacing: '0.06em',

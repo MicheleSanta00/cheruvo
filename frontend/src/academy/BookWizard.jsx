@@ -9,6 +9,7 @@ import { bookUpload, bookJob, bookGenerate, bookRegenerate, bookPublish, getLess
 import { myClasses } from './classroomApi.js'
 import LessonRenderer from './LessonRenderer.jsx'
 import LessonForm from './LessonForm.jsx'
+import Icon from '../components/Icon.jsx'
 import { pick } from './academyStrings.js'
 
 const ACC = '#34d399'
@@ -242,7 +243,7 @@ export default function BookWizard({ lang, s, onDone }) {
 
       {step === 'progress' && (
         <div style={{ textAlign: 'center', padding: '46px 10px' }}>
-          <div style={{ fontSize: 30 }}>🧠</div>
+          <div><Icon name="ai-brain" size={34} color={ACC} /></div>
           <h2 style={{ ...h2, marginTop: 8 }}>{phase === 'extract' ? s.bkWorkingExtract : s.bkWorkingGen}</h2>
           <div style={{ height: 7, background: 'var(--near-black)', border: '1px solid var(--border)', borderRadius: 99, margin: '18px auto 12px', maxWidth: 420, overflow: 'hidden' }}>
             <div style={{ height: '100%', width: `${(job && job.progress) || 3}%`, background: ACC, borderRadius: 99, transition: 'width .6s' }} />

@@ -1,6 +1,7 @@
 import { useState, useRef, useEffect } from 'react'
 import { createPortal } from 'react-dom'
 import apiFetch from '../apiFetch.js'
+import Icon from './Icon.jsx'
 
 // Crea un container nel body se non esiste
 function getPortalContainer() {
@@ -98,7 +99,7 @@ export default function ChatWidget({ ticker, sentimentScore, topNews }) {
               width: 32, height: 32, borderRadius: 10,
               background: 'var(--blue)', display: 'flex', alignItems: 'center', justifyContent: 'center',
               fontSize: 16,
-            }}>🧠</div>
+            }}><Icon name="ai-brain" size={18} color="#fff" /></div>
             <div>
               <div style={{ fontSize: 13, fontWeight: 600 }}>Assistente Cheruvo</div>
               <div style={{ fontSize: 11, color: 'var(--muted)' }}>Powered by Llama 3 · Groq</div>
@@ -220,7 +221,7 @@ export default function ChatWidget({ ticker, sentimentScore, topNews }) {
         onMouseEnter={e => e.currentTarget.style.transform = 'scale(1.1)'}
         onMouseLeave={e => e.currentTarget.style.transform = 'scale(1)'}
       >
-        {open ? '✕' : '🧠'}
+        {open ? '✕' : <Icon name="ai-brain" size={26} color="#fff" />}
       </button>
     </>,
     container

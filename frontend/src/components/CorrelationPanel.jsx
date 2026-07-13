@@ -4,6 +4,7 @@ import {
   XAxis, YAxis, CartesianGrid, Tooltip,
   ResponsiveContainer, ReferenceLine,
 } from 'recharts'
+import Icon from './Icon.jsx'
 
 // ── Pearson correlation ───────────────────────────────────────────────────────
 function pearson(x, y) {
@@ -291,8 +292,8 @@ function Header() {
           color: '#60a5fa', background: 'rgba(96,165,250,0.1)',
           padding: '3px 9px', borderRadius: 100,
           border: '1px solid rgba(96,165,250,0.2)',
-          textTransform: 'uppercase',
-        }}>📡 Correlazione</span>
+          textTransform: 'uppercase', display: 'inline-flex', alignItems: 'center', gap: 5,
+        }}><Icon name="correlation" size={11} /> Correlazione</span>
         <h3 style={{ fontFamily: 'var(--serif)', fontSize: 18, fontWeight: 400, letterSpacing: '-0.02em', margin: 0 }}>
           Sentiment → Prezzo D+1
         </h3>

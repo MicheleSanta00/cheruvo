@@ -13,7 +13,7 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 2
     # Gira solo sul cron dei 10 minuti, non sul cron delle 4 volte/giorno
-    if: github.event_name == 'schedule' && contains('*/10 * * * *', '')
+    if: github.event_name == 'schedule' && github.event.schedule == '*/10 * * * *'
 
     steps:
       - name: Ping backend
