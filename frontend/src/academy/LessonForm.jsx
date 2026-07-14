@@ -5,6 +5,7 @@
 import { useState } from 'react'
 import { SIM_MODELS } from './simModels.js'
 import { pick } from './academyStrings.js'
+import Icon from '../components/Icon.jsx'
 
 const EMPTY = { it: '', en: '' }
 const blankL = () => ({ it: '', en: '' })
@@ -116,7 +117,7 @@ export default function LessonForm({ type, content, onContent, lang, s, onAI, ai
                       <option value="">{s.theEnd}</option>
                       {ids.filter((x) => x !== id).map((x) => <option key={x} value={x}>{s.scene} {ids.indexOf(x) + 1}</option>)}
                     </select>
-                    {content.nodes[id].choices.length > 1 && <button style={linkDanger} onClick={() => up((n) => n.nodes[id].choices.splice(chi, 1))}>×</button>}
+                    {content.nodes[id].choices.length > 1 && <button style={{ ...linkDanger, display: 'inline-flex', alignItems: 'center' }} onClick={() => up((n) => n.nodes[id].choices.splice(chi, 1))}><Icon name="close" size={12} /></button>}
                   </div>
                 </div>
               ))}

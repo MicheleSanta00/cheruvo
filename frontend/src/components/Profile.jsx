@@ -3,6 +3,7 @@ import { supabase } from '../supabase.js'
 import { useLang } from '../LangContext.jsx'
 import { getConsent, setConsent } from '../analytics.js'
 import apiFetch from '../apiFetch.js'
+import Icon from './Icon.jsx'
 
 export default function Profile({ user, isPro, onClose, onUpgrade }) {
   const { t, lang } = useLang()
@@ -56,8 +57,9 @@ export default function Profile({ user, isPro, onClose, onUpgrade }) {
             position: 'absolute', top: 16, right: 16,
             background: 'transparent', color: 'var(--muted)',
             fontSize: 18, border: 'none', cursor: 'pointer',
+            display: 'flex', alignItems: 'center',
           }}
-        >✕</button>
+        ><Icon name="close" size={18} /></button>
 
         <div style={{
           width: 56, height: 56, borderRadius: '50%',

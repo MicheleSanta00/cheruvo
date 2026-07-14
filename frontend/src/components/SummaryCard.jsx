@@ -3,9 +3,9 @@ import apiFetch from '../apiFetch.js'
 import Icon from './Icon.jsx'
 
 const COLORI = {
-  bullish: { accent: '#34d399', bg: 'rgba(52,211,153,0.08)', border: 'rgba(52,211,153,0.2)', badge: '#34d399', emoji: '📈' },
-  bearish: { accent: '#f87171', bg: 'rgba(248,113,113,0.08)', border: 'rgba(248,113,113,0.2)', badge: '#f87171', emoji: '📉' },
-  neutro:  { accent: '#8a94a6', bg: 'rgba(138,148,166,0.06)', border: 'rgba(138,148,166,0.15)', badge: '#8a94a6', emoji: '➡️' },
+  bullish: { accent: '#34d399', bg: 'rgba(52,211,153,0.08)', border: 'rgba(52,211,153,0.2)', badge: '#34d399', icon: 'bullish' },
+  bearish: { accent: '#f87171', bg: 'rgba(248,113,113,0.08)', border: 'rgba(248,113,113,0.2)', badge: '#f87171', icon: 'bearish' },
+  neutro:  { accent: '#8a94a6', bg: 'rgba(138,148,166,0.06)', border: 'rgba(138,148,166,0.15)', badge: '#8a94a6', icon: 'neutral' },
 }
 
 export default function SummaryCard({ ticker, isPro, onUpgrade }) {
@@ -55,9 +55,9 @@ export default function SummaryCard({ ticker, isPro, onUpgrade }) {
             fontSize: 12, color: '#a78bfa', fontWeight: 600,
             padding: '7px 16px', background: 'rgba(167,139,250,0.12)',
             borderRadius: 100, border: '1px solid rgba(167,139,250,0.3)',
-            cursor: 'pointer', width: '100%',
+            cursor: 'pointer', width: '100%', display: 'inline-flex', alignItems: 'center', justifyContent: 'center', gap: 6,
           }}>
-            🔒 Disponibile con Pro — €9/mese
+            <Icon name="lock" size={12} /> Disponibile con Pro — €9/mese
           </button>
         </>
       ) : (
@@ -89,9 +89,9 @@ export default function SummaryCard({ ticker, isPro, onUpgrade }) {
           color: c.badge, background: 'rgba(0,0,0,0.2)',
           padding: '3px 9px', borderRadius: 100,
           border: `1px solid ${c.border}`,
-          textTransform: 'uppercase',
+          textTransform: 'uppercase', display: 'inline-flex', alignItems: 'center', gap: 5,
         }}>
-          {c.emoji} {data.giudizio}
+          <Icon name={c.icon} size={11} /> {data.giudizio}
         </span>
 
         <span style={{ marginLeft: 'auto', fontSize: 10, color: 'var(--muted)' }}>
@@ -129,9 +129,9 @@ export default function SummaryCard({ ticker, isPro, onUpgrade }) {
               fontSize: 11, color: '#a78bfa', fontWeight: 600,
               padding: '5px 14px', background: 'rgba(167,139,250,0.12)',
               borderRadius: 100, border: '1px solid rgba(167,139,250,0.25)',
-              cursor: 'pointer',
+              cursor: 'pointer', display: 'inline-flex', alignItems: 'center', gap: 6,
             }}>
-              🔒 Passa a PRO per il riassunto completo
+              <Icon name="lock" size={11} /> Passa a PRO per il riassunto completo
             </button>
           </div>
         )}

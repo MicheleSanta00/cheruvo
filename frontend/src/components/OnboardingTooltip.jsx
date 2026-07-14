@@ -1,27 +1,32 @@
 import { useState, useEffect } from 'react'
+import Icon from './Icon.jsx'
 
 const STEPS = [
   {
     target: 'sidebar-search',
-    title: '🔍 Cerca un\'azione',
+    icon: 'search',
+    title: 'Cerca un\'azione',
     desc: 'Scrivi il simbolo di qualsiasi azione — americana o europea. Es: NVDA, AAPL, ENI.MI, ENEL.MI',
     position: 'right',
   },
   {
     target: 'kpi-avg',
-    title: '📊 Cos\'è il sentiment score?',
+    icon: 'score',
+    title: 'Cos\'è il sentiment score?',
     desc: 'È un numero da −1 a +1 che misura l\'umore del mercato su quell\'azione. Vicino a +1 = ottimismo, vicino a −1 = pessimismo.',
     position: 'right',
   },
   {
     target: 'chart-area',
-    title: '📈 Il grafico nel tempo',
+    icon: 'charts',
+    title: 'Il grafico nel tempo',
     desc: 'Vedi come cambia il sentiment giorno per giorno sovrapposto al prezzo reale. Se il sentiment sale prima del prezzo, potresti coglierlo in anticipo.',
     position: 'top',
   },
   {
     target: 'top-news',
-    title: '📰 Le notizie più impattanti',
+    icon: 'news',
+    title: 'Le notizie più impattanti',
     desc: 'Le notizie più rialziste e ribassiste del momento, con il loro score. Clicca per leggere l\'articolo originale.',
     position: 'top',
   },
@@ -157,8 +162,8 @@ export default function OnboardingTooltip({ hasData }) {
           ))}
         </div>
 
-        <div style={{ fontSize: 14, fontWeight: 600, marginBottom: 8, letterSpacing: '-.01em' }}>
-          {current.title}
+        <div style={{ fontSize: 14, fontWeight: 600, marginBottom: 8, letterSpacing: '-.01em', display: 'flex', alignItems: 'center', gap: 7 }}>
+          <Icon name={current.icon} size={16} color="var(--azure)" /> {current.title}
         </div>
         <div style={{ fontSize: 13, color: 'var(--off-white)', lineHeight: 1.65, marginBottom: 16 }}>
           {current.desc}
@@ -179,7 +184,7 @@ export default function OnboardingTooltip({ hasData }) {
               borderRadius: 8, padding: '7px 18px', cursor: 'pointer', whiteSpace: 'nowrap',
             }}
           >
-            {step === 0 ? 'Ho capito 👍' : step < STEPS.length - 1 ? 'Avanti →' : 'Inizia →'}
+            {step === 0 ? 'Ho capito' : step < STEPS.length - 1 ? 'Avanti' : 'Inizia'}
           </button>
         </div>
       </div>

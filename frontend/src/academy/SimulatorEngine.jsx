@@ -4,6 +4,7 @@
  */
 import { useState } from 'react'
 import { SIM_MODELS } from './simModels.js'
+import Icon from '../components/Icon.jsx'
 import { pick } from './academyStrings.js'
 
 const eur = (n) => '€' + Math.round(n).toLocaleString('it-IT')
@@ -66,8 +67,8 @@ export default function SimulatorEngine({ content, lang = 'it', strings = {}, mo
 
       {content.teach && (pick(content.teach, lang)) && (
         <div style={{ display: 'flex', gap: 10, marginTop: 14, background: 'rgba(106,166,255,0.08)',
-          border: '1px solid rgba(106,166,255,0.2)', borderRadius: 10, padding: '11px 13px', fontSize: 13.5, color: '#c9dbff' }}>
-          💡 <div>{pick(content.teach, lang)}</div>
+          border: '1px solid rgba(106,166,255,0.2)', borderRadius: 10, padding: '11px 13px', fontSize: 13.5, color: '#c9dbff', alignItems: 'flex-start' }}>
+          <Icon name="idea" size={16} color="#c9dbff" style={{ marginTop: 1 }} /> <div>{pick(content.teach, lang)}</div>
         </div>
       )}
 

@@ -128,7 +128,7 @@ export default function MarketToday({ onExit, onPick, onUpgrade }) {
                 return (
                   <button key={r.ticker} onClick={() => onPick(r.ticker)} style={rowStyle} title={s.open}>
                     <b style={{ fontSize: 14, width: 76, textAlign: 'left' }}>{r.ticker}</b>
-                    <span style={{ fontSize: 12, color: '#f5c451', flex: 1, textAlign: 'left' }}>📅 {when}</span>
+                    <span style={{ fontSize: 12, color: '#f5c451', flex: 1, textAlign: 'left', display: 'inline-flex', alignItems: 'center', gap: 5 }}><Icon name="recent" size={12} color="#f5c451" /> {when}</span>
                     {earn.is_pro ? (
                       r.sentiment != null ? (
                         <>
@@ -161,7 +161,7 @@ export default function MarketToday({ onExit, onPick, onUpgrade }) {
                 background: 'rgba(245,196,81,0.06)', border: '1px solid rgba(245,196,81,0.25)',
                 borderRadius: 10, padding: '10px 14px',
               }}>
-                <span style={{ fontSize: 12.5, color: 'var(--muted)', flex: 1 }}>🔒 {s.lockLine}</span>
+                <span style={{ fontSize: 12.5, color: 'var(--muted)', flex: 1, display: 'inline-flex', alignItems: 'center', gap: 6 }}><Icon name="lock" size={12} /> {s.lockLine}</span>
                 {onUpgrade && (
                   <button onClick={onUpgrade} style={{
                     fontSize: 12, fontWeight: 600, color: '#f5c451', background: 'rgba(245,196,81,0.12)',

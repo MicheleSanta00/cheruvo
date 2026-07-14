@@ -2,6 +2,7 @@ import { useState, useEffect, useRef } from 'react'
 import { supabase } from '../supabase.js'
 import { TICKERS } from '../data/tickers.js'
 import { useLang } from '../LangContext.jsx'
+import Icon from './Icon.jsx'
 
 const PERIODS_FREE = [{ v: '1mo', l: '1M' }, { v: '3mo', l: '3M' }]
 const PERIODS_PRO  = [{ v: '1mo', l: '1M' }, { v: '3mo', l: '3M' }, { v: '6mo', l: '6M' }, { v: '1y', l: '1A' }]
@@ -125,8 +126,8 @@ export default function Sidebar({ ticker, days, period, onLoad, onFetch, loading
           />
           <button
             onClick={() => { setShowSuggestions(false); submit() }}
-            style={{ background: 'var(--blue)', color: 'white', borderRadius: 7, padding: '0 12px', fontSize: 13, fontWeight: 500 }}
-          >→</button>
+            style={{ background: 'var(--blue)', color: 'white', borderRadius: 7, padding: '0 12px', fontSize: 13, fontWeight: 500, display: 'flex', alignItems: 'center' }}
+          ><Icon name="arrow-right" size={16} color="#fff" /></button>
         </div>
 
         {showSuggestions && (
@@ -199,8 +200,8 @@ export default function Sidebar({ ticker, days, period, onLoad, onFetch, loading
               >{tk}</button>
               <button
                 onClick={() => removeTicker(tk)}
-                style={{ fontSize: 11, color: 'var(--muted)', background: 'transparent', padding: '2px 4px', opacity: 0.5 }}
-              >✕</button>
+                style={{ fontSize: 11, color: 'var(--muted)', background: 'transparent', padding: '2px 4px', opacity: 0.5, display: 'flex', alignItems: 'center' }}
+              ><Icon name="close" size={12} /></button>
             </div>
           ))}
 
@@ -238,7 +239,7 @@ export default function Sidebar({ ticker, days, period, onLoad, onFetch, loading
       <div>
         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '0 8px', marginBottom: 4 }}>
           <Label style={{ padding: 0 }}>{t.sidebar.daysLabel(days)}</Label>
-          {!isPro && <span style={{ fontSize: 10, color: 'var(--muted)' }}>🔒 {t.sidebar.maxDays}</span>}
+          {!isPro && <span style={{ fontSize: 10, color: 'var(--muted)', display: 'inline-flex', alignItems: 'center', gap: 4 }}><Icon name="lock" size={10} /> {t.sidebar.maxDays}</span>}
         </div>
         <input
           type="range" min={7} max={maxDays} value={Math.min(days, maxDays)}
@@ -273,7 +274,7 @@ export default function Sidebar({ ticker, days, period, onLoad, onFetch, loading
                 }}
                 title={isLocked ? t.sidebar.locked : ''}
               >
-                {isLocked ? '🔒' : ''}{p.l}
+                {isLocked && <Icon name="lock" size={10} style={{ marginRight: 3 }} />}{p.l}
               </button>
             )
           })}

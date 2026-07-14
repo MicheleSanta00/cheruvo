@@ -4,6 +4,7 @@
  *        strings (testi UI), onComplete({correct}).
  */
 import { useState } from 'react'
+import Icon from '../components/Icon.jsx'
 import { pick } from './academyStrings.js'
 
 const GREEN = '#34d399'
@@ -25,7 +26,7 @@ export default function QuizEngine({ content, lang = 'it', mode = 'play', string
   if (done) {
     return (
       <div style={{ textAlign: 'center', padding: '8px 0' }}>
-        <div style={{ fontSize: 34 }}>🎉</div>
+        <div><Icon name="celebrate" size={38} color="#f5c451" /></div>
         <div style={{ fontSize: 18, fontWeight: 600, margin: '6px 0' }}>{strings.lessonDone}</div>
         <div style={{ color: 'var(--muted)', fontSize: 14 }}>{correct}/{questions.length} · +{correct * 20 + 50} {strings.xpEarned}</div>
         {mode === 'play' ? (
@@ -54,7 +55,7 @@ export default function QuizEngine({ content, lang = 'it', mode = 'play', string
     <div>
       <div style={{ display: 'flex', justifyContent: 'space-between', color: 'var(--muted)', fontSize: 12, marginBottom: 10 }}>
         <span>{strings.question} {idx + 1}/{questions.length}</span>
-        <span>{correct} ✓</span>
+        <span style={{ display: 'inline-flex', alignItems: 'center', gap: 4 }}>{correct} <Icon name="check" size={12} color="#34d399" /></span>
       </div>
       <div style={{ fontSize: 16, fontWeight: 600, marginBottom: 14 }}>{pick(q.q, lang)}</div>
 
@@ -82,8 +83,8 @@ export default function QuizEngine({ content, lang = 'it', mode = 'play', string
       )}
 
       {answered && (
-        <button onClick={next} style={primaryBtn}>
-          {idx + 1 < questions.length ? strings.next + ' →' : strings.finish}
+        <button onClick={next} style={{ ...primaryBtn, display: 'inline-flex', alignItems: 'center', gap: 6 }}>
+          {idx + 1 < questions.length ? <>{strings.next} <Icon name="arrow-right" size={14} color="#04221a" /></> : strings.finish}
         </button>
       )}
     </div>

@@ -6,6 +6,7 @@ import { useState, useEffect, useRef } from 'react'
 import { getClass, createPost, deletePost, getMessages, sendMessage, leaveClass, uploadClassFile } from './classroomApi.js'
 import { getPaths, myLessons } from './academyApi.js'
 import { pick } from './academyStrings.js'
+import Icon from '../components/Icon.jsx'
 
 const ACC = '#34d399'
 const postKind = (k, s) => k === 'announcement' ? s.announcement : k === 'material' ? s.material : k === 'lesson' ? s.assignLesson : k === 'file' ? s.uploadFile : k
@@ -79,7 +80,7 @@ export default function ClassView({ classId, s, lang, onBack, onOpenLesson }) {
 
   return (
     <div>
-      <button style={ghost} onClick={onBack}>← {s.classes}</button>
+      <button style={{ ...ghost, display: 'inline-flex', alignItems: 'center', gap: 6 }} onClick={onBack}><Icon name="arrow-left" size={14} /> {s.classes}</button>
 
       <div style={{ ...card, marginTop: 14 }}>
         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: 10, flexWrap: 'wrap' }}>
@@ -127,12 +128,12 @@ export default function ClassView({ classId, s, lang, onBack, onOpenLesson }) {
               <div key={p.id} style={card}>
                 <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: 11.5, color: 'var(--muted)', marginBottom: 6 }}>
                   <span>{postKind(p.kind, s)} · {p.author}</span>
-                  {data.is_teacher && <button style={linkDanger} onClick={async () => { await deletePost(p.id); load() }}>×</button>}
+                  {data.is_teacher && <button style={{ ...linkDanger, display: 'inline-flex', alignItems: 'center' }} onClick={async () => { await deletePost(p.id); load() }}><Icon name="close" size={13} /></button>}
                 </div>
                 {p.text && <div style={{ fontSize: 14, marginBottom: 6, whiteSpace: 'pre-wrap' }}>{p.text}</div>}
                 {p.kind === 'material' && p.url && <a href={p.url} target="_blank" rel="noreferrer" style={linkA}>{p.url}</a>}
-                {p.kind === 'file' && p.url && <a href={p.url} target="_blank" rel="noreferrer" style={linkA}>📎 {p.file_name || 'file'}</a>}
-                {p.kind === 'lesson' && p.lesson_id && <button style={primary} onClick={() => onOpenLesson(p.lesson_id)}>📘 {s.openLesson}</button>}
+                {p.kind === 'file' && p.url && <a href={p.url} target="_blank" rel="noreferrer" style={{ ...linkA, display: 'inline-flex', alignItems: 'center', gap: 5 }}><Icon name="attachment" size={13} /> {p.file_name || 'file'}</a>}
+                {p.kind === 'lesson' && p.lesson_id && <button style={{ ...primary, display: 'inline-flex', alignItems: 'center', gap: 6 }} onClick={() => onOpenLesson(p.lesson_id)}><Icon name="lesson" size={14} color="#04221a" /> {s.openLesson}</button>}
               </div>
             ))}
             {!data.posts.length && <div style={{ color: 'var(--muted)', fontSize: 13 }}>—</div>}

@@ -14,12 +14,12 @@ import { pick } from './academyStrings.js'
 
 const ACC = '#34d399'
 const TYPES = [
-  { t: 'quiz', icon: '❓', label: { it: 'Quiz', en: 'Quiz' } },
-  { t: 'flashcard', icon: '🃏', label: { it: 'Flashcard', en: 'Flashcards' } },
-  { t: 'scenario', icon: '🌿', label: { it: 'Scenario', en: 'Scenario' } },
-  { t: 'simulator', icon: '🎚️', label: { it: 'Simulatore', en: 'Simulator' } },
+  { t: 'quiz', icon: 'quiz', label: { it: 'Quiz', en: 'Quiz' } },
+  { t: 'flashcard', icon: 'flashcards', label: { it: 'Flashcard', en: 'Flashcards' } },
+  { t: 'scenario', icon: 'scenario', label: { it: 'Scenario', en: 'Scenario' } },
+  { t: 'simulator', icon: 'simulator', label: { it: 'Simulatore', en: 'Simulator' } },
 ]
-const typeIcon = (t) => (TYPES.find((x) => x.t === t) || {}).icon || '📘'
+const typeIcon = (t) => (TYPES.find((x) => x.t === t) || {}).icon || 'lesson'
 
 export default function BookWizard({ lang, s, onDone }) {
   const [step, setStep] = useState('upload')      // upload | toc | config | progress | review | assign | done
@@ -143,7 +143,7 @@ export default function BookWizard({ lang, s, onDone }) {
   // ── UI ──
   return (
     <div style={{ maxWidth: 720 }}>
-      <div style={eyebrow}>📖 {s.bkTitle}</div>
+      <div style={{ ...eyebrow, display: 'flex', alignItems: 'center', gap: 6 }}><Icon name="book" size={13} /> {s.bkTitle}</div>
       {err && <div style={errBox}>{err}</div>}
 
       {step === 'upload' && (
@@ -152,17 +152,17 @@ export default function BookWizard({ lang, s, onDone }) {
           <input ref={pdfRef} type="file" accept="application/pdf,.pdf" style={{ display: 'none' }} onChange={onPick} />
           <input ref={photoRef} type="file" accept="image/*" multiple capture="environment" style={{ display: 'none' }} onChange={onPick} />
           <button style={drop} onClick={() => pdfRef.current && pdfRef.current.click()}>
-            <div style={{ fontSize: 26 }}>📄</div>
+            <div><Icon name="upload-pdf" size={28} /></div>
             <b>{s.bkUploadPdf}</b>
             <div style={dropSub}>{s.bkUploadPdfSub}</div>
           </button>
           <button style={{ ...drop, marginTop: 10 }} onClick={() => photoRef.current && photoRef.current.click()}>
-            <div style={{ fontSize: 26 }}>📷</div>
+            <div><Icon name="camera" size={28} /></div>
             <b>{s.bkUploadPhotos}</b>
             <div style={dropSub}>{s.bkUploadPhotosSub}</div>
           </button>
           {files.length > 0 && (
-            <div style={fileSel}>📎 {files.length === 1 ? files[0].name : `${files.length} foto`} <span style={{ color: ACC, marginLeft: 'auto' }}>✓</span></div>
+            <div style={fileSel}><Icon name="attachment" size={14} /> {files.length === 1 ? files[0].name : `${files.length} foto`} <Icon name="check" size={14} color={ACC} style={{ marginLeft: 'auto' }} /></div>
           )}
           <div style={privacy}>{s.bkPrivacy}</div>
           <div style={foot}>
@@ -223,9 +223,9 @@ export default function BookWizard({ lang, s, onDone }) {
               <div><b style={{ fontSize: 14.5 }}>{s.bkTypes}</b></div>
               <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap' }}>
                 {TYPES.map((ty) => (
-                  <button key={ty.t} style={types.includes(ty.t) ? segOn : seg}
+                  <button key={ty.t} style={{ ...(types.includes(ty.t) ? segOn : seg), display: 'inline-flex', alignItems: 'center', gap: 5 }}
                     onClick={() => setTypes((prev) => prev.includes(ty.t) ? prev.filter((x) => x !== ty.t) : [...prev, ty.t])}>
-                    {ty.icon} {pick(ty.label, lang)}
+                    <Icon name={ty.icon} size={13} /> {pick(ty.label, lang)}
                   </button>
                 ))}
               </div>
@@ -261,7 +261,7 @@ export default function BookWizard({ lang, s, onDone }) {
             {lessons.map((l) => (
               <div key={l.id} style={card}>
                 <div style={{ display: 'flex', alignItems: 'center', gap: 10, flexWrap: 'wrap', marginBottom: 10 }}>
-                  <span style={{ fontSize: 19 }}>{typeIcon(l.type)}</span>
+                  <Icon name={typeIcon(l.type)} size={19} />
                   <div style={{ flex: 1, minWidth: 160 }}>
                     <b style={{ fontSize: 14.5 }}>{pick(l.title, lang) || '—'}</b>
                     <div style={{ fontSize: 11.5, color: 'var(--muted)' }}>{l.chapter} · {l.level}</div>
@@ -310,7 +310,7 @@ export default function BookWizard({ lang, s, onDone }) {
             <div style={{ display: 'grid', gap: 8 }}>
               {classes.map((c) => (
                 <button key={c.id} style={{ ...classRow, borderColor: classId === c.id ? ACC : 'var(--border)' }} onClick={() => setClassId(c.id)}>
-                  <span>🏫 <b>{c.name}</b></span>
+                  <span style={{ display: 'inline-flex', alignItems: 'center', gap: 6 }}><Icon name="school" size={15} /> <b>{c.name}</b></span>
                   <span style={{ color: 'var(--muted)', fontSize: 12 }}>{c.members} {s.membersLabel} · {c.join_code}</span>
                 </button>
               ))}
@@ -332,7 +332,7 @@ export default function BookWizard({ lang, s, onDone }) {
 
       {step === 'done' && (
         <div style={{ textAlign: 'center', padding: '46px 10px' }}>
-          <div style={{ width: 62, height: 62, borderRadius: '50%', background: ACC, color: '#04221a', fontSize: 30, lineHeight: '62px', margin: '0 auto 14px' }}>✓</div>
+          <div style={{ width: 62, height: 62, borderRadius: '50%', background: ACC, color: '#04221a', display: 'flex', alignItems: 'center', justifyContent: 'center', margin: '0 auto 14px' }}><Icon name="check" size={32} color="#04221a" /></div>
           <h2 style={h2}>{s.bkDoneTitle}</h2>
           <div style={{ color: 'var(--muted)', fontSize: 14, margin: '6px 0 20px' }}>{lessons.length} {s.bkSummary1} — {s.bkDoneSub}</div>
           <div style={{ display: 'flex', gap: 10, justifyContent: 'center', flexWrap: 'wrap' }}>

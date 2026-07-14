@@ -3,6 +3,7 @@
  * "da rivedere" tornano in coda). Riusato per giocare e per l'anteprima.
  */
 import { useState } from 'react'
+import Icon from '../components/Icon.jsx'
 import { pick } from './academyStrings.js'
 
 export default function FlashcardEngine({ content, lang = 'it', strings = {}, mode = 'play', onComplete }) {
@@ -19,7 +20,7 @@ export default function FlashcardEngine({ content, lang = 'it', strings = {}, mo
   if (done || !queue.length) {
     return (
       <div style={{ textAlign: 'center', padding: '8px 0' }}>
-        <div style={{ fontSize: 34 }}>🎉</div>
+        <div><Icon name="celebrate" size={38} color="#f5c451" /></div>
         <div style={{ fontSize: 18, fontWeight: 600, margin: '6px 0' }}>{strings.lessonDone}</div>
         <div style={{ color: 'var(--muted)', fontSize: 14 }}>{known}/{deck.length} · +{known * 20 + 50} {strings.xpEarned}</div>
         {mode === 'play'
@@ -37,7 +38,7 @@ export default function FlashcardEngine({ content, lang = 'it', strings = {}, mo
     <div>
       <div style={{ display: 'flex', justifyContent: 'space-between', color: 'var(--muted)', fontSize: 12, marginBottom: 10 }}>
         <span>{queue.length} {strings.cardsLeft}</span>
-        <span>{known} ✓</span>
+        <span style={{ display: 'inline-flex', alignItems: 'center', gap: 4 }}>{known} <Icon name="check" size={12} color="#34d399" /></span>
       </div>
 
       <div onClick={() => setFlip((f) => !f)} style={{ cursor: 'pointer', minHeight: 130, display: 'flex',

@@ -127,11 +127,11 @@ export default function CorrelationPanel({ prices, sentiment, isPro, onUpgrade }
     : c > 0.3 ? '#4ade80' : c < -0.3 ? '#f87171' : '#facc15'
   const corrLabel = c => {
     if (c == null) return 'N/D'
-    if (c > 0.6)  return 'Forte positiva 🚀'
-    if (c > 0.3)  return 'Moderata positiva 📈'
-    if (c < -0.6) return 'Forte negativa 🔻'
-    if (c < -0.3) return 'Moderata negativa 📉'
-    return 'Debole / assente ➡️'
+    if (c > 0.6)  return 'Forte positiva'
+    if (c > 0.3)  return 'Moderata positiva'
+    if (c < -0.6) return 'Forte negativa'
+    if (c < -0.3) return 'Moderata negativa'
+    return 'Debole / assente'
   }
 
   // Se non ci sono abbastanza dati
@@ -236,15 +236,15 @@ export default function CorrelationPanel({ prices, sentiment, isPro, onUpgrade }
             alignItems: 'center', justifyContent: 'center',
             gap: 8,
           }}>
-            <div style={{ fontSize: 13, color: 'var(--off-white)', fontWeight: 500 }}>
-              🔒 Scatter plot disponibile con Pro
+            <div style={{ fontSize: 13, color: 'var(--off-white)', fontWeight: 500, display: 'flex', alignItems: 'center', gap: 6 }}>
+              <Icon name="lock" size={13} /> Scatter plot disponibile con Pro
             </div>
             <button onClick={onUpgrade} style={{
               fontSize: 12, color: '#a78bfa', fontWeight: 600,
               padding: '7px 18px', background: 'rgba(167,139,250,0.12)',
               borderRadius: 100, border: '1px solid rgba(167,139,250,0.3)',
-              cursor: 'pointer',
-            }}>⚡ Passa a Pro — €9/mese</button>
+              cursor: 'pointer', display: 'inline-flex', alignItems: 'center', gap: 6,
+            }}><Icon name="bolt" size={12} /> Passa a Pro — €9/mese</button>
           </div>
         )}
       </div>

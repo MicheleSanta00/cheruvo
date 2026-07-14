@@ -4,6 +4,7 @@
  */
 import { useState, useEffect } from 'react'
 import { getMe, updateMe } from './academyApi.js'
+import Icon from '../components/Icon.jsx'
 
 export default function UserSettings({ s, onSaved }) {
   const [p, setP] = useState({ display_name: '', leaderboard_opt_in: false, role: 'student' })
@@ -31,8 +32,8 @@ export default function UserSettings({ s, onSaved }) {
 
         <label style={lbl}>{s.roleLabel}</label>
         <div style={{ display: 'flex', gap: 8, marginBottom: 14 }}>
-          <button style={p.role === 'student' ? roleOn : roleOff} onClick={() => setP((x) => ({ ...x, role: 'student' }))}>🧑‍🎓 {s.roleStudent}</button>
-          <button style={p.role === 'teacher' ? roleOn : roleOff} onClick={() => setP((x) => ({ ...x, role: 'teacher' }))}>🧑‍🏫 {s.roleTeacher}</button>
+          <button style={{ ...(p.role === 'student' ? roleOn : roleOff), display: 'inline-flex', alignItems: 'center', justifyContent: 'center', gap: 7 }} onClick={() => setP((x) => ({ ...x, role: 'student' }))}><Icon name="student" size={16} /> {s.roleStudent}</button>
+          <button style={{ ...(p.role === 'teacher' ? roleOn : roleOff), display: 'inline-flex', alignItems: 'center', justifyContent: 'center', gap: 7 }} onClick={() => setP((x) => ({ ...x, role: 'teacher' }))}><Icon name="teacher" size={16} /> {s.roleTeacher}</button>
         </div>
 
         <label style={lbl}>{s.nickname}</label>

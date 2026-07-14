@@ -215,15 +215,17 @@ export default function App() {
                   fontSize: 11, color: isPro ? 'var(--muted)' : 'rgba(255,255,255,0.2)',
                   border: '1px solid var(--border)', borderRadius: 6,
                   padding: '4px 10px', background: 'transparent', cursor: 'pointer',
+                  display: 'inline-flex', alignItems: 'center', gap: 5,
                 }}>
-                  {isPro ? '↓ PDF' : '🔒 PDF'}
+                  <Icon name={isPro ? 'pdf' : 'lock'} size={12} /> PDF
                 </button>
                 <button onClick={handleExport} className="hide-mobile" style={{
                   fontSize: 11, color: isPro ? 'var(--muted)' : 'rgba(255,255,255,0.2)',
                   border: '1px solid var(--border)', borderRadius: 6,
+                  display: 'inline-flex', alignItems: 'center', gap: 5,
                   padding: '4px 10px', background: 'transparent', cursor: 'pointer',
                 }}>
-                  {isPro ? t.header.csv : t.header.csvLocked}
+                  <Icon name={isPro ? 'csv' : 'lock'} size={12} /> CSV
                 </button>
               </>
             )}
@@ -306,8 +308,8 @@ export default function App() {
                       color: 'var(--muted)', marginBottom: showStats ? 12 : 0,
                     }}
                   >
-                    <span>📊 Analytics avanzate</span>
-                    <span style={{ transition: 'transform .2s', transform: showStats ? 'rotate(180deg)' : 'none' }}>▾</span>
+                    <span style={{ display: 'inline-flex', alignItems: 'center', gap: 6 }}><Icon name="analytics" size={13} /> Analytics avanzate</span>
+                    <Icon name="chevron-down" size={14} style={{ transition: 'transform .2s', transform: showStats ? 'rotate(180deg)' : 'none' }} />
                   </button>
                   {showStats && <Stats news={news} />}
                 </div>
@@ -494,11 +496,11 @@ function EmptyState({ t, onLoad, days, period }) {
               position: 'absolute', top: 12, right: 12,
               background: 'transparent', color: 'var(--muted)',
               fontSize: 16, padding: '2px 6px', borderRadius: 4,
-              border: '1px solid transparent',
+              border: '1px solid transparent', display: 'flex', alignItems: 'center',
             }}
-          >✕</button>
-          <div style={{ fontSize: 13, fontWeight: 600, color: 'var(--azure)', marginBottom: 6 }}>
-            👋 {t.empty.welcomeTitle}
+          ><Icon name="close" size={15} /></button>
+          <div style={{ fontSize: 13, fontWeight: 600, color: 'var(--azure)', marginBottom: 6, display: 'flex', alignItems: 'center', gap: 7 }}>
+            <Icon name="welcome" size={16} /> {t.empty.welcomeTitle}
           </div>
           <div style={{ fontSize: 13, color: 'var(--muted)', lineHeight: 1.7 }}>
             {t.empty.welcomeDesc}

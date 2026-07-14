@@ -13,6 +13,7 @@ import Classroom from './Classroom.jsx'
 import ClassView from './ClassView.jsx'
 import UserSettings from './UserSettings.jsx'
 import BookWizard from './BookWizard.jsx'
+import Icon from '../components/Icon.jsx'
 
 export default function Academy({ user, onExit }) {
   const { lang, toggleLang } = useLang()
@@ -59,12 +60,12 @@ export default function Academy({ user, onExit }) {
           <button style={view === 'hub' || view === 'lesson' ? chipOn : chip} onClick={() => { setLesson(null); setView('hub') }}>{s.paths}</button>
           <button style={view === 'classes' || view === 'class' ? chipOn : chip} onClick={() => { setClassId(null); setView('classes') }}>{s.classes}</button>
           {(me?.profile?.role === 'teacher' || me?.is_admin) && (
-            <button style={view === 'book' ? chipOn : chip} onClick={() => setView('book')}>📖 {s.bookChip}</button>
+            <button style={{ ...(view === 'book' ? chipOn : chip), display: 'inline-flex', alignItems: 'center', gap: 5 }} onClick={() => setView('book')}><Icon name="book" size={13} /> {s.bookChip}</button>
           )}
           {me?.is_admin && (
             <button style={view === 'workspace' ? chipOn : chip} onClick={() => setView(view === 'workspace' ? 'hub' : 'workspace')}>{s.workspace}</button>
           )}
-          <button style={view === 'settings' ? chipOn : chip} onClick={() => setView('settings')} title={s.settings}>⚙</button>
+          <button style={{ ...(view === 'settings' ? chipOn : chip), display: 'inline-flex', alignItems: 'center' }} onClick={() => setView('settings')} title={s.settings}><Icon name="settings" size={14} /></button>
           <button style={chip} onClick={toggleLang}>{lang === 'it' ? '🇮🇹' : '🇬🇧'}</button>
           <button style={chip} onClick={onExit}>{s.backToApp}</button>
         </div>
@@ -74,12 +75,12 @@ export default function Academy({ user, onExit }) {
         {me && !me.profile?.role && (
           <div style={{ position: 'fixed', inset: 0, zIndex: 100, background: 'rgba(0,0,0,0.72)', display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 20 }}>
             <div style={{ ...card, maxWidth: 420, textAlign: 'center' }}>
-              <div style={{ fontSize: 30 }}>🎓</div>
+              <div><Icon name="academy" size={32} color={ACC} /></div>
               <div style={{ fontSize: 18, fontWeight: 600, margin: '8px 0 4px' }}>{s.chooseRole}</div>
               <div style={{ color: 'var(--muted)', fontSize: 13.5, marginBottom: 16 }}>{s.chooseRoleSub}</div>
               <div style={{ display: 'flex', gap: 10 }}>
-                <button style={roleBtn} onClick={() => pickRole('student')}>🧑‍🎓 {s.roleStudent}</button>
-                <button style={roleBtn} onClick={() => pickRole('teacher')}>🧑‍🏫 {s.roleTeacher}</button>
+                <button style={{ ...roleBtn, display: 'inline-flex', alignItems: 'center', justifyContent: 'center', gap: 7 }} onClick={() => pickRole('student')}><Icon name="student" size={16} /> {s.roleStudent}</button>
+                <button style={{ ...roleBtn, display: 'inline-flex', alignItems: 'center', justifyContent: 'center', gap: 7 }} onClick={() => pickRole('teacher')}><Icon name="teacher" size={16} /> {s.roleTeacher}</button>
               </div>
             </div>
           </div>
@@ -129,7 +130,7 @@ export default function Academy({ user, onExit }) {
                               {pick(l.title, lang)}
                             </span>
                             <span style={{ color: l.completed ? ACC : 'var(--muted)', fontSize: 12, whiteSpace: 'nowrap' }}>
-                              {l.completed ? '✓ ' + s.done : s.start + ' →'}
+                              {l.completed ? <><Icon name="check" size={12} /> {s.done}</> : <>{s.start} <Icon name="arrow-right" size={12} /></>}
                             </span>
                           </button>
                         ))}

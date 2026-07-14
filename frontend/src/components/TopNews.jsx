@@ -1,5 +1,6 @@
 import { useState } from 'react'
 import { useLang } from '../LangContext.jsx'
+import Icon from './Icon.jsx'
 
 const PAGE_SIZE = 10
 
@@ -14,8 +15,8 @@ export default function TopNews({ news, isPro, onUpgrade }) {
   const recent   = [...news].sort((a, b) => new Date(b.published_date) - new Date(a.published_date))
 
   const tabs = [
-    { id: 'top',    label: '📊 Top Bullish / Bearish' },
-    { id: 'recent', label: '🕐 Recenti' },
+    { id: 'top',    icon: 'compare', label: 'Top Bullish / Bearish' },
+    { id: 'recent', icon: 'recent',  label: 'Recenti' },
   ]
 
   return (
@@ -50,9 +51,9 @@ export default function TopNews({ news, isPro, onUpgrade }) {
               borderColor: tab === tb.id ? 'rgba(30,92,255,0.5)' : 'var(--border-br)',
               background: tab === tb.id ? 'rgba(30,92,255,0.12)' : 'transparent',
               color: tab === tb.id ? 'var(--azure)' : 'var(--muted)',
-              cursor: 'pointer',
+              cursor: 'pointer', display: 'inline-flex', alignItems: 'center', gap: 6,
             }}
-          >{tb.label}</button>
+          ><Icon name={tb.icon} size={12} /> {tb.label}</button>
         ))}
       </div>
 
@@ -79,7 +80,7 @@ export default function TopNews({ news, isPro, onUpgrade }) {
               border: '1px solid rgba(30,92,255,0.15)',
               cursor: 'pointer', textAlign: 'center',
             }}>
-              <div style={{ fontSize: 13, color: 'var(--muted)' }}>🔒 +{recent.length - 5} altre news</div>
+              <div style={{ fontSize: 13, color: 'var(--muted)', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 6 }}><Icon name="lock" size={12} /> +{recent.length - 5} altre news</div>
               <div style={{ fontSize: 12, color: 'var(--azure)', marginTop: 4 }}>{t.topNews.lockedDesc}</div>
             </button>
           )}
@@ -95,7 +96,7 @@ export default function TopNews({ news, isPro, onUpgrade }) {
                 cursor: 'pointer',
               }}
             >
-              Mostra altre {Math.min(PAGE_SIZE, recent.length - shown)} news ↓
+              Mostra altre {Math.min(PAGE_SIZE, recent.length - shown)} news <Icon name="arrow-down" size={13} style={{ marginLeft: 2 }} />
             </button>
           )}
 
@@ -204,8 +205,8 @@ function NewsColumn({ title, items, positive, onUpgrade, isPro, total, t }) {
               cursor: 'pointer', textAlign: 'left',
             }}
           >
-            <div style={{ fontSize: 13, color: 'var(--muted)' }}>
-              🔒 +{hiddenCount} {t.topNews.lockedTitle}
+            <div style={{ fontSize: 13, color: 'var(--muted)', display: 'flex', alignItems: 'center', gap: 6 }}>
+              <Icon name="lock" size={12} /> +{hiddenCount} {t.topNews.lockedTitle}
             </div>
             <div style={{ fontSize: 12, color: 'var(--azure)', marginTop: 4 }}>
               {t.topNews.lockedDesc}

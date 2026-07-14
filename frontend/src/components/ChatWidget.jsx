@@ -99,15 +99,15 @@ export default function ChatWidget({ ticker, sentimentScore, topNews }) {
               width: 32, height: 32, borderRadius: 10,
               background: 'var(--blue)', display: 'flex', alignItems: 'center', justifyContent: 'center',
               fontSize: 16,
-            }}><Icon name="ai-brain" size={18} color="#fff" /></div>
+            }}><Icon name="assistant" size={18} color="#fff" /></div>
             <div>
               <div style={{ fontSize: 13, fontWeight: 600 }}>Assistente Cheruvo</div>
               <div style={{ fontSize: 11, color: 'var(--muted)' }}>Powered by Llama 3 · Groq</div>
             </div>
             <button
               onClick={() => setOpen(false)}
-              style={{ marginLeft: 'auto', background: 'transparent', color: 'var(--muted)', fontSize: 18, border: 'none', cursor: 'pointer', lineHeight: 1, padding: '2px 6px' }}
-            >✕</button>
+              style={{ marginLeft: 'auto', background: 'transparent', color: 'var(--muted)', fontSize: 18, border: 'none', cursor: 'pointer', lineHeight: 1, padding: '2px 6px', display: 'flex', alignItems: 'center' }}
+            ><Icon name="close" size={16} /></button>
           </div>
 
           {/* Messages */}
@@ -197,9 +197,9 @@ export default function ChatWidget({ ticker, sentimentScore, topNews }) {
                 color: 'white', border: 'none', borderRadius: 10,
                 padding: '0 14px', fontSize: 16, cursor: input.trim() ? 'pointer' : 'default',
                 transition: 'background .2s',
-                flexShrink: 0,
+                flexShrink: 0, display: 'flex', alignItems: 'center', justifyContent: 'center',
               }}
-            >↑</button>
+            ><Icon name="send" size={16} color="#fff" /></button>
           </div>
         </div>
       )}
@@ -221,7 +221,7 @@ export default function ChatWidget({ ticker, sentimentScore, topNews }) {
         onMouseEnter={e => e.currentTarget.style.transform = 'scale(1.1)'}
         onMouseLeave={e => e.currentTarget.style.transform = 'scale(1)'}
       >
-        {open ? '✕' : <Icon name="ai-brain" size={26} color="#fff" />}
+        {open ? <Icon name="close" size={22} color="#fff" /> : <Icon name="assistant" size={26} color="#fff" />}
       </button>
     </>,
     container

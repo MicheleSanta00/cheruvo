@@ -142,8 +142,8 @@ export default function ComparePanel({ primaryTicker, primarySentiment, isPro, o
           fontSize: 12, color: '#60a5fa', fontWeight: 600,
           padding: '8px 20px', background: 'rgba(96,165,250,0.1)',
           borderRadius: 100, border: '1px solid rgba(96,165,250,0.3)',
-          cursor: 'pointer',
-        }}>⚡ Passa a Pro — €9/mese</button>
+          cursor: 'pointer', display: 'inline-flex', alignItems: 'center', gap: 6,
+        }}><Icon name="bolt" size={12} /> Passa a Pro — €9/mese</button>
       </div>
     </div>
   )
@@ -171,8 +171,8 @@ export default function ComparePanel({ primaryTicker, primarySentiment, isPro, o
               <button onClick={() => removeTicker(ticker)} style={{
                 background: 'transparent', color: PALETTE[i],
                 fontSize: 11, padding: '0 2px', opacity: 0.7,
-                lineHeight: 1,
-              }}>✕</button>
+                lineHeight: 1, display: 'inline-flex', alignItems: 'center',
+              }}><Icon name="close" size={11} /></button>
             )}
           </div>
         ))}
@@ -203,8 +203,9 @@ export default function ComparePanel({ primaryTicker, primarySentiment, isPro, o
                   style={{
                     background: 'var(--blue)', color: 'white',
                     borderRadius: 100, padding: '4px 10px', fontSize: 12,
+                    display: 'inline-flex', alignItems: 'center',
                   }}
-                >→</button>
+                ><Icon name="arrow-right" size={14} color="#fff" /></button>
               )}
             </div>
             {showSuggestions && (
@@ -237,7 +238,7 @@ export default function ComparePanel({ primaryTicker, primarySentiment, isPro, o
       </div>
 
       {inputError && (
-        <div style={{ fontSize: 11, color: '#f87171', marginBottom: 10 }}>⚠ {inputError}</div>
+        <div style={{ fontSize: 11, color: '#f87171', marginBottom: 10, display: 'flex', alignItems: 'center', gap: 5 }}><Icon name="warning" size={12} color="#f87171" /> {inputError}</div>
       )}
 
       {/* Grafico */}

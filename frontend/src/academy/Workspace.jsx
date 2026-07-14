@@ -7,13 +7,14 @@ import { adminLessons, getLesson, createLesson, updateLesson, deleteLesson, aiDr
 import LessonRenderer from './LessonRenderer.jsx'
 import LessonForm, { blankContent } from './LessonForm.jsx'
 import AdminSettings from './AdminSettings.jsx'
+import Icon from '../components/Icon.jsx'
 import { pick } from './academyStrings.js'
 
 const TYPES = [
-  { t: 'quiz', icon: '❓', label: { it: 'Quiz a tempo', en: 'Timed quiz' } },
-  { t: 'simulator', icon: '🎚️', label: { it: 'Simulatore', en: 'Simulator' } },
-  { t: 'flashcard', icon: '🃏', label: { it: 'Flashcard', en: 'Flashcards' } },
-  { t: 'scenario', icon: '🌿', label: { it: 'Scenario', en: 'Scenario' } },
+  { t: 'quiz', icon: 'quiz', label: { it: 'Quiz a tempo', en: 'Timed quiz' } },
+  { t: 'simulator', icon: 'simulator', label: { it: 'Simulatore', en: 'Simulator' } },
+  { t: 'flashcard', icon: 'flashcards', label: { it: 'Flashcard', en: 'Flashcards' } },
+  { t: 'scenario', icon: 'scenario', label: { it: 'Scenario', en: 'Scenario' } },
 ]
 const newLesson = (type) => ({ id: null, type, title: { it: '', en: '' }, status: 'draft', level: 'base', content: blankContent(type) })
 
@@ -102,7 +103,7 @@ export default function Workspace({ lang, strings, user }) {
     <div>
       <div style={{ display: 'flex', gap: 8, marginBottom: 16 }}>
         <button style={tab === 'lessons' ? tabOn : tabOff} onClick={() => setTab('lessons')}>{s.lessonsTab}</button>
-        <button style={tab === 'settings' ? tabOn : tabOff} onClick={() => setTab('settings')}>⚙ {s.settings}</button>
+        <button style={{ ...(tab === 'settings' ? tabOn : tabOff), display: 'inline-flex', alignItems: 'center', gap: 6 }} onClick={() => setTab('settings')}><Icon name="settings" size={13} /> {s.settings}</button>
       </div>
 
       {tab === 'settings' ? (
@@ -120,7 +121,7 @@ export default function Workspace({ lang, strings, user }) {
               <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(130px, 1fr))', gap: 10 }}>
                 {TYPES.map((ty) => (
                   <button key={ty.t} style={pickCard} onClick={() => { setPicking(false); setEditing(newLesson(ty.t)) }}>
-                    <div style={{ fontSize: 22 }}>{ty.icon}</div>
+                    <div><Icon name={ty.icon} size={24} /></div>
                     <div style={{ fontSize: 13, fontWeight: 600, marginTop: 6 }}>{pick(ty.label, lang)}</div>
                   </button>
                 ))}

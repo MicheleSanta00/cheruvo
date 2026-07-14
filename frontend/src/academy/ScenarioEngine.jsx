@@ -4,6 +4,7 @@
  */
 import { useState } from 'react'
 import { pick } from './academyStrings.js'
+import Icon from '../components/Icon.jsx'
 
 export default function ScenarioEngine({ content, lang = 'it', strings = {}, mode = 'play', onComplete }) {
   const nodes = (content && content.nodes) || {}
@@ -20,7 +21,7 @@ export default function ScenarioEngine({ content, lang = 'it', strings = {}, mod
   if (done) {
     return (
       <div style={{ textAlign: 'center', padding: '8px 0' }}>
-        <div style={{ fontSize: 34 }}>🎉</div>
+        <div><Icon name="celebrate" size={38} color="#f5c451" /></div>
         <div style={{ fontSize: 18, fontWeight: 600, margin: '6px 0' }}>{strings.lessonDone}</div>
         <div style={{ color: 'var(--muted)', fontSize: 14 }}>+50 {strings.xpEarned}</div>
         {mode === 'play'
@@ -61,7 +62,7 @@ export default function ScenarioEngine({ content, lang = 'it', strings = {}, mod
             <b style={{ color: '#34d399' }}>{pick(node.choices[chosen].label, lang)}</b>
             {pick(node.choices[chosen].feedback, lang) ? ' — ' + pick(node.choices[chosen].feedback, lang) : ''}
           </div>
-          <button onClick={proceed} style={primaryBtn}>{strings.continue} →</button>
+          <button onClick={proceed} style={{ ...primaryBtn, display: 'inline-flex', alignItems: 'center', gap: 6 }}>{strings.continue} <Icon name="arrow-right" size={14} color="#04221a" /></button>
         </div>
       )}
     </div>
