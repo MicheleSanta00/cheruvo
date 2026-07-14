@@ -56,10 +56,13 @@ export default function App() {
   }, [])
 
   // Apri direttamente l'Academy se si arriva dal sottodominio academy.* o con ?academy
+  // (?market apre lo screener — usato anche dalle scorciatoie PWA)
   useEffect(() => {
     const params = new URLSearchParams(window.location.search)
     if (window.location.hostname.startsWith('academy.') || params.get('academy') !== null) {
       setShowAcademy(true)
+    } else if (params.get('market') !== null) {
+      setShowMarket(true)
     }
   }, [])
 
