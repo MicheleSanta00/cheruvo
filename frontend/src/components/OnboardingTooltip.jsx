@@ -30,6 +30,7 @@ const STEPS = [
 export default function OnboardingTooltip({ hasData }) {
   const [step, setStep]       = useState(0)
   const [visible, setVisible] = useState(false)
+  const [waiting, setWaiting] = useState(false)   // "Ho capito" premuto: in attesa del primo ticker
   const [pos, setPos]         = useState({ top: 0, left: 0 })
 
   useEffect(() => {
@@ -39,8 +40,10 @@ export default function OnboardingTooltip({ hasData }) {
   }, [])
 
   useEffect(() => {
-    // Quando arrivano i dati e siamo ancora allo step 0, avanza automaticamente
+    // Quando arrivano i dati e siamo ancora allo step 0, il tour riprende dal passo 2
+    // (anche se l'utente aveva premuto "Ho capito" ed era in attesa)
     if (hasData && step === 0) {
+      setWaiting(false)
       setStep(1)
       return
     }
@@ -89,7 +92,8 @@ export default function OnboardingTooltip({ hasData }) {
     localStorage.setItem('cheruvo_onboarded', '1')
   }
 
-  if (!visible) return null
+  // In attesa: l'utente ha capito il primo passo, il tour riprenderà col primo ticker
+  if (!visible || (waiting && step === 0)) return null
 
   const current = STEPS[step]
   const isRight = current.position === 'right'
@@ -168,7 +172,7 @@ export default function OnboardingTooltip({ hasData }) {
             Salta
           </button>
           <button
-            onClick={step === 0 ? finish : next}
+            onClick={step === 0 ? () => setWaiting(true) : next}
             style={{
               fontSize: 13, fontWeight: 500, color: 'white',
               background: 'var(--blue)', border: 'none',
