@@ -39,6 +39,7 @@ from onboarding import init_onboarding_table, send_welcome
 from academy import router as academy_router, init_academy_tables
 from classroom import router as classroom_router, init_classroom_tables
 from book import router as book_router, init_book_tables
+from market import router as market_router
 from cache import cache_get, cache_set, cache_delete_pattern, cache_stats, CACHE_TTL, SUMMARY_TTL, VALIDATE_TTL, TICKERS_TTL
 
 # ── Logging ───────────────────────────────────────────────────────────────
@@ -117,6 +118,7 @@ app.include_router(stripe_router, prefix="/api")
 app.include_router(academy_router, prefix="/api")
 app.include_router(classroom_router, prefix="/api")
 app.include_router(book_router, prefix="/api")
+app.include_router(market_router, prefix="/api")
 
 API_KEY = {
     "ALPHA_VANTAGE": os.environ.get("ALPHA_VANTAGE", ""),

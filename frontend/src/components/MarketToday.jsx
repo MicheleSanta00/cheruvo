@@ -1,0 +1,121 @@
+/**
+ * MarketToday.jsx — screener "Mercato oggi": classifica dei ticker per
+ * sentiment recente (endpoint pubblico /market/today, cache lato server).
+ * Overlay a schermo intero, come l'Academy. Click su un ticker → lo carica
+ * nella dashboard.
+ */
+import { useState, useEffect } from 'react'
+import { useLang } from '../LangContext.jsx'
+import apiFetch from '../apiFetch.js'
+import Icon from './Icon.jsx'
+
+const TXT = {
+  it: {
+    title: 'Mercato oggi', sub: 'Classifica per sentiment delle ultime 48 ore, dalle news analizzate dall\'AI.',
+    bulls: 'Più rialzisti', bears: 'Più ribassisti', news: 'news', delta7: 'vs 7 giorni',
+    empty: 'Dati in aggiornamento — torna tra qualche minuto.', back: '← App',
+    updated: 'aggiornato', open: 'Apri →', loading: 'Caricamento…',
+  },
+  en: {
+    title: 'Market today', sub: 'Sentiment ranking of the last 48 hours, from AI-analyzed news.',
+    bulls: 'Most bullish', bears: 'Most bearish', news: 'news', delta7: 'vs 7 days',
+    empty: 'Data is updating — check back in a few minutes.', back: '← App',
+    updated: 'updated', open: 'Open →', loading: 'Loading…',
+  },
+}
+
+const fmtScore = (v) => `${v > 0 ? '+' : ''}${Number(v).toFixed(2)}`
+const scoreColor = (v) => (v > 0.08 ? '#34d399' : v < -0.08 ? '#f87171' : '#8a94a6')
+
+export default function MarketToday({ onExit, onPick }) {
+  const { lang } = useLang()
+  const s = TXT[lang] || TXT.it
+  const [data, setData] = useState(null)
+  const [err, setErr] = useState(false)
+
+  useEffect(() => {
+    apiFetch('/market/today').then(setData).catch(() => setErr(true))
+  }, [])
+
+  const rows = data?.rows || []
+  const bulls = rows.filter((r) => r.sentiment > 0).slice(0, 8)
+  const bears = rows.filter((r) => r.sentiment <= 0).slice(-8).reverse()
+  const updatedAt = data?.updated_at
+    ? new Date(data.updated_at).toLocaleTimeString(lang === 'it' ? 'it-IT' : 'en-US', { hour: '2-digit', minute: '2-digit' })
+    : null
+
+  const Row = ({ r, i }) => (
+    <button onClick={() => onPick(r.ticker)} style={rowStyle} title={s.open}>
+      <span style={{ color: 'var(--muted)', fontSize: 11, width: 18 }}>{i + 1}</span>
+      <b style={{ fontSize: 14, flex: 1, textAlign: 'left' }}>{r.ticker}</b>
+      <span style={{ fontSize: 11, color: 'var(--muted)' }}>{r.news} {s.news}</span>
+      {r.delta != null && (
+        <span style={{ fontSize: 11, color: r.delta >= 0 ? '#34d399' : '#f87171', width: 74, textAlign: 'right' }}>
+          {fmtScore(r.delta)} {s.delta7}
+        </span>
+      )}
+      <span style={{
+        fontSize: 12.5, fontWeight: 700, color: scoreColor(r.sentiment),
+        background: 'rgba(255,255,255,0.04)', border: `1px solid ${scoreColor(r.sentiment)}33`,
+        borderRadius: 99, padding: '3px 10px', width: 64, textAlign: 'center',
+      }}>{fmtScore(r.sentiment)}</span>
+    </button>
+  )
+
+  return (
+    <div style={{ height: '100dvh', overflow: 'auto', background: 'var(--black)', color: 'var(--white)' }}>
+      <header style={{
+        minHeight: 52, borderBottom: '1px solid var(--border)', display: 'flex', alignItems: 'center',
+        justifyContent: 'space-between', gap: 8, padding: '8px 14px', background: 'var(--near-black)',
+        position: 'sticky', top: 0, zIndex: 10,
+      }}>
+        <span style={{ fontSize: 16, fontWeight: 600, display: 'flex', alignItems: 'center', gap: 8 }}>
+          <Icon name="analyzer" size={16} color="#60a5fa" /> {s.title}
+        </span>
+        <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+          {updatedAt && <span style={{ fontSize: 11, color: 'var(--muted)' }}>{s.updated} {updatedAt}</span>}
+          <button onClick={onExit} style={{
+            fontSize: 12, background: 'transparent', border: '1px solid var(--border)',
+            borderRadius: 8, padding: '5px 10px', cursor: 'pointer', color: 'var(--white)',
+          }}>{s.back}</button>
+        </div>
+      </header>
+
+      <div style={{ maxWidth: 880, margin: '0 auto', padding: '24px 18px 60px' }}>
+        <p style={{ color: 'var(--muted)', fontSize: 13.5, margin: '0 0 20px' }}>{s.sub}</p>
+
+        {!data && !err && <div style={{ color: 'var(--muted)', fontSize: 13 }}>{s.loading}</div>}
+        {(err || (data && !rows.length)) && <div style={{ color: 'var(--muted)', fontSize: 13.5 }}>{s.empty}</div>}
+
+        {rows.length > 0 && (
+          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(320px, 1fr))', gap: 18 }}>
+            <div>
+              <div style={groupTitle('#34d399')}>{s.bulls}</div>
+              <div style={{ display: 'grid', gap: 7 }}>
+                {bulls.map((r, i) => <Row key={r.ticker} r={r} i={i} />)}
+                {!bulls.length && <span style={{ color: 'var(--muted)', fontSize: 12.5 }}>—</span>}
+              </div>
+            </div>
+            <div>
+              <div style={groupTitle('#f87171')}>{s.bears}</div>
+              <div style={{ display: 'grid', gap: 7 }}>
+                {bears.map((r, i) => <Row key={r.ticker} r={r} i={i} />)}
+                {!bears.length && <span style={{ color: 'var(--muted)', fontSize: 12.5 }}>—</span>}
+              </div>
+            </div>
+          </div>
+        )}
+      </div>
+    </div>
+  )
+}
+
+const rowStyle = {
+  display: 'flex', alignItems: 'center', gap: 10, width: '100%',
+  background: 'var(--near-black)', border: '1px solid var(--border)', borderRadius: 10,
+  padding: '10px 12px', cursor: 'pointer', color: 'var(--white)',
+}
+const groupTitle = (color) => ({
+  fontSize: 11.5, fontWeight: 700, letterSpacing: '.08em', textTransform: 'uppercase',
+  color, marginBottom: 10,
+})

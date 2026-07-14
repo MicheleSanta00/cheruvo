@@ -173,6 +173,18 @@
     .btn-secondary:hover { border-color: rgba(255,255,255,0.25); color: white; }
 
     /* Ticker strip */
+    .market-live { text-align:center; }
+    .live-dot { display:inline-block; width:7px; height:7px; border-radius:50%; background:var(--green); margin-right:6px; animation:livePulse 1.6s infinite; vertical-align:middle; }
+    @keyframes livePulse { 0%,100%{opacity:1} 50%{opacity:.35} }
+    .mkt-grid { display:grid; grid-template-columns:repeat(auto-fit,minmax(300px,1fr)); gap:18px; max-width:820px; margin:40px auto 0; padding:0 24px; text-align:left; }
+    .mkt-head { font-size:11px; font-weight:700; letter-spacing:.09em; margin-bottom:10px; }
+    .mkt-row { display:flex; align-items:center; gap:10px; background:var(--card); border:1px solid var(--border); border-radius:10px; padding:11px 14px; margin-bottom:8px; }
+    .mkt-row b { flex:1; font-size:14px; color:var(--white); }
+    .mkt-row .n { font-size:11px; color:var(--muted); }
+    .mkt-row .sc { font-size:12.5px; font-weight:700; border-radius:99px; padding:3px 10px; min-width:58px; text-align:center; background:rgba(255,255,255,0.04); }
+    .mkt-row.blurred { filter:blur(4px); user-select:none; pointer-events:none; }
+    .mkt-cta { margin-top:26px; }
+    .mkt-note { color:var(--muted); font-size:12.5px; margin-top:10px; }
     .hero-shot { max-width: 900px; margin: 0 auto 56px; padding: 0 24px; animation: fadeUp .7s .35s ease both; }
     .hero-shot svg { width: 100%; height: auto; display: block; border-radius: 16px; border: 1px solid rgba(96,165,250,0.22); box-shadow: 0 24px 90px rgba(30,92,255,0.22), 0 4px 24px rgba(0,0,0,0.5); }
     .ticker-strip { display: flex; gap: 10px; flex-wrap: wrap; justify-content: center; animation: fadeUp .6s .4s ease both; }
@@ -465,6 +477,28 @@
 
 <hr class="divider"/>
 
+<!-- MERCATO OGGI (live, popolata via API; resta nascosta se l'API non risponde) -->
+<div class="section market-live" id="market" style="display:none">
+  <div class="s-label reveal"><span class="live-dot"></span><span data-i18n="mktLabel">Mercato oggi · dati live</span></div>
+  <h2 class="s-title reveal" data-i18n="mktTitle">Cosa dice il sentiment <em>in questo momento</em></h2>
+  <div class="mkt-grid">
+    <div>
+      <div class="mkt-head" style="color:var(--green)" data-i18n="mktBulls">PIÙ RIALZISTI</div>
+      <div id="mkt-bulls"></div>
+    </div>
+    <div>
+      <div class="mkt-head" style="color:#f87171" data-i18n="mktBears">PIÙ RIBASSISTI</div>
+      <div id="mkt-bears"></div>
+    </div>
+  </div>
+  <div class="mkt-cta reveal">
+    <a href="https://app.cheruvo.com" target="_blank"><button class="btn-primary" data-i18n="mktBtn">Vedi la classifica completa →</button></a>
+    <p class="mkt-note" data-i18n="mktNote">Gratis, senza carta. Aggiornata più volte al giorno.</p>
+  </div>
+</div>
+
+<hr class="divider" id="market-divider" style="display:none"/>
+
 <!-- HOW IT WORKS -->
 <div class="section" id="how-it-works">
   <div class="s-label reveal" data-i18n="howLabel">Come funziona</div>
@@ -722,6 +756,7 @@ const tr = {
     heroTitle:"Cosa pensa il mercato <em>delle tue azioni?</em>",
     heroSub:"Cheruvo legge migliaia di notizie finanziarie e ti dà il sentiment di ogni titolo: grafici, correlazioni e alert spiegati in modo semplice. Gratis, senza carta.",
     heroBtn:'Prova subito gratis →', heroHow:'Scopri come funziona',
+    mktLabel:'Mercato oggi · dati live', mktTitle:'Cosa dice il sentiment <em>in questo momento</em>', mktBulls:'PIÙ RIALZISTI', mktBears:'PIÙ RIBASSISTI', mktBtn:'Vedi la classifica completa →', mktNote:'Gratis, senza carta. Aggiornata più volte al giorno.',
     bullish:'Rialzista', bearish:'Ribassista', neutral:'Neutro',
     stat1:'Fonti monitorate', stat2:'Aggiornamenti al giorno', stat3:'Giorni di storico (Pro)', stat4:'Per iniziare',
     howLabel:'Come funziona', howTitle:"Dal flusso di notizie al <em>segnale azionabile</em> in secondi",
@@ -756,6 +791,7 @@ const tr = {
     heroTitle:"What does the market think <em>of your stocks?</em>",
     heroSub:"Cheruvo reads thousands of financial news stories and gives you the sentiment of any stock: charts, correlations and alerts, explained simply. Free, no card required.",
     heroBtn:'Try it free →', heroHow:'See how it works',
+    mktLabel:'Market today · live data', mktTitle:'What sentiment says <em>right now</em>', mktBulls:'MOST BULLISH', mktBears:'MOST BEARISH', mktBtn:'See the full ranking →', mktNote:'Free, no card. Updated several times a day.',
     bullish:'Bullish', bearish:'Bearish', neutral:'Neutral',
     stat1:'Sources monitored', stat2:'Updates per day', stat3:'Days of history (Pro)', stat4:'To get started',
     howLabel:'How it works', howTitle:'From raw news to <em>actionable signal</em> in seconds',
@@ -792,6 +828,39 @@ function applyLang() {
     if (tr[lang][key] !== undefined) el.innerHTML = tr[lang][key]
   })
   document.getElementById('lang-btn').textContent = lang === 'it' ? '🇬🇧' : '🇮🇹'
+
+// ── Mercato oggi: classifica live dal backend (sezione nascosta se l'API non risponde)
+;(function () {
+  var API = 'https://financial-sentiment-analysis-20px.onrender.com/api/market/today'
+  function fmt (v) { return (v > 0 ? '+' : '') + Number(v).toFixed(2) }
+  function color (v) { return v > 0.08 ? 'var(--green)' : v < -0.08 ? '#f87171' : '#8a94a6' }
+  function fill (id, rows) {
+    var el = document.getElementById(id)
+    el.innerHTML = rows.map(function (r, i) {
+      var blur = i >= 3 ? ' blurred' : ''
+      return '<div class="mkt-row' + blur + '">' +
+        '<b>' + r.ticker + '</b>' +
+        '<span class="n">' + r.news + ' news</span>' +
+        '<span class="sc" style="color:' + color(r.sentiment) + ';border:1px solid ' + color(r.sentiment) + '33">' + fmt(r.sentiment) + '</span>' +
+      '</div>'
+    }).join('')
+  }
+  var ctrl = typeof AbortController !== 'undefined' ? new AbortController() : null
+  if (ctrl) setTimeout(function () { ctrl.abort() }, 9000)
+  fetch(API, ctrl ? { signal: ctrl.signal } : {})
+    .then(function (r) { return r.json() })
+    .then(function (d) {
+      var rows = d.rows || []
+      var bulls = rows.filter(function (r) { return r.sentiment > 0 }).slice(0, 4)
+      var bears = rows.filter(function (r) { return r.sentiment <= 0 }).slice(-4).reverse()
+      if (bulls.length + bears.length < 4) return
+      fill('mkt-bulls', bulls)
+      fill('mkt-bears', bears)
+      document.getElementById('market').style.display = ''
+      document.getElementById('market-divider').style.display = ''
+    })
+    .catch(function () { /* API fredda o giù: la sezione resta nascosta */ })
+})()
   document.documentElement.lang = lang
 }
 function toggleLang() { lang = lang === 'it' ? 'en' : 'it'; localStorage.setItem('lang', lang); applyLang() }

@@ -16,6 +16,7 @@ import ComparePanel       from './components/ComparePanel.jsx'
 import OnboardingTooltip  from './components/OnboardingTooltip.jsx'
 import ChatWidget         from './components/ChatWidget.jsx'
 import Icon               from './components/Icon.jsx'
+import MarketToday        from './components/MarketToday.jsx'
 import { useFinData } from './hooks/useFinData.js'
 import { generateReport } from './utils/generatePDF.js'
 import { identifyUser, resetUser, track } from './analytics.js'
@@ -39,6 +40,7 @@ export default function App() {
   const [loadedTicker, setLoadedTicker] = useState(null)
   const [showStats, setShowStats]     = useState(false)
   const [showAcademy, setShowAcademy] = useState(false)
+  const [showMarket, setShowMarket]   = useState(false)
 
   const { tickerInfo, news, stats, prices, sentiment, loading, fetching, error, load, triggerFetch } = useFinData()
 
@@ -121,6 +123,12 @@ export default function App() {
   if (authLoading) return null
   if (!user) return <Auth onLogin={setUser} />
   if (showAcademy) return <Academy user={user} onExit={() => setShowAcademy(false)} />
+  if (showMarket) return (
+    <MarketToday
+      onExit={() => setShowMarket(false)}
+      onPick={(tk) => { setTicker(tk); setShowMarket(false); handleLoad(tk, days, period) }}
+    />
+  )
 
   const hasData = !!tickerInfo && !loading
 
@@ -227,6 +235,11 @@ export default function App() {
                 border: 'none', borderRadius: 6, padding: '4px 10px', cursor: 'pointer', fontWeight: 500,
               }}>{t.header.upgradePro}</button>
             )}
+            <button onClick={() => setShowMarket(true)} title={lang === 'it' ? 'Mercato oggi' : 'Market today'} style={{
+              fontSize: 11, color: 'var(--white)', background: 'transparent',
+              border: '1px solid var(--border)', borderRadius: 6, padding: '4px 10px',
+              cursor: 'pointer', fontWeight: 500,
+            }}><Icon name="compare" size={13} /><span className="hide-mobile"> {lang === 'it' ? 'Mercato' : 'Market'}</span></button>
             <button onClick={() => setShowAcademy(true)} title="Cheruvo Academy" style={{
               fontSize: 11, color: 'var(--white)', background: 'transparent',
               border: '1px solid var(--border)', borderRadius: 6, padding: '4px 10px',
