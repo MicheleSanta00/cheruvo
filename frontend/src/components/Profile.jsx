@@ -1,10 +1,18 @@
 import { useState, useEffect } from 'react'
 import { supabase } from '../supabase.js'
 import { useLang } from '../LangContext.jsx'
+import { getConsent, setConsent } from '../analytics.js'
 
 export default function Profile({ user, isPro, onClose, onUpgrade }) {
   const { t, lang } = useLang()
   const [createdAt, setCreatedAt] = useState('')
+  const [consent, setConsentState] = useState(getConsent() === 'granted')
+
+  const toggleConsent = () => {
+    const next = !consent
+    setConsent(next ? 'granted' : 'denied')
+    setConsentState(next)
+  }
 
   useEffect(() => {
     if (user?.created_at) {
@@ -69,6 +77,15 @@ export default function Profile({ user, isPro, onClose, onUpgrade }) {
               }}>
                 {isPro ? t.profile.planPro : t.profile.planFree}
               </span>
+            }
+          />
+          <Row
+            label={lang === 'it' ? 'Statistiche anonime' : 'Anonymous analytics'}
+            value={
+              <label style={{ display: 'flex', alignItems: 'center', gap: 8, cursor: 'pointer', fontSize: 12, color: 'var(--muted)' }}>
+                <input type="checkbox" checked={consent} onChange={toggleConsent} style={{ accentColor: 'var(--blue)' }} />
+                {consent ? (lang === 'it' ? 'attive' : 'on') : (lang === 'it' ? 'disattivate' : 'off')}
+              </label>
             }
           />
         </div>

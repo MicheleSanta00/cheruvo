@@ -126,6 +126,14 @@ export default function Auth({ onLogin }) {
             {isLogin ? t.auth.register : t.auth.login}
           </span>
         </p>
+
+        <p style={{ fontSize: 11, color: 'var(--muted)', textAlign: 'center', marginTop: 12, lineHeight: 1.6 }}>
+          {lang === 'it' ? (
+            <>Continuando accetti i <a href="https://cheruvo.com/termini.html" target="_blank" rel="noreferrer" style={{ color: 'var(--azure)' }}>Termini di Servizio</a> e la <a href="https://cheruvo.com/privacy.html" target="_blank" rel="noreferrer" style={{ color: 'var(--azure)' }}>Privacy Policy</a>.</>
+          ) : (
+            <>By continuing you accept the <a href="https://cheruvo.com/termini.html" target="_blank" rel="noreferrer" style={{ color: 'var(--azure)' }}>Terms of Service</a> and the <a href="https://cheruvo.com/privacy.html" target="_blank" rel="noreferrer" style={{ color: 'var(--azure)' }}>Privacy Policy</a>.</>
+          )}
+        </p>
       </div>
     </div>
   )

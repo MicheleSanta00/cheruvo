@@ -18,8 +18,27 @@ const POSTHOG_HOST = import.meta.env.VITE_POSTHOG_HOST || 'https://eu.i.posthog.
 
 let _ph = null  // istanza PostHog, inizializzata lazy
 
+// ── Consenso cookie (GDPR): niente analytics senza "granted" ───────────────
+const CONSENT_KEY = 'cheruvo-consent'   // 'granted' | 'denied' | null (mai chiesto)
+
+export function getConsent() {
+  try { return localStorage.getItem(CONSENT_KEY) } catch { return null }
+}
+
+export function setConsent(value) {
+  try { localStorage.setItem(CONSENT_KEY, value) } catch { /* private mode */ }
+  if (value === 'granted') {
+    initAnalytics()
+    if (_ph?.opt_in_capturing) _ph.opt_in_capturing()
+  } else if (_ph?.opt_out_capturing) {
+    _ph.opt_out_capturing()
+  }
+}
+
 export function initAnalytics() {
   if (!POSTHOG_KEY || typeof window === 'undefined') return
+  if (getConsent() !== 'granted') return   // si parte solo dopo il consenso
+  if (_ph) return
 
   // Carica PostHog in modo asincrono (non blocca il bundle principale)
   import('posthog-js').then(({ default: posthog }) => {
