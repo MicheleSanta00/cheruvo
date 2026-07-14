@@ -18,6 +18,7 @@ from alerts import check_and_send_alerts
 from sentiment_groq import rescore_all_tickers
 from onboarding import init_onboarding_table, check_and_send_onboarding_emails
 from digest import init_digest_tables, send_weekly_digests
+from earnings import init_earnings_tables, refresh_earnings
 
 logging.basicConfig(
     level=logging.INFO,
@@ -170,6 +171,14 @@ if __name__ == "__main__":
         send_weekly_digests()
     except Exception as e:
         logger.error("Errore digest: %s", e)
+
+    # Date earnings (aggiorna solo quelle più vecchie di 24h)
+    logger.info("Aggiornamento calendario earnings...")
+    try:
+        init_earnings_tables()
+        refresh_earnings(selected)
+    except Exception as e:
+        logger.error("Errore earnings: %s", e)
 
     elapsed = (datetime.now(timezone.utc) - start).total_seconds()
     logger.info("Done in %.1fs", elapsed)

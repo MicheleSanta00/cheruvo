@@ -130,6 +130,7 @@ export default function App() {
     <MarketToday
       onExit={() => setShowMarket(false)}
       onPick={(tk) => { setTicker(tk); setShowMarket(false); handleLoad(tk, days, period) }}
+      onUpgrade={handleUpgrade}
     />
   )
 
