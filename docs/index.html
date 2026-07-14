@@ -727,6 +727,7 @@
     <a href="#faq" class="footer-link">FAQ</a>
     <a href="privacy.html" class="footer-link" data-i18n="footerPrivacy">Privacy</a>
     <a href="termini.html" class="footer-link" data-i18n="footerTerms">Termini</a>
+    <a href="https://stats.uptimerobot.com/tiQ8UAlVTB" target="_blank" rel="noreferrer" class="footer-link" data-i18n="footerStatus">Stato del servizio</a>
     <a href="#apps" class="footer-link" style="color:var(--azure)" data-i18n="footerLink">Le nostre app →</a>
   </div>
   <span class="footer-copy" data-i18n="footerCopy">© 2026 Cheruvo · Solo a scopo informativo · Non è consulenza finanziaria</span>
@@ -782,7 +783,7 @@ const tr = {
     faq4q:'Posso disdire il piano Pro quando voglio?', faq4a:'Sì, puoi disdire in qualsiasi momento dal tuo profilo. Nessun vincolo o costo nascosto.',
     faq5q:'Il sentiment predice davvero i movimenti di prezzo?', faq5a:'È un indicatore ausiliario, non una previsione. Cheruvo mostra la correlazione statistica così puoi valutarla tu stesso. Non è consulenza finanziaria.',
     ctaTitle:'Inizia a investire con consapevolezza', ctaSub:'Gratis, senza carta. Scegli la tua app e parti in 30 secondi.', ctaBtn:'Apri Cheruvo →',
-    footerCopy:'© 2026 Cheruvo · Solo a scopo informativo · Non è consulenza finanziaria', footerLink:"Le nostre app →", footerPrivacy:'Privacy', footerTerms:'Termini',
+    footerCopy:'© 2026 Cheruvo · Solo a scopo informativo · Non è consulenza finanziaria', footerLink:"Le nostre app →", footerPrivacy:'Privacy', footerTerms:'Termini', footerStatus:'Stato del servizio',
   },
   en: {
     navHow:'How it works', navFeatures:'Features', navPricing:'Pricing', navCta:'Open Cheruvo',
@@ -817,7 +818,7 @@ const tr = {
     faq4q:'Can I cancel the Pro plan anytime?', faq4a:'Yes, you can cancel anytime from your profile. No commitments or hidden fees.',
     faq5q:'Does sentiment really predict price movements?', faq5a:"It's an auxiliary indicator, not a prediction. Cheruvo shows the statistical correlation so you can evaluate it yourself. Not financial advice.",
     ctaTitle:'Start investing with clarity', ctaSub:'Free, no card. Pick your app and get going in 30 seconds.', ctaBtn:'Open Cheruvo →',
-    footerCopy:'© 2026 Cheruvo · For informational purposes only · Not financial advice', footerLink:'Our apps →', footerPrivacy:'Privacy', footerTerms:'Terms',
+    footerCopy:'© 2026 Cheruvo · For informational purposes only · Not financial advice', footerLink:'Our apps →', footerPrivacy:'Privacy', footerTerms:'Terms', footerStatus:'Service status',
   }
 }
 
@@ -828,6 +829,12 @@ function applyLang() {
     if (tr[lang][key] !== undefined) el.innerHTML = tr[lang][key]
   })
   document.getElementById('lang-btn').textContent = lang === 'it' ? '🇬🇧' : '🇮🇹'
+  document.documentElement.lang = lang
+}
+function toggleLang() { lang = lang === 'it' ? 'en' : 'it'; localStorage.setItem('lang', lang); applyLang() }
+function toggleApps(e) { if (e) e.stopPropagation(); document.getElementById('apps-menu').classList.toggle('open') }
+document.addEventListener('click', function(e) { var a = document.getElementById('nav-apps'); var m = document.getElementById('apps-menu'); if (a && m && !a.contains(e.target)) m.classList.remove('open') })
+applyLang()
 
 // ── Mercato oggi: classifica live dal backend (sezione nascosta se l'API non risponde)
 ;(function () {
@@ -856,17 +863,17 @@ function applyLang() {
       if (bulls.length + bears.length < 4) return
       fill('mkt-bulls', bulls)
       fill('mkt-bears', bears)
+      if (d.updated_at) {
+        var t = new Date(d.updated_at)
+        var hhmm = ('0' + t.getHours()).slice(-2) + ':' + ('0' + t.getMinutes()).slice(-2)
+        var lbl = document.querySelector('#market [data-i18n="mktLabel"]')
+        if (lbl) lbl.textContent += ' · ' + hhmm
+      }
       document.getElementById('market').style.display = ''
       document.getElementById('market-divider').style.display = ''
     })
     .catch(function () { /* API fredda o giù: la sezione resta nascosta */ })
 })()
-  document.documentElement.lang = lang
-}
-function toggleLang() { lang = lang === 'it' ? 'en' : 'it'; localStorage.setItem('lang', lang); applyLang() }
-function toggleApps(e) { if (e) e.stopPropagation(); document.getElementById('apps-menu').classList.toggle('open') }
-document.addEventListener('click', function(e) { var a = document.getElementById('nav-apps'); var m = document.getElementById('apps-menu'); if (a && m && !a.contains(e.target)) m.classList.remove('open') })
-applyLang()
 </script>
 </body>
 </html>
