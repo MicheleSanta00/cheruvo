@@ -1,0 +1,91 @@
+<!DOCTYPE html>
+<html lang="it">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Cos'è la sentiment analysis delle azioni (spiegata semplice) | Cheruvo</title>
+<meta name="description" content="La sentiment analysis misura l'umore del mercato leggendo le notizie. Come funziona, a cosa serve davvero a chi investe e quali limiti ha: guida pratica senza gergo.">
+<link rel="canonical" href="https://cheruvo.com/blog/sentiment-analysis-azioni.html">
+<meta property="og:title" content="Cos'è la sentiment analysis delle azioni (spiegata semplice)">
+<meta property="og:description" content="Come si misura l'umore del mercato leggendo le notizie, a cosa serve a chi investe e quali limiti ha.">
+<meta property="og:type" content="article">
+<meta property="og:url" content="https://cheruvo.com/blog/sentiment-analysis-azioni.html">
+<meta property="og:image" content="https://cheruvo.com/og-image.png">
+<meta name="twitter:card" content="summary_large_image">
+<link rel="icon" href="../favicon.png">
+<link rel="stylesheet" href="style.css">
+<script type="application/ld+json">
+{
+  "@context": "https://schema.org",
+  "@type": "Article",
+  "headline": "Cos'è la sentiment analysis delle azioni (spiegata semplice)",
+  "description": "Come si misura l'umore del mercato leggendo le notizie, a cosa serve a chi investe e quali limiti ha.",
+  "datePublished": "2026-07-14",
+  "inLanguage": "it",
+  "author": { "@type": "Organization", "name": "Cheruvo" },
+  "publisher": { "@type": "Organization", "name": "Cheruvo", "url": "https://cheruvo.com" }
+}
+</script>
+</head>
+<body>
+<header>
+  <a class="logo" href="../index.html"><img src="../logo-v2.png" alt=""/>Cheruvo</a>
+  <div style="display:flex;gap:8px">
+    <a class="hbtn" href="index.html">Blog</a>
+    <a class="hbtn primary" href="https://app.cheruvo.com">Prova gratis</a>
+  </div>
+</header>
+
+<main>
+<div class="kicker">Guida base</div>
+<h1>Cos'è la sentiment analysis delle azioni (spiegata semplice)</h1>
+<div class="meta">Blog di Cheruvo · 14 luglio 2026 · 6 minuti di lettura</div>
+
+<p>Ogni giorno escono migliaia di notizie finanziarie: trimestrali, dichiarazioni di CEO, indagini, upgrade degli analisti, accordi, dazi. Nessun essere umano riesce a leggerle tutte — eppure è proprio da quel flusso che il mercato forma le sue aspettative. La <strong>sentiment analysis</strong> è la tecnica che trasforma quel flusso in un numero: quanto sono positive o negative, oggi, le notizie su un titolo.</p>
+
+<h2>Come funziona, in pratica</h2>
+<p>Un sistema di sentiment analysis fa tre cose:</p>
+<ol>
+  <li><strong>Raccoglie</strong> le notizie su un titolo da più fonti (agenzie, testate, feed RSS).</li>
+  <li><strong>Legge</strong> ogni titolo e riassunto con un modello di intelligenza artificiale addestrato sul linguaggio finanziario. Non cerca semplici parole chiave: "utili record ma guidance deludente" è una frase che un contatore di parole positive giudicherebbe male, mentre un modello moderno capisce che il messaggio per l'investitore è negativo.</li>
+  <li><strong>Assegna uno score</strong>, di solito da −1 (molto ribassista) a +1 (molto rialzista). La media degli score delle notizie di un giorno è il sentiment del titolo per quel giorno.</li>
+</ol>
+<div class="box">💡 <strong>Esempio concreto.</strong> "NVIDIA supera le stime: ricavi record nel data center" → +0.7. "Pressione sui chip: nuovi dazi in discussione" → −0.35. Media della giornata su 24 notizie: +0.42 → il mercato oggi è <em>rialzista</em> su NVIDIA.</div>
+
+<h2>A cosa serve a chi investe</h2>
+<p>Il sentiment non ti dice cosa comprare. Ti dice <strong>che aria tira</strong> — e questo ha tre usi concreti:</p>
+<ul>
+  <li><strong>Contesto immediato.</strong> Il titolo è sceso del 3%: è panico da notizia vera o rumore? Uno sguardo al sentiment delle ultime 24 ore risponde in dieci secondi.</li>
+  <li><strong>Segnale d'attenzione.</strong> Un cambio brusco di sentiment (da +0.3 a −0.2 in un giorno) è spesso il primo sintomo che qualcosa è cambiato: vale la pena andare a leggere le notizie che l'hanno causato.</li>
+  <li><strong>Termometro pre-eventi.</strong> Prima di una trimestrale, sapere se le aspettative della stampa sono euforiche o depresse aiuta a interpretare la reazione del prezzo dopo i conti.</li>
+</ul>
+
+<h2>I limiti (che nessuno ti dice)</h2>
+<p>Qui serve onestà, perché il sentiment viene spesso venduto come una sfera di cristallo. Non lo è:</p>
+<ul>
+  <li><strong>Non è una previsione.</strong> La correlazione tra sentiment di oggi e prezzo di domani esiste ma varia molto per titolo e periodo. Va misurata, non presunta — <a href="sentiment-anticipa-prezzo-correlazione.html">ne abbiamo scritto in dettaglio qui</a>.</li>
+  <li><strong>Le notizie arrivano dopo i fatti.</strong> Su eventi improvvisi il prezzo si muove prima che la stampa scriva. Il sentiment è più utile su tendenze di giorni che su scommesse di minuti.</li>
+  <li><strong>La qualità dipende dal modello.</strong> I sistemi basati su dizionari di parole (come il vecchio VADER) faticano col linguaggio finanziario e con l'italiano; i modelli AI moderni fanno molto meglio, ma nessuno è perfetto.</li>
+</ul>
+
+<h2>Come iniziare senza spendere niente</h2>
+<p>Il modo più semplice è guardare il sentiment già calcolato invece di costruirselo. Servono tre cose: più fonti aggregate (una sola testata è un punto di vista, non il mercato), uno storico (il numero di oggi ha senso solo confrontato con ieri) e la trasparenza sulle notizie che generano lo score, per poterle leggere tu stesso.</p>
+
+<div class="cta">
+  <h3>Vedi il sentiment di qualsiasi azione, adesso</h3>
+  <p>Cheruvo legge migliaia di notizie con l'AI e ti mostra sentiment, grafici e correlazioni per ogni titolo USA ed europeo. Gratis, senza carta.</p>
+  <a class="btn" href="https://app.cheruvo.com">Prova Cheruvo →</a>
+</div>
+
+<div class="related">
+  <h2>Continua a leggere</h2>
+  <a href="leggere-notizie-finanziarie-ai.html">→ Come leggere le notizie finanziarie con l'AI (senza affogare)</a>
+  <a href="sentiment-anticipa-prezzo-correlazione.html">→ Il sentiment anticipa il prezzo? Cosa dice la correlazione</a>
+</div>
+
+<p class="disclaimer">Questo articolo ha scopo informativo ed educativo e non costituisce consulenza finanziaria. Ogni decisione di investimento è a tuo rischio.</p>
+</main>
+
+<footer>© 2026 Cheruvo · <a href="../index.html">cheruvo.com</a> · <a href="index.html">Blog</a> · <a href="../privacy.html">Privacy</a></footer>
+</body>
+</html>

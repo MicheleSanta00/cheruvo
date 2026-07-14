@@ -1,0 +1,35 @@
+/* Blog Cheruvo — stile condiviso (coerente con la landing) */
+:root { --black:#050505; --card:#0d1117; --border:#1f2937; --white:#e6edf3; --off-white:#c9d1d9; --muted:#8b949e; --azure:#60a5fa; --green:#34d399; --blue:#1e5cff; }
+* { box-sizing:border-box; margin:0; padding:0; }
+body { background:var(--black); color:var(--off-white); font-family:ui-sans-serif,system-ui,-apple-system,"Segoe UI",Roboto,sans-serif; line-height:1.75; }
+header { display:flex; align-items:center; justify-content:space-between; padding:18px 24px; border-bottom:1px solid var(--border); position:sticky; top:0; background:rgba(5,5,5,.92); backdrop-filter:blur(8px); z-index:10; }
+.logo { display:flex; align-items:center; gap:9px; color:var(--white); text-decoration:none; font-weight:600; }
+.logo img { width:20px; height:20px; }
+.hbtn { font-size:12.5px; color:var(--white); background:transparent; border:1px solid var(--border); border-radius:8px; padding:6px 12px; text-decoration:none; }
+.hbtn.primary { background:var(--blue); border-color:var(--blue); color:#fff; font-weight:600; }
+main { max-width:720px; margin:0 auto; padding:48px 24px 90px; }
+.kicker { color:var(--azure); font-size:12.5px; font-weight:700; letter-spacing:.08em; text-transform:uppercase; margin-bottom:10px; }
+h1 { color:var(--white); font-size:30px; line-height:1.25; margin-bottom:10px; }
+.meta { color:var(--muted); font-size:13px; margin-bottom:34px; }
+h2 { color:var(--white); font-size:20px; margin:36px 0 12px; }
+p { font-size:15.5px; margin-bottom:16px; }
+ul, ol { padding-left:24px; margin-bottom:16px; }
+li { font-size:15.5px; margin-bottom:8px; }
+a { color:var(--azure); text-decoration:none; }
+a:hover { text-decoration:underline; }
+strong { color:var(--white); }
+.box { background:var(--card); border:1px solid var(--border); border-radius:12px; padding:16px 20px; margin:20px 0; font-size:14.5px; }
+.cta { margin:38px 0 8px; background:linear-gradient(160deg,#0d1220,#0f1a38); border:1px solid #2a4d9e; border-radius:14px; padding:24px; text-align:center; }
+.cta h3 { color:var(--white); font-size:18px; margin-bottom:8px; }
+.cta p { color:var(--muted); font-size:14px; margin-bottom:16px; }
+.cta a.btn { display:inline-block; background:var(--blue); color:#fff; font-weight:600; padding:12px 26px; border-radius:10px; }
+.disclaimer { color:var(--muted); font-size:12px; margin-top:30px; border-top:1px solid var(--border); padding-top:16px; }
+.postlist { display:grid; gap:14px; margin-top:30px; }
+.postcard { display:block; background:var(--card); border:1px solid var(--border); border-radius:14px; padding:20px 22px; transition:border-color .15s; }
+.postcard:hover { border-color:var(--azure); text-decoration:none; }
+.postcard h2 { margin:0 0 6px; font-size:18px; }
+.postcard p { color:var(--muted); font-size:14px; margin:0; }
+.related { margin-top:40px; }
+.related a { display:block; margin-bottom:8px; font-size:14.5px; }
+footer { border-top:1px solid var(--border); padding:26px 24px; text-align:center; color:var(--muted); font-size:13px; }
+footer a { color:var(--muted); }

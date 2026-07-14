@@ -1,0 +1,90 @@
+<!DOCTYPE html>
+<html lang="it">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Il sentiment anticipa il prezzo? Cosa dice la correlazione | Cheruvo</title>
+<meta name="description" content="Il sentiment delle notizie predice i movimenti di prezzo? Cosa dice la ricerca, come misurarlo da soli con la correlazione di Pearson e perché diffidare di chi promette segnali infallibili.">
+<link rel="canonical" href="https://cheruvo.com/blog/sentiment-anticipa-prezzo-correlazione.html">
+<meta property="og:title" content="Il sentiment anticipa il prezzo? Cosa dice la correlazione">
+<meta property="og:description" content="Cosa dice la ricerca, come misurarlo da soli e perché diffidare di chi promette segnali infallibili.">
+<meta property="og:type" content="article">
+<meta property="og:url" content="https://cheruvo.com/blog/sentiment-anticipa-prezzo-correlazione.html">
+<meta property="og:image" content="https://cheruvo.com/og-image.png">
+<meta name="twitter:card" content="summary_large_image">
+<link rel="icon" href="../favicon.png">
+<link rel="stylesheet" href="style.css">
+<script type="application/ld+json">
+{
+  "@context": "https://schema.org",
+  "@type": "Article",
+  "headline": "Il sentiment anticipa il prezzo? Cosa dice la correlazione",
+  "description": "Cosa dice la ricerca, come misurarlo da soli con la correlazione di Pearson e perché diffidare di chi promette segnali infallibili.",
+  "datePublished": "2026-07-14",
+  "inLanguage": "it",
+  "author": { "@type": "Organization", "name": "Cheruvo" },
+  "publisher": { "@type": "Organization", "name": "Cheruvo", "url": "https://cheruvo.com" }
+}
+</script>
+</head>
+<body>
+<header>
+  <a class="logo" href="../index.html"><img src="../logo-v2.png" alt=""/>Cheruvo</a>
+  <div style="display:flex;gap:8px">
+    <a class="hbtn" href="index.html">Blog</a>
+    <a class="hbtn primary" href="https://app.cheruvo.com">Prova gratis</a>
+  </div>
+</header>
+
+<main>
+<div class="kicker">Approfondimento</div>
+<h1>Il sentiment anticipa il prezzo? Cosa dice la correlazione</h1>
+<div class="meta">Blog di Cheruvo · 14 luglio 2026 · 8 minuti di lettura</div>
+
+<p>È la domanda che chiunque si fa davanti a un indicatore di <a href="sentiment-analysis-azioni.html">sentiment</a>: <em>se oggi le notizie sono positive, domani il titolo sale?</em> La risposta onesta è: <strong>a volte, per alcuni titoli, in alcuni periodi</strong>. Chi ti promette di più sta vendendo qualcosa. In questo articolo vediamo cosa dice la ricerca, come misurare la relazione da soli e come usarla senza illudersi.</p>
+
+<h2>Cosa dice la ricerca accademica</h2>
+<p>Il tema è studiato da vent'anni. I risultati più citati raccontano una storia coerente: il sentiment estratto da notizie e social ha un potere predittivo <strong>piccolo ma reale</strong> su orizzonti brevi (1–3 giorni), più forte sui titoli seguiti dai retail e nei momenti di stress del mercato, e tende a indebolirsi col tempo man mano che i mercati lo incorporano. In altre parole: non è una gemma nascosta, ma nemmeno astrologia. È un segnale debole, che diventa utile quando lo combini con il resto.</p>
+
+<h2>Come misurarlo da soli: la correlazione di Pearson</h2>
+<p>Non serve fidarsi di nessuno: la relazione si misura. Lo strumento base è il <strong>coefficiente di correlazione di Pearson (r)</strong> tra il sentiment del giorno D e il rendimento del giorno D+1:</p>
+<ul>
+  <li><strong>r vicino a +1</strong>: quando il sentiment sale, il giorno dopo il prezzo tende a salire (relazione forte positiva)</li>
+  <li><strong>r vicino a 0</strong>: nessuna relazione — il sentiment di ieri non dice niente sul prezzo di domani</li>
+  <li><strong>r negativo</strong>: relazione inversa (raro, ma capita: eccesso di euforia che precede prese di profitto)</li>
+</ul>
+<div class="box">📐 <strong>Interpretazione pratica.</strong> Su azioni singole, un r tra 0.2 e 0.4 è già interessante; sopra 0.6 è forte (e sospetto: controlla il numero di giorni su cui è calcolato). Con meno di 30 punti dati, qualsiasi r è più rumore che segnale.</div>
+<p>Il punto cruciale: <strong>r cambia da titolo a titolo</strong>. Su un titolo chiacchierato dai retail il legame notizie→prezzo può essere netto; su una utility che nessuno commenta, quasi nullo. Per questo un buon strumento non ti dà "il sentiment predice", ma ti mostra <em>quanto</em> ha predetto per quel titolo, in quel periodo — e ti lascia giudicare.</p>
+
+<h2>Tre modi sensati di usare questa informazione</h2>
+<ol>
+  <li><strong>Come filtro.</strong> Usa il sentiment solo sui titoli dove la correlazione storica è decente; ignoralo dove r ≈ 0.</li>
+  <li><strong>Come conferma, non come innesco.</strong> Hai già una tesi sul titolo? Un sentiment coerente la rafforza; uno opposto ti obbliga a ricontrollare. Ma la tesi viene prima.</li>
+  <li><strong>Come allarme sulle divergenze.</strong> Prezzo che sale con sentiment che scende (o viceversa) per più giorni: qualcuno si sbaglia. È il momento di leggere le notizie, non di agire d'impulso.</li>
+</ol>
+
+<h2>Gli errori che rendono il sentiment inutile</h2>
+<ul>
+  <li><strong>Guardare un giorno solo.</strong> Serve la serie, non il punto.</li>
+  <li><strong>Ignorare il numero di notizie.</strong> Un +0.8 calcolato su 2 notizie vale meno di un +0.3 su 40.</li>
+  <li><strong>Dimenticare i costi.</strong> Anche una correlazione reale, tradata con commissioni e spread da retail, spesso non lascia niente sul tavolo. Il sentiment informa le decisioni; raramente le automatizza con profitto.</li>
+</ul>
+
+<div class="cta">
+  <h3>Misuralo tu stesso, titolo per titolo</h3>
+  <p>Cheruvo calcola la correlazione sentiment→prezzo (D→D+1) per ogni azione, con scatter plot e regressione. Vedi coi tuoi occhi dove il segnale c'è e dove no.</p>
+  <a class="btn" href="https://app.cheruvo.com">Prova Cheruvo →</a>
+</div>
+
+<div class="related">
+  <h2>Continua a leggere</h2>
+  <a href="sentiment-analysis-azioni.html">→ Cos'è la sentiment analysis delle azioni (spiegata semplice)</a>
+  <a href="leggere-notizie-finanziarie-ai.html">→ Come leggere le notizie finanziarie con l'AI (senza affogare)</a>
+</div>
+
+<p class="disclaimer">Questo articolo ha scopo informativo ed educativo e non costituisce consulenza finanziaria. Le performance passate e le correlazioni storiche non garantiscono risultati futuri. Ogni decisione di investimento è a tuo rischio.</p>
+</main>
+
+<footer>© 2026 Cheruvo · <a href="../index.html">cheruvo.com</a> · <a href="index.html">Blog</a> · <a href="../privacy.html">Privacy</a></footer>
+</body>
+</html>
