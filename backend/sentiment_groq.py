@@ -1,14 +1,18 @@
 """
-sentiment_groq.py — Scoring sentiment di qualità finanziaria via Groq/Llama 3.
+sentiment_groq.py — Scoring sentiment di qualità finanziaria via Groq/Llama.
 
-Usato dal workflow GitHub Actions (non in real-time) per ri-classificare
-le news salvate da Google RSS e NewsAPI con un modello LLM invece di VADER.
-Alpha Vantage mantiene i propri score pre-calcolati (già accurati).
+Usato in due punti:
+  1. updater.py (GitHub Actions, ogni 6 ore): ri-classifica le news non-AV
+     ancora con score VADER (score_source='vader').
+  2. quick_fetch.py (on-demand): prova a dare subito lo score LLM alle news
+     appena scaricate, con VADER come fallback.
 
-Limiti free tier Groq (llama-3.1-8b-instant):
-  - 30 req/min, 14.400 req/giorno
-  - Con batch di 10 articoli → ~1.440 articoli/min, 144.000/giorno
-  - Ampiamente sufficiente per il volume di Cheruvo
+Principio di robustezza: se Groq fallisce (rate limit, modello dismesso,
+JSON rotto) NON si tocca nulla — gli score esistenti restano.
+Mai sovrascrivere uno score buono con uno zero.
+
+Modello: env GROQ_SCORE_MODEL (default llama-3.3-70b-versatile, lo stesso
+già usato per AI Summary e Academy — garantito attivo sull'account).
 """
 import os
 import json
@@ -19,6 +23,8 @@ from groq import Groq
 from database import get_pool
 
 logger = logging.getLogger(__name__)
+
+GROQ_SCORE_MODEL = os.environ.get("GROQ_SCORE_MODEL", "llama-3.3-70b-versatile")
 
 _groq_client: Groq | None = None
 
@@ -35,26 +41,32 @@ Score each news headline+summary with a sentiment value between -1.0 (very negat
 
 Rules:
 - Focus on what the news means for investors and the stock price
-- "beat earnings", "raised guidance", "record profit" → positive (0.3 to 0.8)
-- "missed estimates", "layoffs", "investigation", "downgrade" → negative (-0.3 to -0.8)
-- "bankruptcy", "fraud", "crash" → very negative (-0.7 to -1.0)
-- "partnership", "new product launch", "upgrade" → positive (0.2 to 0.6)
-- Neutral announcements, routine filings → near zero (-0.1 to 0.1)
+- "beat earnings", "raised guidance", "record profit" -> positive (0.3 to 0.8)
+- "missed estimates", "layoffs", "investigation", "downgrade" -> negative (-0.3 to -0.8)
+- "bankruptcy", "fraud", "crash" -> very negative (-0.7 to -1.0)
+- "partnership", "new product launch", "upgrade" -> positive (0.2 to 0.6)
+- Neutral announcements, routine filings -> near zero (-0.1 to 0.1)
+- Headlines may be in English, Italian or other languages: score them all
 - Use the full range, not just extremes
 
-Respond ONLY with a valid JSON array of numbers (no text, no markdown):
-[score1, score2, score3, ...]
+Respond ONLY with a JSON object of this exact shape (no text, no markdown):
+{{"scores": [score1, score2, score3, ...]}}
 
 News to score (index matches output position):
 {items}
 """
 
 
-def score_batch(articles: list[dict]) -> list[float]:
+def score_batch(articles: list[dict]) -> list | None:
     """
-    Invia un batch di articoli a Groq e restituisce i float scores.
-    articles: lista di dict con 'title' e 'summary'.
-    Ritorna lista di float della stessa lunghezza; fallback a 0.0 per errori.
+    Invia un batch di articoli a Groq e restituisce gli score.
+
+    Ritorna:
+      - list della stessa lunghezza di articles; ogni elemento è un float
+        in [-1, 1] oppure None se quel singolo score non è utilizzabile;
+      - None se l'intera chiamata fallisce (rate limit, modello, JSON rotto).
+
+    Il chiamante NON deve scrivere nulla per gli elementi None.
     """
     if not articles:
         return []
@@ -63,68 +75,68 @@ def score_batch(articles: list[dict]) -> list[float]:
         f"{i+1}. {a['title']} — {a.get('summary', '')[:120]}"
         for i, a in enumerate(articles)
     )
-
     prompt = BATCH_PROMPT.format(items=items_text)
 
     try:
         response = _get_groq().chat.completions.create(
-            model="llama-3.1-8b-instant",
+            model=GROQ_SCORE_MODEL,
             messages=[{"role": "user", "content": prompt}],
-            max_tokens=200,
+            max_tokens=400,
             temperature=0.1,   # quasi deterministico per consistency
+            response_format={"type": "json_object"},
         )
-        raw = response.choices[0].message.content.strip()
+        raw = (response.choices[0].message.content or "").strip()
 
-        # Pulisci eventuali backtick o testo attorno al JSON
+        # Pulisci eventuali backtick o prefissi attorno al JSON
         raw = raw.strip("`").strip()
         if raw.startswith("json"):
             raw = raw[4:].strip()
 
-        scores = json.loads(raw)
-
+        data = json.loads(raw)
+        # Accetta sia {"scores": [...]} sia una lista nuda
+        scores = data.get("scores") if isinstance(data, dict) else data
         if not isinstance(scores, list):
-            raise ValueError(f"Risposta non è una lista: {scores}")
+            raise ValueError(f"Risposta senza lista scores: {type(scores)}")
 
-        # Clamp e arrotonda
         result = []
         for i, s in enumerate(scores[:len(articles)]):
             try:
                 result.append(round(max(-1.0, min(1.0, float(s))), 4))
             except (TypeError, ValueError):
                 logger.warning("Score non valido per articolo %d: %r", i, s)
-                result.append(0.0)
+                result.append(None)
 
-        # Padding se Groq restituisce meno scores del previsto
+        # Padding con None se Groq restituisce meno score del previsto
         while len(result) < len(articles):
-            result.append(0.0)
-
+            result.append(None)
         return result
 
     except json.JSONDecodeError as e:
         logger.warning("JSON non valido da Groq: %s | Raw: %r", e, raw[:200])
-        return [0.0] * len(articles)
+        return None
     except Exception as e:
-        logger.error("Errore Groq batch: %s", e)
-        return [0.0] * len(articles)
+        logger.error("Errore Groq batch (%s): %s", GROQ_SCORE_MODEL, e)
+        return None
 
 
 def rescore_non_av_news(ticker: str, batch_size: int = 10,
                          max_articles: int = 100) -> int:
     """
-    Ri-classifica le news NON Alpha Vantage di un ticker usando Groq.
-    Aggiorna solo gli articoli con score VADER (fonte != 'Alpha Vantage').
-    Ritorna il numero di articoli aggiornati.
+    Ri-classifica con Groq le news di un ticker che hanno ancora lo score
+    VADER (score_source='vader'). Ogni articolo viene processato UNA volta:
+    dopo l'update score_source diventa 'llm'.
+    Se Groq fallisce, gli score VADER restano intatti.
     """
     pool = get_pool()
     conn = pool.getconn()
     try:
         cur = conn.cursor()
-        # Seleziona news recenti non AV — quelle con score VADER da migliorare
         cur.execute("""
             SELECT id, title, summary
             FROM news
             WHERE ticker = %s
               AND source != 'Alpha Vantage'
+              AND COALESCE(score_source, 'vader') = 'vader'
               AND published_date >= NOW() - INTERVAL '7 days'
             ORDER BY published_date DESC
             LIMIT %s
@@ -147,24 +159,29 @@ def rescore_non_av_news(ticker: str, batch_size: int = 10,
         ids = [r[0] for r in batch_rows]
 
         scores = score_batch(articles)
+        if scores is None:
+            logger.warning("[Groq Sentiment] Batch fallito per %s — score VADER conservati", ticker)
+            break   # inutile insistere in questo run; riproverà il prossimo
 
-        # Aggiorna nel DB
-        conn = pool.getconn()
-        try:
-            cur = conn.cursor()
-            psycopg2.extras.execute_values(
-                cur,
-                "UPDATE news SET sentiment = data.score FROM (VALUES %s) AS data(id, score) WHERE news.id = data.id",
-                [(id_, score) for id_, score in zip(ids, scores)],
-                template="(%s, %s::real)",
-            )
-            conn.commit()
-            cur.close()
-            updated += len(ids)
-        finally:
-            pool.putconn(conn)
+        pairs = [(id_, s) for id_, s in zip(ids, scores) if s is not None]
+        if pairs:
+            conn = pool.getconn()
+            try:
+                cur = conn.cursor()
+                psycopg2.extras.execute_values(
+                    cur,
+                    "UPDATE news SET sentiment = data.score, score_source = 'llm' "
+                    "FROM (VALUES %s) AS data(id, score) WHERE news.id = data.id",
+                    pairs,
+                    template="(%s, %s::real)",
+                )
+                conn.commit()
+                cur.close()
+                updated += len(pairs)
+            finally:
+                pool.putconn(conn)
 
-        # Rispetta il rate limit Groq (30 req/min → pausa 2s tra batch)
+        # Rispetta il rate limit Groq (pausa tra batch)
         if i + batch_size < len(rows):
             time.sleep(2)
 
@@ -173,14 +190,11 @@ def rescore_non_av_news(ticker: str, batch_size: int = 10,
 
 
 def rescore_all_tickers(tickers: list[str]) -> int:
-    """
-    Entry point per updater.py — ri-classifica tutti i ticker della lista.
-    """
+    """Entry point per updater.py — ri-classifica tutti i ticker della lista."""
     total = 0
     for ticker in tickers:
         try:
-            n = rescore_non_av_news(ticker)
-            total += n
+            total += rescore_non_av_news(ticker)
         except Exception as e:
             logger.error("[Groq Sentiment] Errore su %s: %s", ticker, e)
     logger.info("[Groq Sentiment] Totale articoli ri-classificati: %d", total)

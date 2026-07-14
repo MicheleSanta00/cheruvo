@@ -201,6 +201,41 @@ def fetch_european_rss(ticker: str) -> list:
     return news_list
 
 
+def _llm_refine(news_list: list, max_items: int = 40) -> int:
+    """
+    Prova a sostituire gli score VADER con score LLM (Groq) per le news non-AV,
+    direttamente al momento del fetch. Muta news_list in place.
+    Qualsiasi errore → si tengono gli score VADER (mai peggiorare).
+    Ritorna il numero di score migliorati.
+    """
+    if not os.environ.get("GROQ_API_KEY"):
+        return 0
+    targets = [n for n in news_list
+               if n.get("source") != "Alpha Vantage"
+               and n.get("score_source", "vader") == "vader"][:max_items]
+    if not targets:
+        return 0
+    refined = 0
+    try:
+        from sentiment_groq import score_batch
+        for i in range(0, len(targets), 20):
+            chunk = targets[i:i + 20]
+            scores = score_batch([{"title": n["title"], "summary": n.get("summary", "")}
+                                  for n in chunk])
+            if scores is None:
+                break   # Groq indisponibile: VADER resta, riproverà il cron
+            for n, s in zip(chunk, scores):
+                if s is not None:
+                    n["sentiment"] = s
+                    n["score_source"] = "llm"
+                    refined += 1
+    except Exception as e:
+        logger.warning("LLM refine saltato (%s) — score VADER conservati", e)
+    if refined:
+        logger.info("QuickFetch: %d score raffinati con LLM", refined)
+    return refined
+
+
 def save_news(ticker: str, news_list: list) -> int:
     if not news_list:
         return 0
@@ -218,15 +253,16 @@ def save_news(ticker: str, news_list: list) -> int:
             tk = n["title"].lower().strip()
             sk = n["source"].lower().strip()
             if (tk, sk) not in existing:
+                source_kind = "av" if n["source"] == "Alpha Vantage" else n.get("score_source", "vader")
                 new_entries.append((
                     ticker, n["source"], n["title"],
                     n.get("summary", ""), n["published_date"],
-                    n["url"], float(n["sentiment"]),
+                    n["url"], float(n["sentiment"]), source_kind,
                 ))
                 existing.add((tk, sk))
         if new_entries:
             psycopg2.extras.execute_values(cur, """
-                INSERT INTO news (ticker, source, title, summary, published_date, url, sentiment)
+                INSERT INTO news (ticker, source, title, summary, published_date, url, sentiment, score_source)
                 VALUES %s
                 ON CONFLICT (ticker, title, source) DO NOTHING
             """, new_entries)
@@ -253,6 +289,9 @@ def quick_fetch(ticker: str) -> int:
         if n.get("url") and n["url"] not in seen:
             seen.add(n["url"])
             unique.append(n)
+
+    # Score di qualità finanziaria via LLM (fallback: VADER già calcolato)
+    _llm_refine(unique)
 
     count = save_news(ticker, unique)
     logger.info("QuickFetch %s completato: %d nuove news salvate", ticker, count)

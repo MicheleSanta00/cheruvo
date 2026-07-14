@@ -59,6 +59,10 @@ def init_database():
             CREATE INDEX IF NOT EXISTS idx_news_ticker_date
             ON news (ticker, published_date DESC)
         """)
+        # Da dove viene lo score: 'vader' (fallback), 'av' (Alpha Vantage), 'llm' (Groq).
+        # Serve a ri-classificare ogni articolo UNA volta sola e a non degradare
+        # score di qualità con fallback successivi.
+        cur.execute("ALTER TABLE news ADD COLUMN IF NOT EXISTS score_source TEXT DEFAULT 'vader'")
         conn.commit()
         cur.close()
     finally:

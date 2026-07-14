@@ -166,13 +166,15 @@
       max-width: 520px; line-height: 1.7; font-weight: 300;
       animation: fadeUp .6s .2s ease both; margin-bottom: 48px;
     }
-    .hero-actions { display: flex; gap: 12px; flex-wrap: wrap; justify-content: center; animation: fadeUp .6s .3s ease both; margin-bottom: 72px; }
+    .hero-actions { display: flex; gap: 12px; flex-wrap: wrap; justify-content: center; animation: fadeUp .6s .3s ease both; margin-bottom: 44px; }
     .btn-primary { background: var(--blue); color: white; border: none; padding: 15px 32px; border-radius: 11px; font-size: 15px; font-weight: 500; transition: transform .2s, box-shadow .2s; box-shadow: 0 0 40px rgba(30,92,255,0.3); }
     .btn-primary:hover { transform: translateY(-2px); box-shadow: 0 6px 50px rgba(30,92,255,0.5); }
     .btn-secondary { background: transparent; color: var(--off-white); border: 1px solid var(--border-strong); padding: 15px 32px; border-radius: 11px; font-size: 15px; transition: border-color .2s, color .2s; }
     .btn-secondary:hover { border-color: rgba(255,255,255,0.25); color: white; }
 
     /* Ticker strip */
+    .hero-shot { max-width: 900px; margin: 0 auto 56px; padding: 0 24px; animation: fadeUp .7s .35s ease both; }
+    .hero-shot svg { width: 100%; height: auto; display: block; border-radius: 16px; border: 1px solid rgba(96,165,250,0.22); box-shadow: 0 24px 90px rgba(30,92,255,0.22), 0 4px 24px rgba(0,0,0,0.5); }
     .ticker-strip { display: flex; gap: 10px; flex-wrap: wrap; justify-content: center; animation: fadeUp .6s .4s ease both; }
     .ticker-pill { display: flex; align-items: center; gap: 10px; padding: 9px 16px; border-radius: 10px; background: rgba(255,255,255,0.03); border: 1px solid var(--border); font-size: 13px; transition: border-color .2s; }
     .ticker-pill:hover { border-color: var(--border-strong); }
@@ -324,11 +326,85 @@
     <span class="dot"></span>
     <span data-i18n="heroBadge">La piattaforma per investitori retail</span>
   </div>
-  <h1 class="hero-title" data-i18n="heroTitle">Investi con <em>consapevolezza</em>.</h1>
-  <p class="hero-sub" data-i18n="heroSub">La piattaforma che ti fa capire il mercato e crescere come investitore: analisi del sentiment ed educazione finanziaria, in un unico posto.</p>
+  <h1 class="hero-title" data-i18n="heroTitle">Cosa pensa il mercato <em>delle tue azioni?</em></h1>
+  <p class="hero-sub" data-i18n="heroSub">Cheruvo legge migliaia di notizie finanziarie e ti dà il sentiment di ogni titolo: grafici, correlazioni e alert spiegati in modo semplice. Gratis, senza carta.</p>
   <div class="hero-actions">
-    <a href="https://app.cheruvo.com" target="_blank"><button class="btn-primary" data-i18n="heroBtn">Inizia gratis →</button></a>
+    <a href="https://app.cheruvo.com" target="_blank"><button class="btn-primary" data-i18n="heroBtn">Prova subito gratis →</button></a>
     <a href="#how-it-works"><button class="btn-secondary" data-i18n="heroHow">Scopri come funziona</button></a>
+  </div>
+
+  <div class="hero-shot">
+  <svg viewBox="0 0 900 520" xmlns="http://www.w3.org/2000/svg" role="img" aria-label="Anteprima della dashboard Cheruvo">
+    <rect width="900" height="520" rx="14" fill="#0b0f16"/>
+    <!-- barra finestra -->
+    <rect width="900" height="36" fill="#0e141d"/>
+    <circle cx="20" cy="18" r="5" fill="#f87171" opacity=".8"/><circle cx="38" cy="18" r="5" fill="#fbbf24" opacity=".8"/><circle cx="56" cy="18" r="5" fill="#34d399" opacity=".8"/>
+    <rect x="330" y="9" width="240" height="18" rx="9" fill="#131a26"/>
+    <text x="450" y="22" font-size="11" fill="#8b949e" text-anchor="middle" font-family="ui-sans-serif,system-ui">app.cheruvo.com</text>
+    <!-- sidebar -->
+    <rect x="0" y="36" width="196" height="484" fill="#0e141d"/>
+    <circle cx="24" cy="66" r="6" fill="#1e5cff"/>
+    <text x="38" y="71" font-size="14" font-weight="700" fill="#e6edf3" font-family="ui-sans-serif,system-ui">Cheruvo</text>
+    <text x="20" y="106" font-size="9" fill="#8b949e" letter-spacing="1.5" font-family="ui-sans-serif,system-ui">WATCHLIST</text>
+    <rect x="12" y="118" width="172" height="34" rx="8" fill="#16233a" stroke="#2b4a80" stroke-width="1"/>
+    <text x="24" y="139" font-size="12" font-weight="600" fill="#e6edf3" font-family="ui-sans-serif,system-ui">NVDA</text>
+    <text x="172" y="139" font-size="11" font-weight="600" fill="#34d399" text-anchor="end" font-family="ui-sans-serif,system-ui">+0.42</text>
+    <rect x="12" y="158" width="172" height="34" rx="8" fill="#111825"/>
+    <text x="24" y="179" font-size="12" fill="#c9d1d9" font-family="ui-sans-serif,system-ui">AAPL</text>
+    <text x="172" y="179" font-size="11" fill="#34d399" text-anchor="end" font-family="ui-sans-serif,system-ui">+0.18</text>
+    <rect x="12" y="198" width="172" height="34" rx="8" fill="#111825"/>
+    <text x="24" y="219" font-size="12" fill="#c9d1d9" font-family="ui-sans-serif,system-ui">ENI.MI</text>
+    <text x="172" y="219" font-size="11" fill="#f87171" text-anchor="end" font-family="ui-sans-serif,system-ui">−0.08</text>
+    <!-- header -->
+    <text x="220" y="72" font-size="19" font-weight="700" fill="#e6edf3" font-family="ui-sans-serif,system-ui">NVDA · NVIDIA Corp.</text>
+    <rect x="452" y="54" width="118" height="26" rx="13" fill="rgba(52,211,153,0.12)" stroke="rgba(52,211,153,0.4)" stroke-width="1"/>
+    <text x="511" y="71" font-size="11" font-weight="700" fill="#34d399" text-anchor="middle" font-family="ui-sans-serif,system-ui">RIALZISTA +0.42</text>
+    <text x="880" y="71" font-size="10" fill="#8b949e" text-anchor="end" font-family="ui-sans-serif,system-ui">aggiornato oggi 12:00</text>
+    <!-- KPI -->
+    <g font-family="ui-sans-serif,system-ui">
+      <rect x="220" y="92" width="208" height="64" rx="10" fill="#111825" stroke="#1c2534" stroke-width="1"/>
+      <text x="236" y="114" font-size="9.5" fill="#8b949e" letter-spacing="1">SENTIMENT MEDIO</text>
+      <text x="236" y="140" font-size="20" font-weight="700" fill="#34d399">+0.42</text>
+      <rect x="446" y="92" width="208" height="64" rx="10" fill="#111825" stroke="#1c2534" stroke-width="1"/>
+      <text x="462" y="114" font-size="9.5" fill="#8b949e" letter-spacing="1">ULTIMO PREZZO</text>
+      <text x="462" y="140" font-size="20" font-weight="700" fill="#e6edf3">$172.36 <tspan font-size="12" fill="#34d399">+2.1%</tspan></text>
+      <rect x="672" y="92" width="208" height="64" rx="10" fill="#111825" stroke="#1c2534" stroke-width="1"/>
+      <text x="688" y="114" font-size="9.5" fill="#8b949e" letter-spacing="1">NEWS ANALIZZATE</text>
+      <text x="688" y="140" font-size="20" font-weight="700" fill="#e6edf3">24 <tspan font-size="12" fill="#8b949e">oggi</tspan></text>
+    </g>
+    <!-- grafico -->
+    <rect x="220" y="172" width="660" height="228" rx="10" fill="#111825" stroke="#1c2534" stroke-width="1"/>
+    <g stroke="#1c2534" stroke-width="1">
+      <line x1="240" y1="230" x2="860" y2="230"/><line x1="240" y1="285" x2="860" y2="285"/><line x1="240" y1="340" x2="860" y2="340"/>
+    </g>
+    <g font-family="ui-sans-serif,system-ui">
+      <rect x="700" y="184" width="76" height="18" rx="9" fill="rgba(96,165,250,0.1)"/>
+      <circle cx="712" cy="193" r="3" fill="#60a5fa"/><text x="720" y="197" font-size="10" fill="#8b949e">Prezzo</text>
+      <rect x="782" y="184" width="88" height="18" rx="9" fill="rgba(52,211,153,0.1)"/>
+      <circle cx="794" cy="193" r="3" fill="#34d399"/><text x="802" y="197" font-size="10" fill="#8b949e">Sentiment</text>
+    </g>
+    <path d="M240,372 C280,362 310,376 350,366 C395,355 425,368 465,352 C505,336 535,352 575,340 C615,326 645,340 695,322 C735,308 775,318 815,306 C840,299 850,301 860,297 L860,392 L240,392 Z" fill="rgba(52,211,153,0.14)"/>
+    <path d="M240,372 C280,362 310,376 350,366 C395,355 425,368 465,352 C505,336 535,352 575,340 C615,326 645,340 695,322 C735,308 775,318 815,306 C840,299 850,301 860,297" fill="none" stroke="#34d399" stroke-width="2"/>
+    <path d="M240,330 C285,318 315,338 360,322 C405,306 440,318 485,296 C530,274 560,288 600,272 C640,256 680,262 720,244 C760,228 800,236 830,222 C845,215 852,217 860,212" fill="none" stroke="#60a5fa" stroke-width="2.5"/>
+    <circle cx="720" cy="244" r="4.5" fill="#60a5fa" stroke="#0b0f16" stroke-width="2"/>
+    <g font-family="ui-sans-serif,system-ui">
+      <rect x="646" y="204" width="150" height="30" rx="8" fill="#0e141d" stroke="#2b4a80" stroke-width="1"/>
+      <text x="658" y="223" font-size="10.5" fill="#c9d1d9">12 lug · <tspan fill="#60a5fa" font-weight="700">$168.9</tspan> · <tspan fill="#34d399" font-weight="700">+0.61</tspan></text>
+    </g>
+    <!-- news -->
+    <g font-family="ui-sans-serif,system-ui">
+      <rect x="220" y="416" width="660" height="40" rx="10" fill="#111825" stroke="#1c2534" stroke-width="1"/>
+      <rect x="234" y="427" width="52" height="18" rx="9" fill="rgba(52,211,153,0.14)"/>
+      <text x="260" y="440" font-size="10.5" font-weight="700" fill="#34d399" text-anchor="middle">+0.72</text>
+      <text x="298" y="441" font-size="12" fill="#e6edf3">NVIDIA supera le stime: ricavi record nel data center</text>
+      <text x="866" y="441" font-size="10" fill="#8b949e" text-anchor="end">Reuters</text>
+      <rect x="220" y="464" width="660" height="40" rx="10" fill="#111825" stroke="#1c2534" stroke-width="1"/>
+      <rect x="234" y="475" width="52" height="18" rx="9" fill="rgba(248,113,113,0.14)"/>
+      <text x="260" y="488" font-size="10.5" font-weight="700" fill="#f87171" text-anchor="middle">−0.35</text>
+      <text x="298" y="489" font-size="12" fill="#e6edf3">Pressione sui chip: nuovi dazi in discussione</text>
+      <text x="866" y="489" font-size="10" fill="#8b949e" text-anchor="end">Bloomberg</text>
+    </g>
+  </svg>
   </div>
   <div class="ticker-strip">
     <div class="ticker-pill"><span class="t-sym">NVDA</span><span class="t-score pos">+0.421</span><span class="t-label" data-i18n="bullish">Rialzista</span></div>
@@ -641,9 +717,9 @@ const tr = {
     navHow:'Come funziona', navFeatures:'Funzionalità', navPricing:'Prezzi', navCta:"Apri Cheruvo",
     navAcademy:'Academy', appsLabel:'Le nostre app', appsTitle:'Una suite, <em>due strumenti</em>', appAnalyzer:"Analizza l'umore del mercato su qualsiasi azione: sentiment AI, prezzi e notizie in tempo reale.", appAcademy:"Impara la finanza giocando: quiz, simulatori, scenari e classi. Gratis, contro l'analfabetismo finanziario.", appOpen:'Apri →', appAnalyzerShort:'Analizza il mercato', appAcademyShort:'Impara la finanza',
     heroBadge:'La piattaforma per investitori retail',
-    heroTitle:"Investi con <em>consapevolezza</em>.",
-    heroSub:"La piattaforma che ti fa capire il mercato e crescere come investitore: analisi del sentiment ed educazione finanziaria, in un unico posto.",
-    heroBtn:'Inizia gratis →', heroHow:'Scopri come funziona',
+    heroTitle:"Cosa pensa il mercato <em>delle tue azioni?</em>",
+    heroSub:"Cheruvo legge migliaia di notizie finanziarie e ti dà il sentiment di ogni titolo: grafici, correlazioni e alert spiegati in modo semplice. Gratis, senza carta.",
+    heroBtn:'Prova subito gratis →', heroHow:'Scopri come funziona',
     bullish:'Rialzista', bearish:'Ribassista', neutral:'Neutro',
     stat1:'Fonti monitorate', stat2:'Aggiornamenti al giorno', stat3:'Giorni di storico (Pro)', stat4:'Per iniziare',
     howLabel:'Come funziona', howTitle:"Dal flusso di notizie al <em>segnale azionabile</em> in secondi",
@@ -675,9 +751,9 @@ const tr = {
     navHow:'How it works', navFeatures:'Features', navPricing:'Pricing', navCta:'Open Cheruvo',
     navAcademy:'Academy', appsLabel:'Our apps', appsTitle:'One suite, <em>two tools</em>', appAnalyzer:"Track the market's mood on any stock: AI sentiment, prices and news in real time.", appAcademy:'Learn finance by playing: quizzes, simulators, scenarios and classes. Free, fighting financial illiteracy.', appOpen:'Open →', appAnalyzerShort:'Analyze the market', appAcademyShort:'Learn finance',
     heroBadge:'The platform for retail investors',
-    heroTitle:"Invest with <em>clarity</em>.",
-    heroSub:"The platform that helps you understand the market and grow as an investor: news sentiment and financial education, all in one place.",
-    heroBtn:'Start for free →', heroHow:'See how it works',
+    heroTitle:"What does the market think <em>of your stocks?</em>",
+    heroSub:"Cheruvo reads thousands of financial news stories and gives you the sentiment of any stock: charts, correlations and alerts, explained simply. Free, no card required.",
+    heroBtn:'Try it free →', heroHow:'See how it works',
     bullish:'Bullish', bearish:'Bearish', neutral:'Neutral',
     stat1:'Sources monitored', stat2:'Updates per day', stat3:'Days of history (Pro)', stat4:'To get started',
     howLabel:'How it works', howTitle:'From raw news to <em>actionable signal</em> in seconds',
