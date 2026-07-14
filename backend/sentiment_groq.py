@@ -120,7 +120,7 @@ def score_batch(articles: list[dict]) -> list | None:
 
 
 def rescore_non_av_news(ticker: str, batch_size: int = 10,
-                         max_articles: int = 100) -> int:
+                         max_articles: int = 250) -> int:
     """
     Ri-classifica con Groq le news di un ticker che hanno ancora lo score
     VADER (score_source='vader'). Ogni articolo viene processato UNA volta:
