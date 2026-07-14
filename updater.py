@@ -17,6 +17,7 @@ from quick_fetch import quick_fetch
 from alerts import check_and_send_alerts
 from sentiment_groq import rescore_all_tickers
 from onboarding import init_onboarding_table, check_and_send_onboarding_emails
+from digest import init_digest_tables, send_weekly_digests
 
 logging.basicConfig(
     level=logging.INFO,
@@ -161,6 +162,14 @@ if __name__ == "__main__":
         check_and_send_onboarding_emails()
     except Exception as e:
         logger.error("Errore onboarding emails: %s", e)
+
+    # Digest settimanale (parte solo di lunedì, una volta per utente)
+    logger.info("Controllo digest settimanale...")
+    try:
+        init_digest_tables()
+        send_weekly_digests()
+    except Exception as e:
+        logger.error("Errore digest: %s", e)
 
     elapsed = (datetime.now(timezone.utc) - start).total_seconds()
     logger.info("Done in %.1fs", elapsed)

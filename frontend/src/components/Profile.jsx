@@ -2,11 +2,23 @@ import { useState, useEffect } from 'react'
 import { supabase } from '../supabase.js'
 import { useLang } from '../LangContext.jsx'
 import { getConsent, setConsent } from '../analytics.js'
+import apiFetch from '../apiFetch.js'
 
 export default function Profile({ user, isPro, onClose, onUpgrade }) {
   const { t, lang } = useLang()
   const [createdAt, setCreatedAt] = useState('')
   const [consent, setConsentState] = useState(getConsent() === 'granted')
+  const [digest, setDigest] = useState(true)
+
+  useEffect(() => {
+    apiFetch('/digest/prefs').then((d) => setDigest(!!d.enabled)).catch(() => {})
+  }, [])
+
+  const toggleDigest = () => {
+    const next = !digest
+    setDigest(next)
+    apiFetch('/digest/prefs', { method: 'PUT', body: JSON.stringify({ enabled: next }) }).catch(() => setDigest(!next))
+  }
 
   const toggleConsent = () => {
     const next = !consent
@@ -85,6 +97,15 @@ export default function Profile({ user, isPro, onClose, onUpgrade }) {
               <label style={{ display: 'flex', alignItems: 'center', gap: 8, cursor: 'pointer', fontSize: 12, color: 'var(--muted)' }}>
                 <input type="checkbox" checked={consent} onChange={toggleConsent} style={{ accentColor: 'var(--blue)' }} />
                 {consent ? (lang === 'it' ? 'attive' : 'on') : (lang === 'it' ? 'disattivate' : 'off')}
+              </label>
+            }
+          />
+          <Row
+            label={lang === 'it' ? 'Digest settimanale (email)' : 'Weekly digest (email)'}
+            value={
+              <label style={{ display: 'flex', alignItems: 'center', gap: 8, cursor: 'pointer', fontSize: 12, color: 'var(--muted)' }}>
+                <input type="checkbox" checked={digest} onChange={toggleDigest} style={{ accentColor: 'var(--blue)' }} />
+                {digest ? (lang === 'it' ? 'attivo' : 'on') : (lang === 'it' ? 'disattivato' : 'off')}
               </label>
             }
           />
