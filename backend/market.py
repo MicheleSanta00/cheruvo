@@ -71,6 +71,45 @@ def _fetch_market() -> list[dict]:
     return out
 
 
+STATS_TTL = 30 * 60
+
+
+@router.get("/stats")
+def market_stats():
+    """Contatori pubblici per la landing: news di oggi, totali, ticker seguiti."""
+    cached = cache_get("market:stats", ttl=STATS_TTL)
+    if cached is not None:
+        return cached
+
+    stats = {"news_today": 0, "news_total": 0, "tickers": 0, "last_update": None}
+    try:
+        pool = get_pool()
+        conn = pool.getconn()
+        try:
+            cur = conn.cursor()
+            cur.execute("""
+                SELECT
+                  COUNT(*) FILTER (WHERE published_date >= NOW() - INTERVAL '24 hours'),
+                  COUNT(*),
+                  COUNT(DISTINCT ticker),
+                  MAX(published_date)
+                FROM news
+            """)
+            r = cur.fetchone()
+            cur.close()
+        finally:
+            pool.putconn(conn)
+        if r:
+            stats = {"news_today": int(r[0] or 0), "news_total": int(r[1] or 0),
+                     "tickers": int(r[2] or 0),
+                     "last_update": r[3].isoformat() if r[3] else None}
+    except Exception as e:
+        logger.error("market stats error: %s", e)
+
+    cache_set("market:stats", stats, ttl=STATS_TTL if stats["news_total"] else 60)
+    return stats
+
+
 @router.get("/today")
 def market_today():
     """Classifica pubblica dei ticker per sentiment recente (cache 15 min)."""

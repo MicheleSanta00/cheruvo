@@ -472,7 +472,7 @@
     <div class="stat-label" data-i18n="stat2">Aggiornamenti al giorno</div>
   </div>
   <div class="stat-item reveal reveal-delay-2">
-    <div class="stat-num">90</div>
+    <div class="stat-num" id="stat-news-num">90</div>
     <div class="stat-label" data-i18n="stat3">Giorni di storico (Pro)</div>
   </div>
   <div class="stat-item reveal reveal-delay-3">
@@ -877,8 +877,41 @@ applyLang()
       }
       document.getElementById('market').style.display = ''
       document.getElementById('market-divider').style.display = ''
+      fillStrip(rows)
     })
     .catch(function () { /* API fredda o giù: la sezione resta nascosta */ })
+
+  // Ticker strip del hero coi dati veri (sostituisce i valori d'esempio)
+  function fillStrip (allRows) {
+    var rows = allRows.filter(function (r) { return r.news >= 5 })
+    if (rows.length < 5) return
+    var picks = rows.slice(0, 2).concat(rows.slice(-2)).concat([rows[Math.floor(rows.length / 2)]])
+    var strip = document.querySelector('.ticker-strip')
+    if (!strip) return
+    strip.innerHTML = picks.map(function (r) {
+      var s = r.sentiment
+      var cls = s < -0.08 ? 'neg' : 'pos'
+      var key = s > 0.08 ? 'bullish' : s < -0.08 ? 'bearish' : 'neutral'
+      var score = (s > 0 ? '+' : s < 0 ? '−' : '') + Math.abs(s).toFixed(3)
+      return '<div class="ticker-pill"><span class="t-sym">' + r.ticker + '</span>' +
+             '<span class="t-score ' + cls + '">' + score + '</span>' +
+             '<span class="t-label" data-i18n="' + key + '">' + (tr[lang][key] || '') + '</span></div>'
+    }).join('')
+  }
+
+  // Contatore "notizie analizzate oggi" nella stats bar
+  fetch('https://financial-sentiment-analysis-20px.onrender.com/api/market/stats', ctrl ? { signal: ctrl.signal } : {})
+    .then(function (r) { return r.json() })
+    .then(function (d) {
+      if (!d.news_today || d.news_today < 50) return   // numeri piccoli non fanno bella figura
+      tr.it.stat3 = 'Notizie analizzate oggi'
+      tr.en.stat3 = 'News analyzed today'
+      var num = document.getElementById('stat-news-num')
+      if (num) num.textContent = Number(d.news_today).toLocaleString(lang === 'it' ? 'it-IT' : 'en-US')
+      var lbl = document.querySelector('[data-i18n="stat3"]')
+      if (lbl) lbl.textContent = tr[lang].stat3
+    })
+    .catch(function () {})
 })()
 </script>
 </body>
