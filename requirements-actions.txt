@@ -21,3 +21,12 @@ groq==0.9.0
 
 # Alert email
 resend==2.0.0
+
+# Necessari per importare i moduli digest.py ed earnings.py dal cron
+# (definiscono router FastAPI a livello di modulo; auth.py usa httpx).
+# Il cron ne usa solo le funzioni di logica, ma l'import tira dentro questi.
+fastapi==0.111.0
+httpx==0.27.2
+
+# Date earnings (usate da refresh_earnings nel cron)
+yfinance==0.2.40

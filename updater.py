@@ -17,8 +17,9 @@ from quick_fetch import quick_fetch
 from alerts import check_and_send_alerts
 from sentiment_groq import rescore_all_tickers
 from onboarding import init_onboarding_table, check_and_send_onboarding_emails
-from digest import init_digest_tables, send_weekly_digests
-from earnings import init_earnings_tables, refresh_earnings
+# digest ed earnings vengono importati "pigramente" dentro i loro try/except più sotto:
+# definiscono router FastAPI a livello di modulo, e non vogliamo che un loro import
+# error blocchi il fetch news (la parte critica del cron).
 
 logging.basicConfig(
     level=logging.INFO,
@@ -167,6 +168,7 @@ if __name__ == "__main__":
     # Digest settimanale (parte solo di lunedì, una volta per utente)
     logger.info("Controllo digest settimanale...")
     try:
+        from digest import init_digest_tables, send_weekly_digests
         init_digest_tables()
         send_weekly_digests()
     except Exception as e:
@@ -175,6 +177,7 @@ if __name__ == "__main__":
     # Date earnings (aggiorna solo quelle più vecchie di 24h)
     logger.info("Aggiornamento calendario earnings...")
     try:
+        from earnings import init_earnings_tables, refresh_earnings
         init_earnings_tables()
         refresh_earnings(selected)
     except Exception as e:
