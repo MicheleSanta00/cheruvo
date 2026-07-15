@@ -55,6 +55,47 @@
     a { color: inherit; text-decoration: none; }
     button { cursor: pointer; font-family: var(--sans); }
 
+    /* ── AURORA: luce soffusa animata dietro TUTTA la pagina ─────────────── */
+    .aurora { position: fixed; inset: 0; z-index: -1; pointer-events: none; overflow: hidden; }
+    .aurora span { position: absolute; border-radius: 50%; filter: blur(100px); will-change: transform; }
+    .aurora .a1 { width: 640px; height: 640px; background: #1e5cff; opacity: .40; top: -180px; left: -140px; animation: auroraA 28s ease-in-out infinite; }
+    .aurora .a2 { width: 540px; height: 540px; background: #34d399; opacity: .26; top: 42%; right: -160px; animation: auroraB 34s ease-in-out infinite; }
+    .aurora .a3 { width: 600px; height: 600px; background: #7c3aed; opacity: .24; bottom: -220px; left: 32%; animation: auroraC 31s ease-in-out infinite; }
+    @keyframes auroraA { 0%,100% { transform: translate(0,0); } 50% { transform: translate(130px,90px); } }
+    @keyframes auroraB { 0%,100% { transform: translate(0,0); } 50% { transform: translate(-110px,-70px); } }
+    @keyframes auroraC { 0%,100% { transform: translate(0,0); } 50% { transform: translate(70px,-110px); } }
+
+    /* ── SENTIMENT ORB: il battito del mercato (elemento signature) ──────── */
+    .orb-wrap { display: flex; justify-content: center; margin-bottom: 26px; animation: fadeUp .6s ease both; }
+    .orb { position: relative; width: 90px; height: 90px; }
+    .orb .core { position: absolute; inset: 0; border-radius: 50%;
+      background: radial-gradient(circle at 34% 30%, #9df5d8, #34d399 42%, #1e5cff 100%);
+      box-shadow: 0 0 55px 6px rgba(52,211,153,.45), inset 0 -8px 22px rgba(30,92,255,.4), inset 0 6px 18px rgba(255,255,255,.35);
+      animation: orbShift 10s ease-in-out infinite; }
+    .orb .ring { position: absolute; inset: -12px; border-radius: 50%; border: 1px solid rgba(255,255,255,.14); animation: orbPulse 3.2s ease-out infinite; }
+    .orb .ring.r2 { animation-delay: 1.6s; }
+    @keyframes orbShift {
+      0%,100% { filter: hue-rotate(0deg); }
+      45%     { filter: hue-rotate(30deg); }
+      60%     { filter: hue-rotate(-45deg); box-shadow: 0 0 55px 8px rgba(248,113,113,.4), inset 0 -8px 22px rgba(30,92,255,.4), inset 0 6px 18px rgba(255,255,255,.35); }
+      80%     { filter: hue-rotate(10deg); }
+    }
+    @keyframes orbPulse { 0% { transform: scale(1); opacity: .55; } 100% { transform: scale(1.55); opacity: 0; } }
+
+    /* ── SPOTLIGHT: le card si illuminano dove passa il puntatore ────────── */
+    .spotlight { position: relative; overflow: hidden; }
+    .spotlight::before { content: ''; position: absolute; inset: 0; border-radius: inherit; opacity: 0; transition: opacity .35s; pointer-events: none;
+      background: radial-gradient(340px circle at var(--mx,50%) var(--my,50%), rgba(96,165,250,.16), transparent 62%); }
+    .spotlight:hover::before { opacity: 1; }
+
+    /* ── DRAW: le curve del grafico si disegnano quando entrano ──────────── */
+    .draw-path { stroke-dasharray: 1400; stroke-dashoffset: 1400; }
+    .draw-on .draw-path { transition: stroke-dashoffset 1.8s ease; stroke-dashoffset: 0; }
+
+    @media (prefers-reduced-motion: reduce) {
+      .aurora span, .orb .core, .orb .ring { animation: none !important; }
+    }
+
     /* ── SCROLL ANIMATIONS ───────────────────────────────────────────────── */
     .reveal { opacity: 0; transform: translateY(24px); transition: opacity .7s ease, transform .7s ease; }
     .reveal.visible { opacity: 1; transform: translateY(0); }
@@ -302,6 +343,9 @@
 </head>
 <body>
 
+<!-- AURORA: luce soffusa animata dietro tutta la pagina -->
+<div class="aurora" aria-hidden="true"><span class="a1"></span><span class="a2"></span><span class="a3"></span></div>
+
 <!-- NAV -->
 <nav>
   <div class="nav-logo">
@@ -340,6 +384,7 @@
   </div>
   <div class="hero-glow-1"></div>
   <div class="hero-glow-2"></div>
+  <div class="orb-wrap"><div class="orb" title="Il battito del mercato"><span class="ring"></span><span class="ring r2"></span><span class="core"></span></div></div>
   <div class="hero-badge">
     <span class="dot"></span>
     <span data-i18n="heroBadge">La piattaforma per investitori retail</span>
@@ -402,8 +447,8 @@
       <circle cx="794" cy="193" r="3" fill="#34d399"/><text x="802" y="197" font-size="10" fill="#8b949e">Sentiment</text>
     </g>
     <path d="M240,372 C280,362 310,376 350,366 C395,355 425,368 465,352 C505,336 535,352 575,340 C615,326 645,340 695,322 C735,308 775,318 815,306 C840,299 850,301 860,297 L860,392 L240,392 Z" fill="rgba(52,211,153,0.14)"/>
-    <path d="M240,372 C280,362 310,376 350,366 C395,355 425,368 465,352 C505,336 535,352 575,340 C615,326 645,340 695,322 C735,308 775,318 815,306 C840,299 850,301 860,297" fill="none" stroke="#34d399" stroke-width="2"/>
-    <path d="M240,330 C285,318 315,338 360,322 C405,306 440,318 485,296 C530,274 560,288 600,272 C640,256 680,262 720,244 C760,228 800,236 830,222 C845,215 852,217 860,212" fill="none" stroke="#60a5fa" stroke-width="2.5"/>
+    <path class="draw-path" d="M240,372 C280,362 310,376 350,366 C395,355 425,368 465,352 C505,336 535,352 575,340 C615,326 645,340 695,322 C735,308 775,318 815,306 C840,299 850,301 860,297" fill="none" stroke="#34d399" stroke-width="2"/>
+    <path class="draw-path" d="M240,330 C285,318 315,338 360,322 C405,306 440,318 485,296 C530,274 560,288 600,272 C640,256 680,262 720,244 C760,228 800,236 830,222 C845,215 852,217 860,212" fill="none" stroke="#60a5fa" stroke-width="2.5"/>
     <circle cx="720" cy="244" r="4.5" fill="#60a5fa" stroke="#0b0f16" stroke-width="2"/>
     <g font-family="ui-sans-serif,system-ui">
       <rect x="646" y="204" width="150" height="30" rx="8" fill="#0e141d" stroke="#2b4a80" stroke-width="1"/>
@@ -540,47 +585,47 @@
   <div class="s-label reveal" data-i18n="featLabel">Funzionalità</div>
   <h2 class="s-title reveal" data-i18n="featTitle">Tutto ciò di cui un <em>trader serio</em> ha bisogno</h2>
   <div class="features-grid">
-    <div class="feature reveal">
+    <div class="feature spotlight reveal">
       <div class="f-icon" style="color:var(--azure)"><span class="ic" style="--m:url('assets/icons/ic-sources.png');width:30px;height:30px"></span></div>
       <div class="f-title" data-i18n="f1Title">Intelligence multi-fonte</div>
       <div class="f-desc" data-i18n="f1Desc">NewsAPI, Alpha Vantage, RSS europei combinati in un unico feed aggiornato 4 volte al giorno. Nessun punto cieco.</div>
     </div>
-    <div class="feature reveal reveal-delay-1">
+    <div class="feature spotlight reveal reveal-delay-1">
       <div class="f-icon" style="color:var(--azure)"><span class="ic" style="--m:url('assets/icons/ic-ai-brain.png');width:30px;height:30px"></span></div>
       <div class="f-title" data-i18n="f2Title">Sentiment AI avanzato</div>
       <div class="f-desc" data-i18n="f2Desc">Non semplici keyword — un modello AI che capisce il contesto finanziario e le sfumature di ogni notizia.</div>
     </div>
-    <div class="feature reveal reveal-delay-2">
+    <div class="feature spotlight reveal reveal-delay-2">
       <div class="f-icon" style="color:var(--azure)"><span class="ic" style="--m:url('assets/icons/ic-overlay.png');width:30px;height:30px"></span></div>
       <div class="f-title" data-i18n="f3Title">Overlay prezzo + sentiment</div>
       <div class="f-desc" data-i18n="f3Desc">Candlestick OHLCV affiancati alla curva del sentiment con MA7 e zoom per individuare divergenze prima del mercato.</div>
     </div>
-    <div class="feature reveal">
+    <div class="feature spotlight reveal">
       <div class="f-icon" style="color:var(--azure)"><span class="ic" style="--m:url('assets/icons/ic-correlation.png');width:30px;height:30px"></span></div>
       <div class="f-title" data-i18n="f4Title">Correlazione sentiment/prezzo</div>
       <div class="f-desc" data-i18n="f4Desc">Scatter plot con regressione lineare che mostra se il sentiment del giorno D predice il rendimento del giorno D+1.</div>
     </div>
-    <div class="feature reveal reveal-delay-1">
+    <div class="feature spotlight reveal reveal-delay-1">
       <div class="f-icon" style="color:var(--azure)"><span class="ic" style="--m:url('assets/icons/ic-export.png');width:30px;height:30px"></span></div>
       <div class="f-title">Export CSV & PDF <span class="f-pro">Pro</span></div>
       <div class="f-desc" data-i18n="f5Desc">Scarica dataset completo o report PDF con KPI, summary AI e top news per qualsiasi ticker e intervallo di date.</div>
     </div>
-    <div class="feature reveal reveal-delay-2">
+    <div class="feature spotlight reveal reveal-delay-2">
       <div class="f-icon" style="color:var(--azure)"><span class="ic" style="--m:url('assets/icons/ic-alerts.png');width:30px;height:30px"></span></div>
       <div class="f-title">Alert email <span class="f-pro">Pro</span></div>
       <div class="f-desc" data-i18n="f6Desc">Ricevi una notifica automatica quando il sentiment dei tuoi ticker cambia drasticamente — senza controllare la dashboard.</div>
     </div>
-    <div class="feature reveal">
+    <div class="feature spotlight reveal">
       <div class="f-icon" style="color:var(--azure)"><span class="ic" style="--m:url('assets/icons/ic-compare.png');width:30px;height:30px"></span></div>
       <div class="f-title">Confronto multi-ticker <span class="f-pro">Pro</span></div>
       <div class="f-desc">Sovrapponi il sentiment di fino a 3 ticker sullo stesso grafico. Es: NVDA vs AMD, ENI vs ENEL.</div>
     </div>
-    <div class="feature reveal reveal-delay-1">
+    <div class="feature spotlight reveal reveal-delay-1">
       <div class="f-icon" style="color:var(--azure)"><span class="ic" style="--m:url('assets/icons/ic-ai-summary.png');width:30px;height:30px"></span></div>
       <div class="f-title">AI Summary <span class="f-pro">Pro</span></div>
       <div class="f-desc">Giudizio bullish/bearish generato da Llama 3, con riassunto testuale e temi chiave estratti dalle ultime notizie.</div>
     </div>
-    <div class="feature reveal reveal-delay-2">
+    <div class="feature spotlight reveal reveal-delay-2">
       <div class="f-icon" style="color:var(--azure)"><span class="ic" style="--m:url('assets/icons/ic-bolt.png');width:30px;height:30px"></span></div>
       <div class="f-title" data-i18n="f8Title">Aggiornamento on-demand</div>
       <div class="f-desc" data-i18n="f8Desc">Fetch manuale per qualsiasi ticker con un click. Database aggiornato automaticamente ogni 6 ore via GitHub Actions.</div>
@@ -623,7 +668,7 @@
   <div class="s-label reveal" data-i18n="pricingLabel">Prezzi</div>
   <h2 class="s-title reveal" data-i18n="pricingTitle">Semplice e trasparente</h2>
   <div class="plans">
-    <div class="plan reveal">
+    <div class="plan spotlight reveal">
       <div class="p-name">Free</div>
       <div class="p-price">€0</div>
       <div class="p-period" data-i18n="freePeriod">per sempre · nessuna carta</div>
@@ -641,7 +686,7 @@
       </ul>
       <a href="https://app.cheruvo.com" target="_blank"><button class="p-btn free" data-i18n="freeCta">Inizia gratis</button></a>
     </div>
-    <div class="plan pro reveal reveal-delay-1">
+    <div class="plan pro spotlight reveal reveal-delay-1">
       <div class="p-badge" data-i18n="proBadge">Più popolare</div>
       <div class="p-name">Pro</div>
       <div class="p-price">€9</div>
@@ -754,6 +799,45 @@ const observer = new IntersectionObserver(entries => {
   entries.forEach(e => { if (e.isIntersecting) { e.target.classList.add('visible'); observer.unobserve(e.target) } })
 }, { threshold: 0.12 })
 document.querySelectorAll('.reveal').forEach(el => observer.observe(el))
+
+// ── Numeri che contano su quando la stats bar entra in vista ────────────────
+function countUp(el) {
+  var raw = el.textContent.trim()
+  var m = raw.match(/^(\D*)(\d[\d.,]*)(\D*)$/)   // prefisso, numero, suffisso (es. "€0", "20+", "4x")
+  if (!m) return
+  var pre = m[1], suf = m[3], target = parseFloat(m[2].replace(',', '.'))
+  if (!isFinite(target) || target === 0) return
+  var dur = 1100, t0 = performance.now()
+  function tick(now) {
+    var p = Math.min(1, (now - t0) / dur)
+    var val = Math.round(target * (1 - Math.pow(1 - p, 3)))   // ease-out
+    el.textContent = pre + val + suf
+    if (p < 1) requestAnimationFrame(tick)
+  }
+  requestAnimationFrame(tick)
+}
+var statObs = new IntersectionObserver(function (entries) {
+  entries.forEach(function (e) {
+    if (e.isIntersecting) { e.target.querySelectorAll('.stat-num').forEach(countUp); statObs.unobserve(e.target) }
+  })
+}, { threshold: 0.4 })
+var statsBar = document.querySelector('.stats-bar')
+if (statsBar) statObs.observe(statsBar)
+
+// ── Le curve del mock nel hero si disegnano al caricamento ──────────────────
+window.addEventListener('load', function () {
+  var shot = document.querySelector('.hero-shot')
+  if (shot) setTimeout(function () { shot.classList.add('draw-on') }, 400)
+})
+
+// ── Spotlight: le card seguono il puntatore ─────────────────────────────────
+document.querySelectorAll('.spotlight').forEach(function (card) {
+  card.addEventListener('pointermove', function (ev) {
+    var r = card.getBoundingClientRect()
+    card.style.setProperty('--mx', (ev.clientX - r.left) + 'px')
+    card.style.setProperty('--my', (ev.clientY - r.top) + 'px')
+  })
+})
 
 // ── i18n ──────────────────────────────────────────────────────────────────
 const tr = {

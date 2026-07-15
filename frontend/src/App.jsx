@@ -479,9 +479,14 @@ function EmptyState({ t, onLoad, days, period }) {
   return (
     <div style={{
       flex: 1, display: 'flex', flexDirection: 'column',
-      alignItems: 'center', justifyContent: 'center',
+      alignItems: 'center', justifyContent: 'center', position: 'relative',
       padding: '60px 40px', textAlign: 'center', gap: 20, maxWidth: 560, margin: '0 auto',
     }}>
+      {/* Glow soffuso + Sentiment Orb: dà vita alla schermata iniziale (lega app e landing) */}
+      <div className="welcome-glow" aria-hidden="true" />
+      <div className="orb" title="Il battito del mercato" style={{ position: 'relative', zIndex: 1, marginBottom: 4 }}>
+        <span className="ring"></span><span className="ring r2"></span><span className="core"></span>
+      </div>
 
       {/* Welcome banner — solo al primo accesso */}
       {showWelcome && (

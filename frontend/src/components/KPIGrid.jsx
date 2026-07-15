@@ -18,12 +18,14 @@ export default function KPIGrid({ stats }) {
       gridTemplateColumns: 'repeat(auto-fit, minmax(120px, 1fr))',
       gap: 10,
     }}>
-      {items.map((item) => (
+      {items.map((item, i) => (
         <div key={item.label} style={{
           background: 'rgba(255,255,255,0.03)',
           border: '1px solid var(--border)',
           borderRadius: 10,
           padding: '14px 16px',
+          animation: 'kpiIn .45s ease both',
+          animationDelay: (i * 0.06) + 's',
         }}>
           <div style={{ fontSize: 11, color: 'var(--muted)', marginBottom: 6, letterSpacing: '0.02em' }}>
             {item.label}

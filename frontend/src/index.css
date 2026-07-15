@@ -167,6 +167,36 @@ input  { font-family: var(--sans); }
 .onboarding-active .cheruvo-chat-launcher {
   display: none !important;
 }
+
+/* ── Sentiment Orb: elemento signature, riusato nell'app (empty state) ──── */
+.orb { position: relative; width: 84px; height: 84px; margin: 0 auto; }
+.orb .core { position: absolute; inset: 0; border-radius: 50%;
+  background: radial-gradient(circle at 34% 30%, #9df5d8, #34d399 42%, #1e5cff 100%);
+  box-shadow: 0 0 50px 6px rgba(52,211,153,.4), inset 0 -8px 20px rgba(30,92,255,.4), inset 0 6px 16px rgba(255,255,255,.35);
+  animation: orbShift 10s ease-in-out infinite; }
+.orb .ring { position: absolute; inset: -12px; border-radius: 50%; border: 1px solid rgba(255,255,255,.14); animation: orbPulse 3.2s ease-out infinite; }
+.orb .ring.r2 { animation-delay: 1.6s; }
+@keyframes orbShift {
+  0%,100% { filter: hue-rotate(0deg); }
+  45%     { filter: hue-rotate(30deg); }
+  60%     { filter: hue-rotate(-45deg); }
+  80%     { filter: hue-rotate(10deg); }
+}
+@keyframes orbPulse { 0% { transform: scale(1); opacity: .5; } 100% { transform: scale(1.5); opacity: 0; } }
+
+/* Glow soffuso dietro la schermata iniziale (solo empty state, non i dati) */
+.welcome-glow { position: absolute; width: 460px; height: 460px; border-radius: 50%;
+  background: radial-gradient(circle, rgba(30,92,255,.16), transparent 65%);
+  top: 20%; left: 50%; transform: translateX(-50%); pointer-events: none; z-index: 0;
+  animation: welcomeFloat 12s ease-in-out infinite; }
+@keyframes welcomeFloat { 0%,100% { transform: translateX(-50%) translateY(0); } 50% { transform: translateX(-50%) translateY(-24px); } }
+
+/* KPI: piccola comparsa animata al caricamento dei dati */
+@keyframes kpiIn { from { opacity: 0; transform: translateY(10px); } to { opacity: 1; transform: none; } }
+
+@media (prefers-reduced-motion: reduce) {
+  .orb .core, .orb .ring, .welcome-glow { animation: none !important; }
+}
 /* ── Dashboard two-column grid ───────────────────────────────────────── */
 @media (max-width: 900px) {
   .dashboard-grid {
