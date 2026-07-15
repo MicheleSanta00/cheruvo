@@ -74,6 +74,19 @@
       animation: orbShift 10s ease-in-out infinite; }
     .orb .ring { position: absolute; inset: -12px; border-radius: 50%; border: 1px solid rgba(255,255,255,.14); animation: orbPulse 3.2s ease-out infinite; }
     .orb .ring.r2 { animation-delay: 1.6s; }
+    /* Colore reale del mercato: verde=rialzista, rosso=ribassista, blu=neutro.
+       Quando l'orb mostra un dato vero, il colore è fisso (niente hue-rotate). */
+    .orb.up .core   { background: radial-gradient(circle at 34% 30%, #9df5d8, #34d399 42%, #1e5cff 100%); animation: none;
+      box-shadow: 0 0 55px 6px rgba(52,211,153,.45), inset 0 -8px 20px rgba(30,92,255,.4), inset 0 6px 16px rgba(255,255,255,.35); }
+    .orb.down .core { background: radial-gradient(circle at 34% 30%, #ffd2d2, #f87171 42%, #7f1d1d 100%); animation: none;
+      box-shadow: 0 0 55px 6px rgba(248,113,113,.42), inset 0 -8px 20px rgba(127,29,29,.5), inset 0 6px 16px rgba(255,255,255,.3); }
+    .orb.flat .core { background: radial-gradient(circle at 34% 30%, #bcd3ff, #60a5fa 45%, #1e3a8a 100%); animation: none;
+      box-shadow: 0 0 55px 6px rgba(96,165,250,.4), inset 0 -8px 20px rgba(30,58,138,.5), inset 0 6px 16px rgba(255,255,255,.3); }
+    .orb-wrap { flex-direction: column; gap: 12px; }
+    .orb-label { font-size: 12.5px; letter-spacing: .04em; color: var(--off-white); display: flex; align-items: center; gap: 7px; }
+    .orb-label .od { width: 7px; height: 7px; border-radius: 50%; background: var(--green); }
+    .orb-label.down .od { background: var(--red); }
+    .orb-label.flat .od { background: var(--azure); }
     @keyframes orbShift {
       0%,100% { filter: hue-rotate(0deg); }
       45%     { filter: hue-rotate(30deg); }
@@ -244,16 +257,14 @@
     .t-label { font-size: 11px; color: var(--muted); }
 
     /* ── DIVIDER ─────────────────────────────────────────────────────────── */
-    .divider { border: none; border-top: 1px solid var(--border); }
-    .divider-fade {
-      border: none; height: 120px;
-      background: linear-gradient(to bottom, rgba(10,20,60,0.0) 0%, #000000 100%);
-      margin-top: -120px; position: relative; z-index: 2; pointer-events: none;
-    }
+    /* Divisori come sfumature morbide che non tagliano l'aurora */
+    .divider { border: none; height: 1px; max-width: 1080px; margin: 0 auto;
+      background: linear-gradient(90deg, transparent, rgba(255,255,255,0.07), transparent); }
+    .divider-fade { border: none; height: 0; margin: 0; }
 
     /* ── STATS BAR ────────────────────────────────────────────────────────── */
     .stats-bar { display: flex; justify-content: center; gap: 0; flex-wrap: wrap; padding: 60px 24px; max-width: 900px; margin: 0 auto; }
-    .stat-item { flex: 1; min-width: 160px; text-align: center; padding: 32px 24px; border-right: 1px solid var(--border); }
+    .stat-item { flex: 1; min-width: 160px; text-align: center; padding: 32px 24px; }
     .stat-item:last-child { border-right: none; }
     .stat-num { font-family: var(--serif); font-size: 42px; font-weight: 400; letter-spacing: -.02em; margin-bottom: 6px; }
     .stat-label { font-size: 13px; color: var(--muted); }
@@ -384,7 +395,10 @@
   </div>
   <div class="hero-glow-1"></div>
   <div class="hero-glow-2"></div>
-  <div class="orb-wrap"><div class="orb" title="Il battito del mercato"><span class="ring"></span><span class="ring r2"></span><span class="core"></span></div></div>
+  <div class="orb-wrap">
+    <div class="orb" id="market-orb"><span class="ring"></span><span class="ring r2"></span><span class="core"></span></div>
+    <div class="orb-label" id="orb-label" data-i18n="orbDefault">Il polso del mercato</div>
+  </div>
   <div class="hero-badge">
     <span class="dot"></span>
     <span data-i18n="heroBadge">La piattaforma per investitori retail</span>
@@ -844,7 +858,7 @@ const tr = {
   it: {
     navHow:'Come funziona', navFeatures:'Funzionalità', navPricing:'Prezzi', navCta:"Apri Cheruvo",
     navAcademy:'Academy', appsLabel:'Le nostre app', appsTitle:'Una suite, <em>due strumenti</em>', appAnalyzer:"Analizza l'umore del mercato su qualsiasi azione: sentiment AI, prezzi e notizie in tempo reale.", appAcademy:"Impara la finanza giocando: quiz, simulatori, scenari e classi. Gratis, contro l'analfabetismo finanziario.", appOpen:'Apri →', appAnalyzerShort:'Analizza il mercato', appAcademyShort:'Impara la finanza',
-    heroBadge:'La piattaforma per investitori retail',
+    heroBadge:'La piattaforma per investitori retail', orbDefault:'Il polso del mercato',
     heroTitle:"Cosa pensa il mercato <em>delle tue azioni?</em>",
     heroSub:"Cheruvo legge migliaia di notizie finanziarie e ti dà il sentiment di ogni titolo: grafici, correlazioni e alert spiegati in modo semplice. Gratis, senza carta.",
     heroBtn:'Prova subito gratis →', heroHow:'Scopri come funziona',
@@ -963,8 +977,29 @@ applyLang()
       document.getElementById('market').style.display = ''
       document.getElementById('market-divider').style.display = ''
       fillStrip(rows)
+      updateOrb(rows)
     })
     .catch(function () { /* API fredda o giù: la sezione resta nascosta */ })
+
+  // Il Sentiment Orb riflette l'umore reale del mercato: media dei ticker.
+  function updateOrb (rows) {
+    var orb = document.getElementById('market-orb')
+    var label = document.getElementById('orb-label')
+    if (!orb || !rows.length) return
+    var vals = rows.map(function (r) { return r.sentiment }).filter(function (v) { return typeof v === 'number' })
+    if (!vals.length) return
+    var avg = vals.reduce(function (a, b) { return a + b }, 0) / vals.length
+    var cls = avg > 0.05 ? 'up' : avg < -0.05 ? 'down' : 'flat'
+    orb.classList.remove('up', 'down', 'flat'); orb.classList.add(cls)
+    label.classList.remove('down', 'flat'); if (cls !== 'up') label.classList.add(cls)
+    var words = {
+      it: { up: 'Mercato oggi · rialzista', down: 'Mercato oggi · ribassista', flat: 'Mercato oggi · neutro' },
+      en: { up: 'Market today · bullish', down: 'Market today · bearish', flat: 'Market today · neutral' }
+    }
+    var txt = (words[lang] || words.it)[cls]
+    label.removeAttribute('data-i18n')   // da qui in poi lo gestiamo noi
+    label.innerHTML = '<span class="od"></span>' + txt
+  }
 
   // Ticker strip del hero coi dati veri (sostituisce i valori d'esempio)
   function fillStrip (allRows) {
