@@ -31,7 +31,7 @@ export default function AdminSettings({ lang, strings, user }) {
   const promote = async () => {
     if (!email) return
     setBusy(true); setErr(''); setMsg('')
-    try { const r = await addAdmin(email); setEmail(''); setMsg('✓ ' + r.email); loadAdmins() }
+    try { const r = await addAdmin(email); setEmail(''); setMsg(r.email); loadAdmins() }
     catch (e) { setErr(e.message) } finally { setBusy(false) }
   }
   const demote = async (uid) => {

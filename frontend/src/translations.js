@@ -16,10 +16,10 @@ export const translations = {
     // Header
     header: {
       home: '← Home',
-      csv: '↓ CSV',
-      csvLocked: '🔒 CSV',
-      pro: '✓ Pro',
-      upgradePro: '⚡ Pro',
+      csv: 'CSV',
+      csvLocked: 'CSV',
+      pro: 'Pro',
+      upgradePro: 'Pro',
       loading: 'Caricamento...',
       updating: 'Aggiornando news...',
       enterTicker: 'Inserisci un ticker per iniziare',
@@ -35,15 +35,15 @@ export const translations = {
       priceRange: 'Periodo prezzi',
       addWatchlist: '+ Aggiungi alla watchlist',
       saving: 'Salvando...',
-      proWatchlist: '⚡ Pro per watchlist illimitata',
+      proWatchlist: 'Pro per watchlist illimitata',
       watchlistEmpty: 'Aggiungi un ticker per seguirlo qui. Es: NVDA, AAPL, ENI.MI',
-      refreshNews: '↻  Aggiorna news',
+      refreshNews: 'Aggiorna news',
       updating: 'Aggiornamento...',
       locked: 'Disponibile con Pro',
       upgradeBanner: {
-        title: '⚡ Passa a Pro',
+        title: 'Passa a Pro',
         desc: 'Watchlist illimitata · 90 giorni\nAlert email · Export CSV',
-        price: '€9/mese →',
+        price: '€9/mese',
       },
       maxDays: 'max 30g',
     },
@@ -58,9 +58,9 @@ export const translations = {
       price: 'Prezzo',
       positive: 'Positivo',
       negative: 'Negativo',
-      advancedTitle: '🔒 Analytics avanzate',
+      advancedTitle: 'Analytics avanzate',
       advancedDesc: 'Distribuzione per fonte, istogramma sentiment e analisi dettagliata disponibili con Pro.',
-      upgradeBtn: '⚡ Passa a Pro — €9/mese',
+      upgradeBtn: 'Passa a Pro — €9/mese',
     },
     // Empty state
     empty: {
@@ -78,8 +78,8 @@ export const translations = {
       joinedAt: 'Iscritto il',
       plan: 'Piano',
       planFree: 'Free',
-      planPro: '✓ Pro',
-      upgradePro: '⚡ Passa a Pro — €9/mese',
+      planPro: 'Pro',
+      upgradePro: 'Passa a Pro — €9/mese',
       logout: 'Esci dall\'account',
       homepage: '← Homepage',
     },
@@ -94,10 +94,10 @@ export const translations = {
     // TopNews
     topNews: {
       title: 'Top News',
-      lockedTitle: '🔒 Altre news',
+      lockedTitle: 'Altre news',
       lockedDesc: 'Con Pro visualizzi tutte le news senza limite.',
-      upgradeBtn: '⚡ Sblocca con Pro',
-      readMore: 'Leggi →',
+      upgradeBtn: 'Sblocca con Pro',
+      readMore: 'Leggi',
     },
     // Stats
     stats: {
@@ -124,10 +124,10 @@ export const translations = {
     // Header
     header: {
       home: '← Home',
-      csv: '↓ CSV',
-      csvLocked: '🔒 CSV',
-      pro: '✓ Pro',
-      upgradePro: '⚡ Pro',
+      csv: 'CSV',
+      csvLocked: 'CSV',
+      pro: 'Pro',
+      upgradePro: 'Pro',
       loading: 'Loading...',
       updating: 'Updating news...',
       enterTicker: 'Enter a ticker to start',
@@ -143,15 +143,15 @@ export const translations = {
       priceRange: 'Price range',
       addWatchlist: '+ Add to watchlist',
       saving: 'Saving...',
-      proWatchlist: '⚡ Pro for unlimited watchlist',
+      proWatchlist: 'Pro for unlimited watchlist',
       watchlistEmpty: 'Add a ticker to follow it here. E.g: NVDA, AAPL, ENI.MI',
-      refreshNews: '↻  Refresh news',
+      refreshNews: 'Refresh news',
       updating: 'Updating...',
       locked: 'Available with Pro',
       upgradeBanner: {
-        title: '⚡ Upgrade to Pro',
+        title: 'Upgrade to Pro',
         desc: 'Unlimited watchlist · 90 days\nEmail alerts · CSV export',
-        price: '€9/month →',
+        price: '€9/month',
       },
       maxDays: 'max 30d',
     },
@@ -166,9 +166,9 @@ export const translations = {
       price: 'Price',
       positive: 'Positive',
       negative: 'Negative',
-      advancedTitle: '🔒 Advanced analytics',
+      advancedTitle: 'Advanced analytics',
       advancedDesc: 'Source breakdown, sentiment histogram and detailed analysis available with Pro.',
-      upgradeBtn: '⚡ Upgrade to Pro — €9/month',
+      upgradeBtn: 'Upgrade to Pro — €9/month',
     },
     // Empty state
     empty: {
@@ -186,8 +186,8 @@ export const translations = {
       joinedAt: 'Joined on',
       plan: 'Plan',
       planFree: 'Free',
-      planPro: '✓ Pro',
-      upgradePro: '⚡ Upgrade to Pro — €9/month',
+      planPro: 'Pro',
+      upgradePro: 'Upgrade to Pro — €9/month',
       logout: 'Sign out',
       homepage: '← Homepage',
     },
@@ -202,10 +202,10 @@ export const translations = {
     // TopNews
     topNews: {
       title: 'Top News',
-      lockedTitle: '🔒 More news',
+      lockedTitle: 'More news',
       lockedDesc: 'With Pro you can view all news without limits.',
-      upgradeBtn: '⚡ Unlock with Pro',
-      readMore: 'Read →',
+      upgradeBtn: 'Unlock with Pro',
+      readMore: 'Read',
     },
     // Stats
     stats: {

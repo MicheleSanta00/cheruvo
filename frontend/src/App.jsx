@@ -185,8 +185,8 @@ export default function App() {
           background: 'var(--near-black)',
         }}>
           <button onClick={() => setSidebarOpen(!sidebarOpen)} className="mobile-menu-btn"
-            style={{ display: 'none', background: 'transparent', color: 'var(--muted)', fontSize: 18, padding: '4px', border: '1px solid var(--border)', borderRadius: 6 }}>
-            ☰
+            style={{ display: 'none', background: 'transparent', color: 'var(--muted)', padding: '4px', border: '1px solid var(--border)', borderRadius: 6, alignItems: 'center' }}>
+            <Icon name="menu" size={18} />
           </button>
 
           {tickerInfo ? (

@@ -134,7 +134,7 @@ export const STRINGS = {
     bkRegen: 'Regenerate', bkRegenNote: 'What should I change? (e.g. "easier", "more practical examples")',
     bkAssignTitle: 'Who gets them?', bkAssignSub: 'Lessons get published and appear in the class stream.',
     bkDue: 'Due date (optional, e.g. "July 20")', bkNoteOpt: 'Note for the class (optional)',
-    bkAssign: '✓ Publish & assign', bkSkipAssign: 'Save as drafts and close',
+    bkAssign: 'Publish & assign', bkSkipAssign: 'Save as drafts and close',
     bkDoneTitle: 'Done!', bkDoneSub: 'Lessons published and assigned to the class.',
     bkOpenClass: 'Open the class', bkNewRun: 'Generate from another chapter',
     bkNoClasses: 'No classes yet: create one from the Classes section.',
