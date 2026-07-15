@@ -251,6 +251,12 @@ export default function App() {
               border: '1px solid var(--border)', borderRadius: 6, padding: '4px 10px',
               cursor: 'pointer', fontWeight: 500,
             }}><Icon name="academy" size={14} /><span className="hide-mobile"> Academy</span></button>
+            <a href="https://cheruvo.com/guida.html" target="_blank" rel="noreferrer" title={lang === 'it' ? 'Guida all\'uso' : 'User guide'} style={{
+              display: 'inline-flex', alignItems: 'center', textDecoration: 'none',
+              fontSize: 11, color: 'var(--white)', background: 'transparent',
+              border: '1px solid var(--border)', borderRadius: 6, padding: '4px 10px',
+              cursor: 'pointer', fontWeight: 500,
+            }}><Icon name="book" size={13} /><span className="hide-mobile"> {lang === 'it' ? 'Guida' : 'Guide'}</span></a>
             <button onClick={toggleLang} style={{
               fontSize: 13, background: 'transparent', border: '1px solid var(--border)',
               borderRadius: 6, padding: '3px 7px', cursor: 'pointer', lineHeight: 1,

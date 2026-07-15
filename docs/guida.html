@@ -63,6 +63,13 @@
   .shot-ph { display:flex; flex-direction:column; align-items:center; justify-content:center; gap:8px; min-height:200px; border:2px dashed var(--border); border-radius:12px; color:var(--muted); font-size:13px; text-align:center; padding:24px; background:var(--card); }
   .shot-ph b { color:var(--off-white); font-family:monospace; font-size:12.5px; }
   figcaption { color:var(--muted); font-size:12.5px; margin-top:8px; text-align:center; }
+  figure.shot img { cursor:zoom-in; transition:border-color .15s; }
+  figure.shot img:hover { border-color:var(--azure); }
+  /* Lightbox: ingrandisci lo screenshot al clic */
+  #lightbox { position:fixed; inset:0; z-index:100; background:rgba(3,4,8,.93); display:none; align-items:center; justify-content:center; padding:24px; cursor:zoom-out; backdrop-filter:blur(4px); }
+  #lightbox.open { display:flex; }
+  #lightbox img { max-width:100%; max-height:100%; border:1px solid var(--border); border-radius:10px; box-shadow:0 24px 90px rgba(0,0,0,.75); }
+  #lightbox .lb-close { position:fixed; top:16px; right:22px; color:#fff; font-size:26px; line-height:1; background:none; border:none; cursor:pointer; opacity:.85; }
 
   .divider { height:1px; background:linear-gradient(90deg,transparent,rgba(255,255,255,.08),transparent); margin:40px 0; border:none; }
   footer { border-top:1px solid var(--border); padding:26px 24px; text-align:center; color:var(--muted); font-size:13px; }
@@ -233,6 +240,8 @@
   </main>
 </div>
 
+<div id="lightbox" aria-hidden="true"><button class="lb-close" aria-label="Chiudi">✕</button><img alt=""></div>
+
 <footer>© 2026 Cheruvo · <a href="index.html">cheruvo.com</a> · <a href="blog/">Blog</a> · <a href="privacy.html">Privacy</a> · <a href="termini.html">Termini</a></footer>
 
 <script>
@@ -312,6 +321,19 @@
     })
   }, { rootMargin: '-130px 0px -70% 0px' })
   document.querySelectorAll('main h2').forEach(function (h) { obs.observe(h) })
+})();
+
+// ── Lightbox: clicca uno screenshot per ingrandirlo ────────────────────────
+(function () {
+  var lb = document.getElementById('lightbox')
+  var lbImg = lb.querySelector('img')
+  function open(src, alt) { lbImg.src = src; lbImg.alt = alt || ''; lb.classList.add('open'); lb.setAttribute('aria-hidden', 'false') }
+  function close() { lb.classList.remove('open'); lb.setAttribute('aria-hidden', 'true'); lbImg.src = '' }
+  document.querySelectorAll('figure.shot img').forEach(function (img) {
+    img.addEventListener('click', function () { open(img.src, img.alt) })
+  })
+  lb.addEventListener('click', close)
+  document.addEventListener('keydown', function (e) { if (e.key === 'Escape') close() })
 })();
 </script>
 </body>
