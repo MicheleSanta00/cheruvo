@@ -39,12 +39,18 @@ export default function Auth({ onLogin }) {
   return (
     <div style={{
       height: '100vh', display: 'flex', alignItems: 'center', justifyContent: 'center',
-      background: 'var(--black)', padding: '16px',
+      background: 'var(--black)', padding: '16px', position: 'relative', overflow: 'hidden',
     }}>
+      {/* Gioco di luce soffuso dietro la card */}
+      <div aria-hidden="true" style={{
+        position: 'absolute', top: '50%', left: '50%', width: 580, height: 580, borderRadius: '50%', pointerEvents: 'none',
+        background: 'radial-gradient(circle, rgba(30,92,255,0.24), rgba(52,211,153,0.10) 45%, transparent 68%)',
+        filter: 'blur(30px)', animation: 'authGlow 9s ease-in-out infinite',
+      }} />
       <div style={{
         width: '100%', maxWidth: 360, background: 'var(--near-black)',
         border: '1px solid var(--border)', borderRadius: 16, padding: 32,
-        position: 'relative',
+        position: 'relative', zIndex: 1,
       }}>
 
         {/* Switch lingua */}

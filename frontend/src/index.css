@@ -194,6 +194,12 @@ input  { font-family: var(--sans); }
 /* KPI: piccola comparsa animata al caricamento dei dati */
 @keyframes kpiIn { from { opacity: 0; transform: translateY(10px); } to { opacity: 1; transform: none; } }
 
+/* Glow dietro la card di login (centrato, respiro lento) */
+@keyframes authGlow {
+  0%,100% { opacity: .8;  transform: translate(-50%,-50%) scale(1); }
+  50%     { opacity: 1;   transform: translate(-50%,-50%) scale(1.08); }
+}
+
 @media (prefers-reduced-motion: reduce) {
   .orb .core, .orb .ring, .welcome-glow { animation: none !important; }
 }
