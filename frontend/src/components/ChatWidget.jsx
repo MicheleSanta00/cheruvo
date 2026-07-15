@@ -207,6 +207,7 @@ export default function ChatWidget({ ticker, sentimentScore, topNews }) {
       {/* Floating button */}
       <button
         onClick={() => setOpen(o => !o)}
+        className="cheruvo-chat-launcher"
         style={{
           position: 'fixed', bottom: 24, right: 24, zIndex: 9999, pointerEvents: 'all',
           width: 56, height: 56, borderRadius: '50%',

@@ -161,6 +161,12 @@ input  { font-family: var(--sans); }
     display: none !important;
   }
 }
+
+/* Durante il tour di benvenuto, nascondi il pulsante flottante della chat AI
+   così non si sovrappone ai bottoni del tooltip (Avanti / Salta). */
+.onboarding-active .cheruvo-chat-launcher {
+  display: none !important;
+}
 /* ── Dashboard two-column grid ───────────────────────────────────────── */
 @media (max-width: 900px) {
   .dashboard-grid {

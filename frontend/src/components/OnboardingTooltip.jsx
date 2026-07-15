@@ -59,6 +59,14 @@ export default function OnboardingTooltip({ hasData }) {
     if (!mobile) updatePosition()
   }, [step, hasData])
 
+  // Mentre il tour è a schermo, nascondi il pulsante flottante della chat AI
+  // (altrimenti si sovrappone al tasto "Avanti" del tooltip, soprattutto su mobile).
+  useEffect(() => {
+    const shown = visible && !(waiting && step === 0)
+    document.body.classList.toggle('onboarding-active', shown)
+    return () => document.body.classList.remove('onboarding-active')
+  }, [visible, waiting, step])
+
   const updatePosition = () => {
     const current = STEPS[step]
     const el = document.getElementById(current.target)
