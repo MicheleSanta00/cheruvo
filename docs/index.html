@@ -82,7 +82,7 @@
       box-shadow: 0 0 55px 6px rgba(248,113,113,.42), inset 0 -8px 20px rgba(127,29,29,.5), inset 0 6px 16px rgba(255,255,255,.3); }
     .orb.flat .core { background: radial-gradient(circle at 34% 30%, #bcd3ff, #60a5fa 45%, #1e3a8a 100%); animation: none;
       box-shadow: 0 0 55px 6px rgba(96,165,250,.4), inset 0 -8px 20px rgba(30,58,138,.5), inset 0 6px 16px rgba(255,255,255,.3); }
-    .orb-wrap { flex-direction: column; gap: 12px; }
+    .orb-wrap { flex-direction: column; align-items: center; gap: 12px; }
     .orb-label { font-size: 12.5px; letter-spacing: .04em; color: var(--off-white); display: flex; align-items: center; gap: 7px; }
     .orb-label .od { width: 7px; height: 7px; border-radius: 50%; background: var(--green); }
     .orb-label.down .od { background: var(--red); }
@@ -96,7 +96,7 @@
     @keyframes orbPulse { 0% { transform: scale(1); opacity: .55; } 100% { transform: scale(1.55); opacity: 0; } }
 
     /* ── SPOTLIGHT: le card si illuminano dove passa il puntatore ────────── */
-    .spotlight { position: relative; overflow: hidden; }
+    .spotlight { position: relative; }
     .spotlight::before { content: ''; position: absolute; inset: 0; border-radius: inherit; opacity: 0; transition: opacity .35s; pointer-events: none;
       background: radial-gradient(340px circle at var(--mx,50%) var(--my,50%), rgba(96,165,250,.16), transparent 62%); }
     .spotlight:hover::before { opacity: 1; }
@@ -790,6 +790,7 @@
     <a href="#features" class="footer-link" data-i18n="navFeatures">Funzionalità</a>
     <a href="#pricing" class="footer-link" data-i18n="navPricing">Prezzi</a>
     <a href="#faq" class="footer-link">FAQ</a>
+    <a href="guida.html" class="footer-link" data-i18n="footerGuide">Guida</a>
     <a href="blog/" class="footer-link">Blog</a>
     <a href="privacy.html" class="footer-link" data-i18n="footerPrivacy">Privacy</a>
     <a href="termini.html" class="footer-link" data-i18n="footerTerms">Termini</a>
@@ -888,7 +889,7 @@ const tr = {
     faq4q:'Posso disdire il piano Pro quando voglio?', faq4a:'Sì, puoi disdire in qualsiasi momento dal tuo profilo. Nessun vincolo o costo nascosto.',
     faq5q:'Il sentiment predice davvero i movimenti di prezzo?', faq5a:'È un indicatore ausiliario, non una previsione. Cheruvo mostra la correlazione statistica così puoi valutarla tu stesso. Non è consulenza finanziaria.',
     ctaTitle:'Inizia a investire con consapevolezza', ctaSub:'Gratis, senza carta. Scegli la tua app e parti in 30 secondi.', ctaBtn:'Apri Cheruvo →',
-    footerCopy:'© 2026 Cheruvo · Solo a scopo informativo · Non è consulenza finanziaria', footerLink:"Le nostre app →", footerPrivacy:'Privacy', footerTerms:'Termini', footerStatus:'Stato del servizio',
+    footerCopy:'© 2026 Cheruvo · Solo a scopo informativo · Non è consulenza finanziaria', footerLink:"Le nostre app →", footerPrivacy:'Privacy', footerTerms:'Termini', footerStatus:'Stato del servizio', footerGuide:'Guida',
   },
   en: {
     navHow:'How it works', navFeatures:'Features', navPricing:'Pricing', navCta:'Open Cheruvo',
@@ -923,7 +924,7 @@ const tr = {
     faq4q:'Can I cancel the Pro plan anytime?', faq4a:'Yes, you can cancel anytime from your profile. No commitments or hidden fees.',
     faq5q:'Does sentiment really predict price movements?', faq5a:"It's an auxiliary indicator, not a prediction. Cheruvo shows the statistical correlation so you can evaluate it yourself. Not financial advice.",
     ctaTitle:'Start investing with clarity', ctaSub:'Free, no card. Pick your app and get going in 30 seconds.', ctaBtn:'Open Cheruvo →',
-    footerCopy:'© 2026 Cheruvo · For informational purposes only · Not financial advice', footerLink:'Our apps →', footerPrivacy:'Privacy', footerTerms:'Terms', footerStatus:'Service status',
+    footerCopy:'© 2026 Cheruvo · For informational purposes only · Not financial advice', footerLink:'Our apps →', footerPrivacy:'Privacy', footerTerms:'Terms', footerStatus:'Service status', footerGuide:'Guide',
   }
 }
 
