@@ -32,11 +32,14 @@ const STEPS = [
   },
 ]
 
+const isMobile = () => typeof window !== 'undefined' && window.innerWidth <= 640
+
 export default function OnboardingTooltip({ hasData }) {
   const [step, setStep]       = useState(0)
   const [visible, setVisible] = useState(false)
   const [waiting, setWaiting] = useState(false)   // "Ho capito" premuto: in attesa del primo ticker
   const [pos, setPos]         = useState({ top: 0, left: 0 })
+  const [mobile]              = useState(isMobile)   // su mobile i tooltip vanno centrati
 
   useEffect(() => {
     if (localStorage.getItem('cheruvo_onboarded')) return
@@ -53,7 +56,7 @@ export default function OnboardingTooltip({ hasData }) {
       return
     }
     if (step > 0 && !hasData) return
-    updatePosition()
+    if (!mobile) updatePosition()
   }, [step, hasData])
 
   const updatePosition = () => {
@@ -79,12 +82,11 @@ export default function OnboardingTooltip({ hasData }) {
         setStep(0)
         return
       }
-      // Controlla che l'elemento target esista, altrimenti salta
-      const nextTarget = STEPS[nextStep].target
-      const el = document.getElementById(nextTarget)
-      if (!el) {
-        finish()
-        return
+      // Su desktop: se il target non esiste, chiudi. Su mobile i tooltip sono
+      // centrati e non dipendono dagli elementi, quindi non serve il controllo.
+      if (!mobile) {
+        const el = document.getElementById(STEPS[nextStep].target)
+        if (!el) { finish(); return }
       }
       setStep(nextStep)
     } else {
@@ -105,19 +107,23 @@ export default function OnboardingTooltip({ hasData }) {
 
   return (
     <>
-      {/* Overlay scuro semi-trasparente */}
+      {/* Overlay scuro semi-trasparente (su mobile sempre attivo per mettere a fuoco) */}
       <div
-        onClick={step === 0 ? undefined : finish}
+        onClick={(mobile || step > 0) ? finish : undefined}
         style={{
           position: 'fixed', inset: 0, zIndex: 998,
-          background: step === 0 ? 'transparent' : 'rgba(0,0,0,0.5)',
-          backdropFilter: step === 0 ? 'none' : 'blur(1px)',
-          pointerEvents: step === 0 ? 'none' : 'all',
+          background: (mobile || step > 0) ? 'rgba(0,0,0,0.55)' : 'transparent',
+          backdropFilter: (mobile || step > 0) ? 'blur(1px)' : 'none',
+          pointerEvents: (mobile || step > 0) ? 'all' : 'none',
         }}
       />
 
-      {/* Tooltip */}
-      <div style={{
+      {/* Tooltip — ancorato all'elemento su desktop, centrato in basso su mobile */}
+      <div style={mobile ? {
+        position: 'fixed', left: 12, right: 12, bottom: 20, zIndex: 999,
+        background: '#0f1623', border: '1px solid rgba(30,92,255,0.4)', borderRadius: 16,
+        padding: '18px 20px', boxShadow: '0 8px 40px rgba(0,0,0,0.6)', pointerEvents: 'all',
+      } : {
         position: 'absolute',
         top: pos.top,
         left: pos.left,
@@ -131,8 +137,8 @@ export default function OnboardingTooltip({ hasData }) {
         boxShadow: '0 8px 40px rgba(0,0,0,0.6), 0 0 0 1px rgba(30,92,255,0.15)',
         pointerEvents: 'all',
       }}>
-        {/* Freccia */}
-        {isRight && (
+        {/* Freccia (solo desktop) */}
+        {!mobile && isRight && (
           <div style={{
             position: 'absolute', left: -8, top: '50%', transform: 'translateY(-50%)',
             width: 0, height: 0,
@@ -141,7 +147,7 @@ export default function OnboardingTooltip({ hasData }) {
             borderRight: '8px solid rgba(30,92,255,0.4)',
           }} />
         )}
-        {!isRight && (
+        {!mobile && !isRight && (
           <div style={{
             position: 'absolute', bottom: -8, left: '50%', transform: 'translateX(-50%)',
             width: 0, height: 0,

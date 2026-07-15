@@ -70,7 +70,7 @@ export default function ChatWidget({ ticker, sentimentScore, topNews }) {
     <>
       {/* Chat panel */}
       {open && (
-        <div style={{
+        <div className="cheruvo-chat-panel" style={{
           position: 'fixed', bottom: 88, right: 24, zIndex: 9998, pointerEvents: 'all',
           width: 360, height: 520,
           background: '#0a0d14',

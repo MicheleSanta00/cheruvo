@@ -128,6 +128,38 @@ input  { font-family: var(--sans); }
     font-size: 11px !important;
     padding: 4px 8px !important;
   }
+
+  /* Chat assistente: pannello con margini, non sfora e lascia spazio sopra */
+  .cheruvo-chat-panel {
+    left: 10px !important;
+    right: 10px !important;
+    width: auto !important;
+    bottom: 84px !important;
+    height: auto !important;
+    max-height: calc(100dvh - 100px) !important;
+  }
+
+  /* Header app: più compatto, meno affollato */
+  header {
+    padding: 0 10px !important;
+    gap: 6px !important;
+  }
+  header > div[style*="margin-left: auto"],
+  header > div[style*="marginLeft"] {
+    gap: 6px !important;
+  }
+  /* Bottoni header più piccoli e cliccabili col pollice */
+  header button {
+    padding: 5px 8px !important;
+  }
+}
+
+/* Schermi molto stretti: nascondi il nome esteso del ticker, tieni il simbolo */
+@media (max-width: 430px) {
+  header span[style*="ellipsis"],
+  header span[style*="text-overflow"] {
+    display: none !important;
+  }
 }
 /* ── Dashboard two-column grid ───────────────────────────────────────── */
 @media (max-width: 900px) {
