@@ -15,7 +15,7 @@ jobs:
   backfill:
     name: Ripassa storico sentiment
     runs-on: ubuntu-latest
-    timeout-minutes: 60
+    timeout-minutes: 55
 
     steps:
       - uses: actions/checkout@v4

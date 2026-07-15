@@ -43,10 +43,12 @@ logging.basicConfig(level=logging.INFO,
                     datefmt="%H:%M:%S")
 log = logging.getLogger("backfill")
 
-BATCH = 20                 # articoli per richiesta Groq
-PAUSE = 2.0                # secondi tra i batch (rispetto rate-limit)
-MAX_UPDATES = int(os.environ.get("BACKFILL_MAX", "6000"))   # cap per run
-STOP_AFTER_FAILS = 3       # batch falliti di fila → stop (probabile rate-limit)
+BATCH = 15                 # articoli per richiesta Groq (prompt più corto = meno 429)
+PAUSE = 4.0                # secondi tra i batch (asseconda il rate-limit)
+MAX_UPDATES = int(os.environ.get("BACKFILL_MAX", "100000"))   # cap per run (di fatto: usa il tempo)
+TIME_BUDGET_SEC = 50 * 60  # esce PULITO prima del timeout del workflow (55 min)
+STOP_AFTER_FAILS = 6       # batch falliti di fila → probabile limite giornaliero → stop
+BACKOFF = [20, 40, 60, 90, 120, 180]   # attesa crescente sui 429
 
 
 def _count_remaining() -> int:
@@ -116,12 +118,13 @@ def main():
         log.info("Niente da fare: lo storico è già pulito.")
         return
 
+    start = time.time()
     updated = 0
     fails = 0
-    while updated < MAX_UPDATES:
+    while updated < MAX_UPDATES and (time.time() - start) < TIME_BUDGET_SEC:
         rows = _fetch_chunk(BATCH)
         if not rows:
-            log.info("Storico esaurito.")
+            log.info("Storico esaurito — bonifica completata!")
             break
 
         articles = [{"title": r[1], "summary": r[2] or ""} for r in rows]
@@ -129,20 +132,24 @@ def main():
         scores = score_batch(articles)
 
         if scores is None:
+            wait = BACKOFF[min(fails, len(BACKOFF) - 1)]
             fails += 1
-            log.warning("Batch fallito (%d/%d) — probabile rate-limit.", fails, STOP_AFTER_FAILS)
+            log.warning("Rate-limit (%d/%d) — attendo %ds e riprovo.", fails, STOP_AFTER_FAILS, wait)
             if fails >= STOP_AFTER_FAILS:
-                log.info("Mi fermo: rilancia lo script più tardi, riprenderà da qui.")
+                log.info("Probabile limite giornaliero Groq raggiunto. Riprendi domani: ripartirà da qui.")
                 break
-            time.sleep(15)
+            time.sleep(wait)
             continue
 
         fails = 0
         n = _apply(list(zip(ids, scores)))
         updated += n
-        if updated % 200 < BATCH:
-            log.info("Aggiornate ~%d news…", updated)
+        if updated % 300 < BATCH:
+            log.info("Aggiornate ~%d news in questo run…", updated)
         time.sleep(PAUSE)
+
+    if (time.time() - start) >= TIME_BUDGET_SEC:
+        log.info("Tempo del run esaurito (uscita pulita). Rilancia per continuare.")
 
     left = _count_remaining()
     log.info("Fatto. Aggiornate in questo run: %d · ancora da ripassare: %d", updated, left)
