@@ -114,18 +114,22 @@ export default function App() {
     track('csv_exported', { ticker: loadedTicker })
     if (!news.length) return
     const headers = ['title', 'source', 'published_date', 'sentiment', 'sentiment_label', 'url']
+    // Excel italiano si aspetta ';' e la virgola decimale; quello inglese ',' e il punto
+    const isIt = lang === 'it'
+    const SEP = isIt ? ';' : ','
     const esc = v => `"${(v ?? '').toString().replace(/"/g, '""')}"`
+    const num = v => { const s = Number(v).toFixed(3); return isIt ? s.replace('.', ',') : s }
     const label = v => v == null ? '' : v > 0.1 ? 'bullish' : v < -0.1 ? 'bearish' : 'neutral'
     const rows = news.map(n => [
       esc(n.title),
       esc(n.source),
       esc((n.published_date || '').toString().slice(0, 10)),
-      n.sentiment != null ? Number(n.sentiment).toFixed(3) : '',
+      n.sentiment != null ? num(n.sentiment) : '',
       label(n.sentiment),
       esc(n.url),
-    ].join(','))
+    ].join(SEP))
     // BOM per gli accenti in Excel + CRLF
-    const csv = String.fromCharCode(0xFEFF) + [headers.join(','), ...rows].join('\r\n')
+    const csv = String.fromCharCode(0xFEFF) + [headers.join(SEP), ...rows].join('\r\n')
     const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' })
     const url = URL.createObjectURL(blob)
     const a = document.createElement('a'); a.href = url
