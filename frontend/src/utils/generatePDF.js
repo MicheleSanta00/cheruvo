@@ -79,8 +79,76 @@ function badge(doc, label, x, y, bgRgb, textRgb) {
   return w
 }
 
+// ── Grafico sentiment + prezzo (disegnato con primitive jsPDF) ───────────────
+function drawChart(doc, sentiment, prices, x, y, w, h) {
+  rect(doc, x, y, w, h, C.card, 3)
+  setDraw(doc, C.border); doc.setLineWidth(0.2)
+  doc.roundedRect(x, y, w, h, 3, 3, 'S')
+
+  const pad = 7
+  const cx = x + pad, cy = y + pad, cw = w - pad * 2, ch = h - pad * 2 - 6
+
+  const sVals = (sentiment || []).map(s => (s && s.sentiment != null ? Number(s.sentiment) : null))
+  const nonNull = sVals.filter(v => v != null)
+  const n = sVals.length
+  if (n < 2 || nonNull.length < 2) {
+    text(doc, 'Dati insufficienti per il grafico', x + w / 2, y + h / 2, C.muted, 7, 'normal', 'center')
+    return
+  }
+
+  // Scala sentiment adattiva (range minimo 0.3 per non appiattire)
+  let sMin = Math.min(...nonNull), sMax = Math.max(...nonNull)
+  const range = Math.max(0.3, sMax - sMin)
+  const mid = (sMax + sMin) / 2
+  sMin = mid - range / 2 - 0.05
+  sMax = mid + range / 2 + 0.05
+  const SY = v => cy + ch - ((v - sMin) / (sMax - sMin)) * ch
+  const SX = i => cx + (i / (n - 1)) * cw
+
+  // Linea dello zero (tratteggiata)
+  if (0 >= sMin && 0 <= sMax) {
+    doc.setLineDashPattern([1, 1.2], 0)
+    line(doc, cx, SY(0), cx + cw, SY(0), C.border, 0.25)
+    doc.setLineDashPattern([], 0)
+    text(doc, '0', cx - 3, SY(0) + 1, C.muted, 5)
+  }
+
+  // Prezzo normalizzato (linea azzurra sottile)
+  const pVals = (prices || []).map(p => (p && p.Close != null ? Number(p.Close) : null)).filter(v => v != null)
+  if (pVals.length > 1) {
+    const pMin = Math.min(...pVals), pMax = Math.max(...pVals)
+    const pr = (pMax - pMin) || 1
+    const PY = v => cy + ch - ((v - pMin) / pr) * ch
+    const PX = i => cx + (i / (pVals.length - 1)) * cw
+    for (let i = 1; i < pVals.length; i++) {
+      line(doc, PX(i - 1), PY(pVals[i - 1]), PX(i), PY(pVals[i]), C.azure, 0.35)
+    }
+  }
+
+  // Sentiment: segmenti colorati per segno (verde/rosso/giallo)
+  for (let i = 1; i < n; i++) {
+    const a = sVals[i - 1], b = sVals[i]
+    if (a == null || b == null) continue
+    const m = (a + b) / 2
+    const col = m > 0.05 ? C.green : m < -0.05 ? C.red : C.yellow
+    line(doc, SX(i - 1), SY(a), SX(i), SY(b), col, 0.7)
+  }
+
+  // Date inizio/fine
+  const dOf = s => (s && (s.date || s.Date || s.day) ? String(s.date || s.Date || s.day).slice(0, 10) : '')
+  text(doc, dOf(sentiment[0]), cx, y + h - 2.5, C.muted, 5.5)
+  text(doc, dOf(sentiment[n - 1]), cx + cw, y + h - 2.5, C.muted, 5.5, 'normal', 'right')
+
+  // Legenda in alto a destra
+  const lx = x + w - pad
+  text(doc, 'Sentiment', lx - 22, y + 5.5, C.green, 5.5)
+  line(doc, lx - 30, y + 4.5, lx - 24, y + 4.5, C.green, 0.7)
+  text(doc, 'Prezzo', lx, y + 5.5, C.azure, 5.5, 'normal', 'right')
+  line(doc, lx - 14, y + 4.5, lx - 9.5, y + 4.5, C.azure, 0.35)
+}
+
 // ── Export principale ─────────────────────────────────────────────────────────
-export function generateReport({ ticker, tickerInfo, stats, news, sentiment, summary }) {
+export function generateReport({ ticker, tickerInfo, stats, news, sentiment, prices, summary }) {
   const doc  = new jsPDF({ unit: 'mm', format: 'a4' })
   const W    = 210  // larghezza A4
   const H    = 297
@@ -140,10 +208,17 @@ export function generateReport({ ticker, tickerInfo, stats, news, sentiment, sum
 
   y += 28
 
+  // ── GRAFICO SENTIMENT + PREZZO ─────────────────────────────────────────────
+  if (sentiment?.length > 1) {
+    text(doc, 'ANDAMENTO NEL PERIODO', ML, y, C.muted, 7, 'bold')
+    y += 4
+    drawChart(doc, sentiment, prices, ML, y, CW, 44)
+    y += 44 + 10
+  }
+
   // ── AI SUMMARY ─────────────────────────────────────────────────────────────
   if (summary?.giudizio) {
     const sc = sentColor(summary.giudizio === 'bullish' ? 0.5 : summary.giudizio === 'bearish' ? -0.5 : 0)
-    const emoji = summary.giudizio === 'bullish' ? '📈' : summary.giudizio === 'bearish' ? '📉' : '➡️'
 
     rect(doc, ML, y, CW, summary.riassunto ? 36 : 16, C.card, 3)
     setDraw(doc, C.border)
@@ -154,8 +229,8 @@ export function generateReport({ ticker, tickerInfo, stats, news, sentiment, sum
     rect(doc, ML, y, 2, summary.riassunto ? 36 : 16, sc)
 
     // Badge AI
-    badge(doc, '✨ AI SUMMARY', ML + 6, y + 6, [40, 30, 80], C.purple)
-    badge(doc, `${emoji} ${summary.giudizio.toUpperCase()}`, ML + 50, y + 6, C.card, sc)
+    badge(doc, 'AI SUMMARY', ML + 6, y + 6, [40, 30, 80], C.purple)
+    badge(doc, summary.giudizio.toUpperCase(), ML + 42, y + 6, C.card, sc)
 
     if (summary.news_analizzate) {
       text(doc, `${summary.news_analizzate} news analizzate`, W - MR, y + 5.5, C.muted, 6, 'normal', 'right')
@@ -209,7 +284,7 @@ export function generateReport({ ticker, tickerInfo, stats, news, sentiment, sum
 
       const score = (item.sentiment >= 0 ? '+' : '') + Number(item.sentiment).toFixed(3)
       text(doc, score, ML + 6, cy + 5, color, 7, 'bold')
-      text(doc, score, ML + 6, cy + 9.5, C.muted, 6)
+      text(doc, sentLabel(item.sentiment), ML + 6, cy + 9.5, C.muted, 6)
 
       const titleStr = item.title?.length > 80 ? item.title.slice(0, 80) + '…' : (item.title ?? '')
       text(doc, titleStr, ML + 22, cy + 5.5, C.white, 7)
@@ -243,7 +318,7 @@ export function generateReport({ ticker, tickerInfo, stats, news, sentiment, sum
   for (let p = 1; p <= pageCount; p++) {
     doc.setPage(p)
     line(doc, 0, H - 12, W, H - 12, C.border)
-    text(doc, `Generato da Cheruvo · ${fmtDate()} · Solo per utenti PRO`, ML, H - 7, C.muted, 6)
+    text(doc, `Generato da Cheruvo · cheruvo.com · ${fmtDate()} — Solo a scopo informativo, non è consulenza finanziaria`, ML, H - 7, C.muted, 6)
     text(doc, `${p} / ${pageCount}`, W - MR, H - 7, C.muted, 6, 'normal', 'right')
   }
 

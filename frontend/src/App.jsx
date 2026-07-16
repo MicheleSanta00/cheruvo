@@ -106,16 +106,26 @@ export default function App() {
     track('pdf_exported', { ticker: loadedTicker })
     let summary = null
     try { summary = await apiFetch(`/summary/${loadedTicker}`) } catch (_) {}
-    generateReport({ ticker, tickerInfo, stats, news, sentiment, summary })
+    generateReport({ ticker, tickerInfo, stats, news, sentiment, prices, summary })
   }
 
   const handleExport = () => {
     if (!isPro) { handleUpgrade(); return }
     track('csv_exported', { ticker: loadedTicker })
     if (!news.length) return
-    const headers = ['title', 'source', 'published_date', 'sentiment', 'url']
-    const rows = news.map(n => headers.map(h => `"${(n[h] || '').toString().replace(/"/g, '""')}`).join(','))
-    const csv = [headers.join(','), ...rows].join('\n')
+    const headers = ['title', 'source', 'published_date', 'sentiment', 'sentiment_label', 'url']
+    const esc = v => `"${(v ?? '').toString().replace(/"/g, '""')}"`
+    const label = v => v == null ? '' : v > 0.1 ? 'bullish' : v < -0.1 ? 'bearish' : 'neutral'
+    const rows = news.map(n => [
+      esc(n.title),
+      esc(n.source),
+      esc((n.published_date || '').toString().slice(0, 10)),
+      n.sentiment != null ? Number(n.sentiment).toFixed(3) : '',
+      label(n.sentiment),
+      esc(n.url),
+    ].join(','))
+    // BOM per gli accenti in Excel + CRLF
+    const csv = String.fromCharCode(0xFEFF) + [headers.join(','), ...rows].join('\r\n')
     const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' })
     const url = URL.createObjectURL(blob)
     const a = document.createElement('a'); a.href = url
