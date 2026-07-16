@@ -245,12 +245,15 @@ def sentiment_daily(ticker: str, request: Request,
     daily = (
         df.set_index("published_date")["sentiment"]
         .resample("D").mean()
-        .fillna(0)
         .reset_index()
     )
     daily.columns = ["date", "sentiment"]
     daily["date"] = daily["date"].dt.strftime("%Y-%m-%d")
-    daily["sentiment"] = daily["sentiment"].round(4)
+    # Giorni SENZA news → null, non 0: uno zero è un giudizio ("neutro"),
+    # l'assenza di notizie non lo è. Il frontend salta i null (barre grigie,
+    # esclusi da media, MA7, giorni neutri e correlazione). NaN → None per JSON valido.
+    _mask = daily["sentiment"].notna()
+    daily["sentiment"] = daily["sentiment"].round(4).astype(object).where(_mask, None)
     result = {"sentiment": daily.to_dict(orient="records")}
     cache_set(cache_key, result)
     return result
