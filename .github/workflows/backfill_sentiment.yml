@@ -1,8 +1,10 @@
-name: Backfill sentiment (una tantum)
+name: Backfill sentiment (auto)
 
 # Bonifica lo storico: ri-classifica con l'AI le news ancora con score VADER
-# (colonna di "neutri" a 0.00). Si avvia SOLO a mano; rilancialo finché il
-# riepilogo dice "ancora da ripassare: 0". Riprende da solo dove era rimasto.
+# (colonna di "neutri" a 0.00). Parte DA SOLO ogni 2 ore e riprende da dove
+# era rimasto; quando il riepilogo dice "ancora da ripassare: 0" ogni run
+# dura meno di un minuto e resta come rete di sicurezza per il futuro.
+# Si può comunque lanciare a mano da Actions → Run workflow.
 on:
   workflow_dispatch:
     inputs:
@@ -10,6 +12,13 @@ on:
         description: "Quante news al massimo ripassare in questo run"
         required: false
         default: "6000"
+  schedule:
+    - cron: "23 */2 * * *"   # ogni 2 ore, al minuto 23
+
+# Mai due backfill in parallelo (si pesterebbero i piedi sui rate limit)
+concurrency:
+  group: backfill-sentiment
+  cancel-in-progress: false
 
 jobs:
   backfill:
@@ -34,6 +43,6 @@ jobs:
           DATABASE_URL:     ${{ secrets.DATABASE_URL }}
           GROQ_API_KEY:     ${{ secrets.GROQ_API_KEY }}
           GROQ_SCORE_MODEL: llama-3.1-8b-instant
-          BACKFILL_MAX:     ${{ github.event.inputs.max_updates }}
+          BACKFILL_MAX:     ${{ github.event.inputs.max_updates || '6000' }}
           PYTHONPATH:       ${{ github.workspace }}/backend
         run: python backfill_sentiment.py

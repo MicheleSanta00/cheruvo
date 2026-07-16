@@ -21,6 +21,7 @@ import { useFinData } from './hooks/useFinData.js'
 import { generateReport } from './utils/generatePDF.js'
 import { identifyUser, resetUser, track } from './analytics.js'
 import Academy from './academy/Academy.jsx'
+import { TICKERS } from './data/tickers.js'
 
 const DEFAULT_TICKER = 'NVDA'
 const DEFAULT_DAYS   = 30
@@ -218,9 +219,11 @@ export default function App() {
               )}
             </>
           ) : (
-            <span className="header-hint" style={{ fontSize: 13, color: 'var(--muted)', fontStyle: 'italic' }}>
-              {t.header.enterTicker}
-            </span>
+            <HeaderSearch
+              placeholder={t.header.enterTicker}
+              days={days} period={period}
+              onLoad={handleLoad} onTickerChange={setTicker}
+            />
           )}
 
           <div style={{ marginLeft: 'auto', display: 'flex', alignItems: 'center', gap: 8, flexShrink: 0 }}>
@@ -491,6 +494,77 @@ export default function App() {
 }
 
 // ── Sub-components ────────────────────────────────────────────────────────────
+
+// ── Ricerca ticker nell'header (con suggerimenti, come la sidebar) ─────────
+function HeaderSearch({ placeholder, days, period, onLoad, onTickerChange }) {
+  const [q, setQ] = useState('')
+  const [sugg, setSugg] = useState([])
+  const [open, setOpen] = useState(false)
+
+  const change = (e) => {
+    const v = e.target.value.toUpperCase()
+    setQ(v)
+    if (v.length >= 1) {
+      const f = TICKERS.filter(tk =>
+        tk.symbol.startsWith(v) || tk.name.toUpperCase().includes(v)
+      ).slice(0, 6)
+      setSugg(f)
+      setOpen(f.length > 0)
+    } else {
+      setOpen(false)
+    }
+  }
+
+  const go = (sym) => {
+    const v = (sym || q).trim().toUpperCase()
+    if (!v) return
+    setOpen(false)
+    setQ(v)
+    onTickerChange?.(v)
+    onLoad(v, days, period)
+  }
+
+  return (
+    <div style={{ position: 'relative', flex: 1, maxWidth: 340, minWidth: 0 }}>
+      <input
+        value={q}
+        onChange={change}
+        onKeyDown={e => { if (e.key === 'Enter') go(); if (e.key === 'Escape') setOpen(false) }}
+        onBlur={() => setTimeout(() => setOpen(false), 150)}
+        onFocus={() => q.length >= 1 && setOpen(sugg.length > 0)}
+        placeholder={placeholder}
+        style={{
+          width: '100%', background: 'var(--dark)',
+          border: '1px solid var(--border-br)', color: 'var(--white)',
+          borderRadius: 7, padding: '7px 12px', fontSize: 13,
+          outline: 'none', fontFamily: 'var(--sans)',
+        }}
+      />
+      {open && (
+        <div style={{
+          position: 'absolute', top: 'calc(100% + 6px)', left: 0, right: 0,
+          background: 'var(--dark)', border: '1px solid var(--border)',
+          borderRadius: 8, zIndex: 100, overflow: 'hidden',
+          boxShadow: '0 8px 24px rgba(0,0,0,0.4)',
+        }}>
+          {sugg.map(tk => (
+            <div
+              key={tk.symbol}
+              onMouseDown={() => go(tk.symbol)}
+              style={{
+                padding: '9px 12px', fontSize: 13, cursor: 'pointer',
+                display: 'flex', gap: 8, alignItems: 'baseline',
+              }}
+            >
+              <b>{tk.symbol}</b>
+              <span style={{ color: 'var(--muted)', fontSize: 12, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{tk.name}</span>
+            </div>
+          ))}
+        </div>
+      )}
+    </div>
+  )
+}
 
 function Spinner({ color = 'var(--muted)' }) {
   return (
