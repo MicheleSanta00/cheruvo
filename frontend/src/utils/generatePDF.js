@@ -1,6 +1,7 @@
 /**
  * generatePDF.js — Genera report PDF per Cheruvo (client-side, jsPDF)
- * Struttura: header → KPI → sentiment summary → top news bullish/bearish → footer
+ * Struttura: header (logo) → KPI → prezzi → grafico → correlazione →
+ *            AI summary → top bullish/bearish → recenti → footer
  */
 import { jsPDF } from 'jspdf'
 
@@ -79,6 +80,71 @@ function badge(doc, label, x, y, bgRgb, textRgb) {
   return w
 }
 
+// ── Logo (bianco su tile blu; fallback "C" se non caricabile) ─────────────────
+async function loadLogoImage() {
+  try {
+    if (typeof Image === 'undefined') return null
+    const img = new Image()
+    img.src = '/logo-v2.png'
+    await img.decode()
+    return img
+  } catch {
+    return null
+  }
+}
+
+// ── Correlazione sentiment(D) → rendimento(D+1), calcolata sui dati passati ──
+function computeCorrelation(sentiment, prices) {
+  const dOf = o => {
+    const d = o?.date || o?.Date || o?.day
+    return d ? String(d).slice(0, 10) : null
+  }
+  const closeByDate = new Map()
+  const pDates = []
+  for (const p of prices || []) {
+    const d = dOf(p)
+    if (d && p?.Close != null) { closeByDate.set(d, Number(p.Close)); pDates.push(d) }
+  }
+  if (closeByDate.size < 10) return null
+  pDates.sort()
+  const nextTrading = new Map()
+  for (let i = 0; i < pDates.length - 1; i++) nextTrading.set(pDates[i], pDates[i + 1])
+
+  const xs = [], ys = []
+  for (const s of sentiment || []) {
+    const d = dOf(s)
+    if (!d || s?.sentiment == null) continue
+    const nd = nextTrading.get(d)
+    if (!nd) continue
+    const c0 = closeByDate.get(d), c1 = closeByDate.get(nd)
+    if (c0 == null || c1 == null || !c0) continue
+    xs.push(Number(s.sentiment))
+    ys.push(((c1 - c0) / c0) * 100)
+  }
+  if (xs.length < 10) return null
+
+  const n = xs.length
+  const mx = xs.reduce((a, b) => a + b, 0) / n
+  const my = ys.reduce((a, b) => a + b, 0) / n
+  let num = 0, dx = 0, dy = 0
+  for (let i = 0; i < n; i++) {
+    const a = xs[i] - mx, b = ys[i] - my
+    num += a * b; dx += a * a; dy += b * b
+  }
+  const den = Math.sqrt(dx * dy)
+  if (!den) return null
+  return { r: num / den, n }
+}
+
+function corrLabel(r) {
+  if (r == null) return 'N/D'
+  if (r > 0.5)  return 'Forte positiva'
+  if (r > 0.3)  return 'Moderata positiva'
+  if (r < -0.5) return 'Forte negativa'
+  if (r < -0.3) return 'Moderata negativa'
+  return 'Debole / assente'
+}
+
 // ── Grafico sentiment + prezzo (disegnato con primitive jsPDF) ───────────────
 function drawChart(doc, sentiment, prices, x, y, w, h) {
   rect(doc, x, y, w, h, C.card, 3)
@@ -148,7 +214,7 @@ function drawChart(doc, sentiment, prices, x, y, w, h) {
 }
 
 // ── Export principale ─────────────────────────────────────────────────────────
-export function generateReport({ ticker, tickerInfo, stats, news, sentiment, prices, summary }) {
+export async function generateReport({ ticker, tickerInfo, stats, news, sentiment, prices, summary }) {
   const doc  = new jsPDF({ unit: 'mm', format: 'a4' })
   const W    = 210  // larghezza A4
   const H    = 297
@@ -156,7 +222,18 @@ export function generateReport({ ticker, tickerInfo, stats, news, sentiment, pri
   const MR   = 14   // margin right
   const CW   = W - ML - MR  // content width
 
+  const logo = await loadLogoImage()
+
   let y = 0  // cursore verticale corrente
+
+  // Se il blocco successivo non entra nella pagina, vai a pagina nuova
+  const ensure = (need) => {
+    if (y + need > H - 16) {
+      doc.addPage()
+      rect(doc, 0, 0, W, H, C.black)
+      y = 16
+    }
+  }
 
   // ── SFONDO PAGINA ──────────────────────────────────────────────────────────
   rect(doc, 0, 0, W, H, C.black)
@@ -165,9 +242,13 @@ export function generateReport({ ticker, tickerInfo, stats, news, sentiment, pri
   rect(doc, 0, 0, W, 38, C.dark)
   line(doc, 0, 38, W, 38, C.border)
 
-  // Logo quadrato
+  // Logo su tile blu (fallback: lettera C)
   rect(doc, ML, 8, 10, 10, C.blue, 2)
-  text(doc, 'C', ML + 2.8, 15.5, C.white, 9, 'bold')
+  let logoOk = false
+  if (logo) {
+    try { doc.addImage(logo, 'PNG', ML + 1.6, 9.6, 6.8, 6.8); logoOk = true } catch { logoOk = false }
+  }
+  if (!logoOk) text(doc, 'C', ML + 2.8, 15.5, C.white, 9, 'bold')
 
   // Nome app
   text(doc, 'Cheruvo', ML + 13, 15, C.white, 13, 'bold')
@@ -181,11 +262,11 @@ export function generateReport({ ticker, tickerInfo, stats, news, sentiment, pri
     text(doc, tickerInfo.settore, W - MR, 26, C.muted, 7, 'normal', 'right')
   }
 
-  y = 50
+  y = 48
 
   // ── KPI CARDS ──────────────────────────────────────────────────────────────
   text(doc, 'RIEPILOGO', ML, y, C.muted, 7, 'bold')
-  y += 5
+  y += 4
 
   const kpis = [
     { label: 'News totali',     value: stats?.total?.toLocaleString() ?? '—',  color: C.azure },
@@ -198,35 +279,102 @@ export function generateReport({ ticker, tickerInfo, stats, news, sentiment, pri
   const cardW = (CW - 8) / 5
   kpis.forEach((k, i) => {
     const cx = ML + i * (cardW + 2)
-    rect(doc, cx, y, cardW, 20, C.card, 2)
+    rect(doc, cx, y, cardW, 18, C.card, 2)
     setDraw(doc, C.border)
     doc.setLineWidth(0.2)
-    doc.roundedRect(cx, y, cardW, 20, 2, 2, 'S')
-    text(doc, k.label, cx + cardW / 2, y + 7, C.muted, 6, 'normal', 'center')
-    text(doc, k.value, cx + cardW / 2, y + 14, k.color, 10, 'bold', 'center')
+    doc.roundedRect(cx, y, cardW, 18, 2, 2, 'S')
+    text(doc, k.label, cx + cardW / 2, y + 6.5, C.muted, 6, 'normal', 'center')
+    text(doc, k.value, cx + cardW / 2, y + 13, k.color, 10, 'bold', 'center')
   })
 
-  y += 28
+  y += 24
+
+  // ── PREZZI DEL PERIODO ─────────────────────────────────────────────────────
+  const closes = (prices || []).map(p => (p && p.Close != null ? Number(p.Close) : null)).filter(v => v != null)
+  if (closes.length > 1) {
+    const first = closes[0], last = closes[closes.length - 1]
+    const chg = last - first
+    const pct = (chg / first) * 100
+    const hi = Math.max(...closes), lo = Math.min(...closes)
+    const sign = chg >= 0 ? '+' : ''
+    const pcol = chg >= 0 ? C.green : C.red
+
+    text(doc, 'PREZZI DEL PERIODO', ML, y, C.muted, 7, 'bold')
+    y += 4
+
+    const pk = [
+      { label: 'Ultimo prezzo',       value: last.toFixed(2),                              color: C.white },
+      { label: 'Variazione periodo',  value: `${sign}${chg.toFixed(2)} (${sign}${pct.toFixed(2)}%)`, color: pcol },
+      { label: 'Massimo',             value: hi.toFixed(2),                                color: C.azure },
+      { label: 'Minimo',              value: lo.toFixed(2),                                color: C.azure },
+    ]
+    const pw = (CW - 6) / 4
+    pk.forEach((k, i) => {
+      const cx = ML + i * (pw + 2)
+      rect(doc, cx, y, pw, 16, C.card, 2)
+      setDraw(doc, C.border)
+      doc.setLineWidth(0.2)
+      doc.roundedRect(cx, y, pw, 16, 2, 2, 'S')
+      text(doc, k.label, cx + pw / 2, y + 6, C.muted, 6, 'normal', 'center')
+      text(doc, k.value, cx + pw / 2, y + 12, k.color, 8.5, 'bold', 'center')
+    })
+    y += 22
+  }
 
   // ── GRAFICO SENTIMENT + PREZZO ─────────────────────────────────────────────
-  if (sentiment?.length > 1) {
+  const sVals = (sentiment || []).map(s => (s && s.sentiment != null ? Number(s.sentiment) : null))
+  const nonNull = sVals.filter(v => v != null)
+  if (nonNull.length > 1) {
+    ensure(62)
     text(doc, 'ANDAMENTO NEL PERIODO', ML, y, C.muted, 7, 'bold')
     y += 4
     drawChart(doc, sentiment, prices, ML, y, CW, 44)
-    y += 44 + 10
+    y += 48
+
+    // Riga statistiche giorni
+    const bullish = nonNull.filter(v => v > 0.1).length
+    const bearish = nonNull.filter(v => v < -0.1).length
+    const neutral = nonNull.length - bullish - bearish
+    const tot = nonNull.length || 1
+    const lastS = nonNull[nonNull.length - 1]
+    const pctOf = v => Math.round((v / tot) * 100)
+    text(doc,
+      `Giorni con dati: ${tot}  ·  bullish ${bullish} (${pctOf(bullish)}%)  ·  bearish ${bearish} (${pctOf(bearish)}%)  ·  neutri ${neutral} (${pctOf(neutral)}%)  —  Sentiment recente: ${fmt(lastS)} (${sentLabel(lastS)})`,
+      ML, y, C.muted, 6.5)
+    y += 8
+  }
+
+  // ── CORRELAZIONE SENTIMENT → PREZZO (D+1) ──────────────────────────────────
+  const corr = computeCorrelation(sentiment, prices)
+  if (corr) {
+    ensure(26)
+    text(doc, 'CORRELAZIONE SENTIMENT → PREZZO GIORNO DOPO', ML, y, C.muted, 7, 'bold')
+    y += 4
+    rect(doc, ML, y, CW, 16, C.card, 3)
+    setDraw(doc, C.border); doc.setLineWidth(0.2)
+    doc.roundedRect(ML, y, CW, 16, 3, 3, 'S')
+    const rcol = corr.r > 0.3 ? C.green : corr.r < -0.3 ? C.red : C.yellow
+    rect(doc, ML, y, 2, 16, rcol)
+    text(doc, (corr.r >= 0 ? '+' : '') + corr.r.toFixed(3), ML + 8, y + 10, rcol, 13, 'bold')
+    text(doc, corrLabel(corr.r), ML + 34, y + 7, C.white, 8, 'bold')
+    text(doc, `Pearson su ${corr.n} coppie sentiment/rendimento — vicino a 0 = nessuna relazione`, ML + 34, y + 12, C.muted, 6)
+    y += 22
   }
 
   // ── AI SUMMARY ─────────────────────────────────────────────────────────────
   if (summary?.giudizio) {
     const sc = sentColor(summary.giudizio === 'bullish' ? 0.5 : summary.giudizio === 'bearish' ? -0.5 : 0)
+    const lines = summary.riassunto ? doc.splitTextToSize(summary.riassunto, CW - 12).slice(0, 6) : []
+    const boxH = 12 + (lines.length ? 3 + lines.length * 4.6 : 0) + (summary.temi?.length ? 8 : 2)
 
-    rect(doc, ML, y, CW, summary.riassunto ? 36 : 16, C.card, 3)
+    ensure(boxH + 8)
+    rect(doc, ML, y, CW, boxH, C.card, 3)
     setDraw(doc, C.border)
     doc.setLineWidth(0.2)
-    doc.roundedRect(ML, y, CW, summary.riassunto ? 36 : 16, 3, 3, 'S')
+    doc.roundedRect(ML, y, CW, boxH, 3, 3, 'S')
 
     // Linea colorata sinistra
-    rect(doc, ML, y, 2, summary.riassunto ? 36 : 16, sc)
+    rect(doc, ML, y, 2, boxH, sc)
 
     // Badge AI
     badge(doc, 'AI SUMMARY', ML + 6, y + 6, [40, 30, 80], C.purple)
@@ -236,81 +384,84 @@ export function generateReport({ ticker, tickerInfo, stats, news, sentiment, pri
       text(doc, `${summary.news_analizzate} news analizzate`, W - MR, y + 5.5, C.muted, 6, 'normal', 'right')
     }
 
-    if (summary.riassunto) {
-      const lines = doc.splitTextToSize(summary.riassunto, CW - 12)
-      const visLines = lines.slice(0, 3)
+    if (lines.length) {
       setFont(doc, 8)
       setTextColor(doc, C.white)
-      visLines.forEach((l, i) => {
-        doc.text(l, ML + 6, y + 14 + i * 5)
+      lines.forEach((l, i) => {
+        doc.text(l, ML + 6, y + 13 + i * 4.6)
       })
     }
 
     // Temi
     if (summary.temi?.length) {
       let tx = ML + 6
-      const ty = y + (summary.riassunto ? 32 : 12)
+      const ty = y + boxH - 4
       summary.temi.slice(0, 5).forEach(tema => {
         const bw = badge(doc, tema, tx, ty, C.card, sc)
         tx += bw + 3
       })
     }
 
-    y += (summary.riassunto ? 36 : 16) + 10
+    y += boxH + 8
   }
 
-  // ── TOP BULLISH NEWS ───────────────────────────────────────────────────────
-  const sorted   = [...news].sort((a, b) => b.sentiment - a.sentiment)
-  const bullish  = sorted.filter(n => n.sentiment > 0).slice(0, 5)
-  const bearish  = [...news].sort((a, b) => a.sentiment - b.sentiment).filter(n => n.sentiment < 0).slice(0, 5)
+  // ── SEZIONI NEWS ───────────────────────────────────────────────────────────
+  const byScoreDesc = [...news].sort((a, b) => b.sentiment - a.sentiment)
+  const bullishNews = byScoreDesc.filter(n => n.sentiment > 0).slice(0, 8)
+  const bearishNews = [...news].sort((a, b) => a.sentiment - b.sentiment).filter(n => n.sentiment < 0).slice(0, 8)
+  const recentNews  = [...news]
+    .filter(n => n.published_date)
+    .sort((a, b) => String(b.published_date).localeCompare(String(a.published_date)))
+    .slice(0, 6)
 
-  function newsSection(title, items, color, startY) {
+  function newsSection(title, items, color, startY, { scoreColorPerItem = false } = {}) {
     let cy = startY
     text(doc, title, ML, cy, C.muted, 7, 'bold')
-    cy += 5
+    cy += 4
 
     items.forEach(item => {
       // Check se serve nuova pagina
-      if (cy > H - 30) {
+      if (cy > H - 32) {
         doc.addPage()
         rect(doc, 0, 0, W, H, C.black)
         cy = 16
       }
 
-      const rowH = 14
+      const rowH = 13
+      const rowColor = scoreColorPerItem ? sentColor(item.sentiment) : color
       rect(doc, ML, cy, CW, rowH, C.card, 2)
       // Bordo sinistro colorato
-      rect(doc, ML, cy, 2, rowH, color)
+      rect(doc, ML, cy, 2, rowH, rowColor)
 
       const score = (item.sentiment >= 0 ? '+' : '') + Number(item.sentiment).toFixed(3)
-      text(doc, score, ML + 6, cy + 5, color, 7, 'bold')
+      text(doc, score, ML + 6, cy + 5, rowColor, 7, 'bold')
       text(doc, sentLabel(item.sentiment), ML + 6, cy + 9.5, C.muted, 6)
 
-      const titleStr = item.title?.length > 80 ? item.title.slice(0, 80) + '…' : (item.title ?? '')
+      const titleStr = item.title?.length > 84 ? item.title.slice(0, 84) + '…' : (item.title ?? '')
       text(doc, titleStr, ML + 22, cy + 5.5, C.white, 7)
 
       const meta = [item.source, item.published_date?.slice(0, 10)].filter(Boolean).join('  ·  ')
-      text(doc, meta, ML + 22, cy + 10, C.muted, 6)
+      text(doc, meta, ML + 22, cy + 9.5, C.muted, 6)
 
       cy += rowH + 2
     })
 
-    return cy + 4
+    return cy + 5
   }
 
-  // Bullish
-  if (bullish.length > 0) {
-    y = newsSection('TOP BULLISH', bullish, C.green, y)
+  if (bullishNews.length > 0) {
+    ensure(30)
+    y = newsSection('TOP BULLISH', bullishNews, C.green, y)
   }
 
-  // Bearish
-  if (bearish.length > 0) {
-    if (y > H - 60) {
-      doc.addPage()
-      rect(doc, 0, 0, W, H, C.black)
-      y = 16
-    }
-    y = newsSection('TOP BEARISH', bearish, C.red, y)
+  if (bearishNews.length > 0) {
+    ensure(30)
+    y = newsSection('TOP BEARISH', bearishNews, C.red, y)
+  }
+
+  if (recentNews.length > 0) {
+    ensure(30)
+    y = newsSection('PIÙ RECENTI', recentNews, C.azure, y, { scoreColorPerItem: true })
   }
 
   // ── FOOTER ─────────────────────────────────────────────────────────────────

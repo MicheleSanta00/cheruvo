@@ -106,7 +106,7 @@ export default function App() {
     track('pdf_exported', { ticker: loadedTicker })
     let summary = null
     try { summary = await apiFetch(`/summary/${loadedTicker}`) } catch (_) {}
-    generateReport({ ticker, tickerInfo, stats, news, sentiment, prices, summary })
+    await generateReport({ ticker, tickerInfo, stats, news, sentiment, prices, summary })
   }
 
   const handleExport = () => {
