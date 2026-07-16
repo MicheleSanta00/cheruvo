@@ -92,7 +92,7 @@ export default function Sidebar({ ticker, days, period, onLoad, onFetch, loading
       borderRight: '1px solid var(--border)',
       display: 'flex', flexDirection: 'column',
       height: '100%', overflowY: 'auto',
-      padding: '20px 12px', gap: 24,
+      padding: '20px 16px', gap: 24,
     }}>
 
       {/* Logo */}

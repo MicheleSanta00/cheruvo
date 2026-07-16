@@ -364,7 +364,9 @@ export async function generateReport({ ticker, tickerInfo, stats, news, sentimen
   // ── AI SUMMARY ─────────────────────────────────────────────────────────────
   if (summary?.giudizio) {
     const sc = sentColor(summary.giudizio === 'bullish' ? 0.5 : summary.giudizio === 'bearish' ? -0.5 : 0)
-    const lines = summary.riassunto ? doc.splitTextToSize(summary.riassunto, CW - 12).slice(0, 6) : []
+    // Il font va impostato PRIMA di splitTextToSize: misura con il font attivo
+    setFont(doc, 8)
+    const lines = summary.riassunto ? doc.splitTextToSize(summary.riassunto, CW - 14).slice(0, 6) : []
     const boxH = 12 + (lines.length ? 3 + lines.length * 4.6 : 0) + (summary.temi?.length ? 8 : 2)
 
     ensure(boxH + 8)
