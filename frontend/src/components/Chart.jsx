@@ -1,4 +1,4 @@
-import { useState, useMemo } from 'react'
+import { useState, useMemo, useEffect } from 'react'
 import {
   ComposedChart, Area, Bar, Line,
   XAxis, YAxis, CartesianGrid, Tooltip,
@@ -6,8 +6,19 @@ import {
 } from 'recharts'
 import Icon from './Icon.jsx'
 
+// ── Rileva schermi piccoli (per proporzioni grafico e tooltip) ────────────
+function useIsMobile() {
+  const [m, setM] = useState(typeof window !== 'undefined' && window.innerWidth <= 640)
+  useEffect(() => {
+    const on = () => setM(window.innerWidth <= 640)
+    window.addEventListener('resize', on)
+    return () => window.removeEventListener('resize', on)
+  }, [])
+  return m
+}
+
 // ── Tooltip hover ─────────────────────────────────────────────────────────
-function CustomTooltip({ active, payload, label }) {
+function CustomTooltip({ active, payload, label, compact }) {
   if (!active || !payload?.length) return null
 
   const get   = key => payload.find(p => p.dataKey === key)?.value
@@ -36,14 +47,15 @@ function CustomTooltip({ active, payload, label }) {
   return (
     <div style={{
       background: '#0f1117', border: '1px solid rgba(255,255,255,0.1)',
-      borderRadius: 10, padding: '12px 16px', fontSize: 12,
-      minWidth: 190, boxShadow: '0 8px 24px rgba(0,0,0,0.4)',
+      borderRadius: 10, padding: compact ? '8px 10px' : '12px 16px', fontSize: compact ? 11 : 12,
+      minWidth: compact ? 148 : 190, maxWidth: compact ? 185 : undefined,
+      boxShadow: '0 8px 24px rgba(0,0,0,0.4)',
     }}>
-      <div style={{ color: '#94a3b8', marginBottom: 10, fontWeight: 500 }}>{label}</div>
+      <div style={{ color: '#94a3b8', marginBottom: compact ? 6 : 10, fontWeight: 500 }}>{label}</div>
       {close != null && (
         <div style={{ marginBottom: 8 }}>
           <div style={{ color: '#475569', fontSize: 10, letterSpacing: '0.06em', marginBottom: 5 }}>PREZZO</div>
-          <div style={{ display: 'grid', gridTemplateColumns: '80px 1fr', gap: '4px 0' }}>
+          <div style={{ display: 'grid', gridTemplateColumns: compact ? '68px 1fr' : '80px 1fr', gap: '4px 0' }}>
             <span style={{ color: '#64748b' }}>Chiusura</span>
             <span style={{ color: '#60a5fa', fontWeight: 600 }}>${close?.toFixed(2)}</span>
             {open  != null && <><span style={{ color: '#64748b' }}>Apertura</span><span style={{ color: '#e2e8f0' }}>${open?.toFixed(2)}</span></>}
@@ -275,6 +287,7 @@ const fmtDate = d => {
 export default function Chart({ prices, sentiment, ticker, stats }) {
   const [showCandles, setShowCandles] = useState(false)
   const [showMA, setShowMA]           = useState(true)
+  const isMobile = useIsMobile()
 
   const data = useMemo(() => {
     const sentMap = {}
@@ -323,7 +336,10 @@ export default function Chart({ prices, sentiment, ticker, stats }) {
 
   const step    = Math.max(1, Math.floor(data.length / 80))
   const display = data.filter((_, i) => i % step === 0)
-  const xInt    = Math.max(0, Math.floor(display.length / 6) - 1)
+  // Su mobile meno etichette sull'asse X (altrimenti si accavallano)
+  const xInt    = Math.max(0, Math.floor(display.length / (isMobile ? 4 : 6)) - 1)
+  const yW      = isMobile ? 46 : 54       // larghezza asse Y (uguale nei due grafici: restano allineati)
+  const chartMargin = { top: 4, right: isMobile ? 4 : 16, left: 0, bottom: 0 }
 
   const hasVolume = display.some(d => d.Volume > 0)
   const maxVol    = hasVolume ? Math.max(...display.map(d => d.Volume ?? 0)) : 1
@@ -361,8 +377,8 @@ export default function Chart({ prices, sentiment, ticker, stats }) {
       </div>
 
       {/* Grafico prezzi + volume */}
-      <ResponsiveContainer width="100%" height={220}>
-        <ComposedChart data={display} margin={{ top: 4, right: 60, left: 0, bottom: 0 }}>
+      <ResponsiveContainer width="100%" height={isMobile ? 250 : 220}>
+        <ComposedChart data={display} margin={chartMargin}>
           <defs>
             <linearGradient id="priceGrad" x1="0" y1="0" x2="0" y2="1">
               <stop offset="0%"   stopColor="#3b7bff" stopOpacity={0.2}/>
@@ -374,12 +390,12 @@ export default function Chart({ prices, sentiment, ticker, stats }) {
             tick={{ fontSize: 10, fill: '#475569' }} axisLine={false} tickLine={false}/>
           <YAxis yAxisId="price" orientation="right" domain={[minP, maxP]}
             tickFormatter={v => `$${v.toFixed(0)}`}
-            tick={{ fontSize: 10, fill: '#475569' }} axisLine={false} tickLine={false} width={54}/>
+            tick={{ fontSize: 10, fill: '#475569' }} axisLine={false} tickLine={false} width={yW}/>
           {hasVolume && (
             <YAxis yAxisId="vol" orientation="left" domain={[0, maxVol * 4]}
               tick={false} axisLine={false} tickLine={false} width={0}/>
           )}
-          <Tooltip content={<CustomTooltip />}/>
+          <Tooltip content={<CustomTooltip compact={isMobile} />}/>
 
           {/* Volume bars (sfondo, molto sottili) */}
           {hasVolume && (
@@ -422,18 +438,18 @@ export default function Chart({ prices, sentiment, ticker, stats }) {
         )}
       </div>
 
-      <ResponsiveContainer width="100%" height={120}>
-        <ComposedChart data={display} margin={{ top: 4, right: 60, left: 0, bottom: 0 }}>
+      <ResponsiveContainer width="100%" height={isMobile ? 150 : 120}>
+        <ComposedChart data={display} margin={chartMargin}>
           <CartesianGrid strokeDasharray="3 4" stroke="rgba(255,255,255,0.04)" vertical={false}/>
           <XAxis dataKey="date" tickFormatter={fmtDate} interval={xInt}
             tick={{ fontSize: 10, fill: '#475569' }} axisLine={false} tickLine={false}/>
           <YAxis yAxisId="sent" orientation="right" domain={[-1, 1]}
             ticks={[-1, -0.5, 0, 0.5, 1]} tickFormatter={v => v.toFixed(1)}
-            tick={{ fontSize: 10, fill: '#475569' }} axisLine={false} tickLine={false} width={34}/>
+            tick={{ fontSize: 10, fill: '#475569' }} axisLine={false} tickLine={false} width={yW}/>
           <ReferenceLine yAxisId="sent" y={0} stroke="rgba(255,255,255,0.12)" strokeDasharray="3 4"/>
           <ReferenceLine yAxisId="sent" y={0.1}  stroke="rgba(74,222,128,0.1)"  strokeDasharray="2 4"/>
           <ReferenceLine yAxisId="sent" y={-0.1} stroke="rgba(248,113,113,0.1)" strokeDasharray="2 4"/>
-          <Tooltip content={<CustomTooltip />}/>
+          <Tooltip content={<CustomTooltip compact={isMobile} />}/>
 
           <Bar yAxisId="sent" dataKey="sentiment" radius={[2,2,0,0]} maxBarSize={12} isAnimationActive={false}>
             {display.map((d, i) => (
@@ -458,9 +474,9 @@ export default function Chart({ prices, sentiment, ticker, stats }) {
           {/* Brush per zoom — solo se ci sono abbastanza dati */}
           {display.length > 20 && (
             <Brush
-              dataKey="date" height={18} stroke="rgba(255,255,255,0.08)"
+              dataKey="date" height={isMobile ? 26 : 18} stroke="rgba(255,255,255,0.08)"
               fill="rgba(255,255,255,0.02)"
-              travellerWidth={6}
+              travellerWidth={isMobile ? 12 : 6}
               tickFormatter={fmtDate}
               startIndex={Math.max(0, display.length - 30)}
             />

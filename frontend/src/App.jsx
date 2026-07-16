@@ -40,6 +40,7 @@ export default function App() {
   const [loadedTicker, setLoadedTicker] = useState(null)
   const [showStats, setShowStats]     = useState(false)
   const [showAcademy, setShowAcademy] = useState(false)
+  const [showHeaderMenu, setShowHeaderMenu] = useState(false)
   const [showMarket, setShowMarket]   = useState(false)
 
   const { tickerInfo, news, stats, prices, sentiment, loading, fetching, error, load, triggerFetch } = useFinData()
@@ -217,7 +218,7 @@ export default function App() {
               )}
             </>
           ) : (
-            <span style={{ fontSize: 13, color: 'var(--muted)', fontStyle: 'italic' }}>
+            <span className="header-hint" style={{ fontSize: 13, color: 'var(--muted)', fontStyle: 'italic' }}>
               {t.header.enterTicker}
             </span>
           )}
@@ -255,28 +256,86 @@ export default function App() {
                 border: 'none', borderRadius: 6, padding: '4px 10px', cursor: 'pointer', fontWeight: 500,
               }}>{t.header.upgradePro}</button>
             )}
-            <button onClick={() => setShowMarket(true)} title={lang === 'it' ? 'Mercato oggi' : 'Market today'} style={{
+            <button onClick={() => setShowMarket(true)} className="hide-mobile" title={lang === 'it' ? 'Mercato oggi' : 'Market today'} style={{
               fontSize: 11, color: 'var(--white)', background: 'transparent',
               border: '1px solid var(--border)', borderRadius: 6, padding: '4px 10px',
               cursor: 'pointer', fontWeight: 500,
-            }}><Icon name="compare" size={13} /><span className="hide-mobile"> {lang === 'it' ? 'Mercato' : 'Market'}</span></button>
-            <button onClick={() => setShowAcademy(true)} title="Cheruvo Academy" style={{
+            }}><Icon name="compare" size={13} /> {lang === 'it' ? 'Mercato' : 'Market'}</button>
+            <button onClick={() => setShowAcademy(true)} className="hide-mobile" title="Cheruvo Academy" style={{
               fontSize: 11, color: 'var(--white)', background: 'transparent',
               border: '1px solid var(--border)', borderRadius: 6, padding: '4px 10px',
               cursor: 'pointer', fontWeight: 500,
-            }}><Icon name="academy" size={14} /><span className="hide-mobile"> Academy</span></button>
-            <a href="https://cheruvo.com/guida.html" target="_blank" rel="noreferrer" title={lang === 'it' ? 'Guida all\'uso' : 'User guide'} style={{
+            }}><Icon name="academy" size={14} /> Academy</button>
+            <a href="https://cheruvo.com/guida.html" target="_blank" rel="noreferrer" className="hide-mobile" title={lang === 'it' ? 'Guida all\'uso' : 'User guide'} style={{
               display: 'inline-flex', alignItems: 'center', textDecoration: 'none',
               fontSize: 11, color: 'var(--white)', background: 'transparent',
               border: '1px solid var(--border)', borderRadius: 6, padding: '4px 10px',
               cursor: 'pointer', fontWeight: 500,
-            }}><Icon name="book" size={13} /><span className="hide-mobile"> {lang === 'it' ? 'Guida' : 'Guide'}</span></a>
-            <button onClick={toggleLang} style={{
+            }}><Icon name="book" size={13} /> {lang === 'it' ? 'Guida' : 'Guide'}</a>
+            <button onClick={toggleLang} className="hide-mobile" style={{
               fontSize: 13, background: 'transparent', border: '1px solid var(--border)',
               borderRadius: 6, padding: '3px 7px', cursor: 'pointer', lineHeight: 1,
             }}>
               {lang === 'it' ? '🇮🇹' : '🇬🇧'}
             </button>
+
+            {/* Menu opzioni — solo mobile: raccoglie export, viste e lingua */}
+            <div className="mobile-only" style={{ position: 'relative' }}>
+              <button onClick={() => setShowHeaderMenu(v => !v)} aria-label="Menu opzioni" style={{
+                color: 'var(--white)', background: 'transparent',
+                border: '1px solid var(--border)', borderRadius: 6, padding: '4px 8px',
+                cursor: 'pointer', display: 'inline-flex', alignItems: 'center',
+              }}>
+                <svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true">
+                  <circle cx="12" cy="5" r="1.9" /><circle cx="12" cy="12" r="1.9" /><circle cx="12" cy="19" r="1.9" />
+                </svg>
+              </button>
+              {showHeaderMenu && (() => {
+                const close = () => setShowHeaderMenu(false)
+                const item = {
+                  display: 'flex', alignItems: 'center', gap: 10, width: '100%',
+                  padding: '10px 12px', borderRadius: 8, fontSize: 13, color: 'var(--white)',
+                  background: 'transparent', border: 'none', cursor: 'pointer',
+                  textAlign: 'left', textDecoration: 'none', fontFamily: 'var(--sans)',
+                }
+                return (
+                  <>
+                    <div onClick={close} style={{ position: 'fixed', inset: 0, zIndex: 98 }} />
+                    <div style={{
+                      position: 'absolute', top: 'calc(100% + 8px)', right: 0, zIndex: 99,
+                      background: 'var(--dark2)', border: '1px solid var(--border-br)',
+                      borderRadius: 12, padding: 6, minWidth: 195,
+                      boxShadow: '0 14px 40px rgba(0,0,0,0.55)',
+                      display: 'flex', flexDirection: 'column', gap: 2,
+                    }}>
+                      {news.length > 0 && (
+                        <>
+                          <button onClick={() => { close(); handlePDF() }} style={item}>
+                            <Icon name={isPro ? 'pdf' : 'lock'} size={14} /> {lang === 'it' ? 'Report PDF' : 'PDF report'}
+                          </button>
+                          <button onClick={() => { close(); handleExport() }} style={item}>
+                            <Icon name={isPro ? 'csv' : 'lock'} size={14} /> {lang === 'it' ? 'Esporta CSV' : 'Export CSV'}
+                          </button>
+                        </>
+                      )}
+                      <button onClick={() => { close(); setShowMarket(true) }} style={item}>
+                        <Icon name="compare" size={14} /> {lang === 'it' ? 'Mercato oggi' : 'Market today'}
+                      </button>
+                      <button onClick={() => { close(); setShowAcademy(true) }} style={item}>
+                        <Icon name="academy" size={14} /> Academy
+                      </button>
+                      <a href="https://cheruvo.com/guida.html" target="_blank" rel="noreferrer" onClick={close} style={item}>
+                        <Icon name="book" size={14} /> {lang === 'it' ? 'Guida' : 'Guide'}
+                      </a>
+                      <button onClick={() => { close(); toggleLang() }} style={item}>
+                        <span style={{ fontSize: 14, lineHeight: 1 }}>{lang === 'it' ? '🇬🇧' : '🇮🇹'}</span> {lang === 'it' ? 'English' : 'Italiano'}
+                      </button>
+                    </div>
+                  </>
+                )
+              })()}
+            </div>
+
             <div onClick={() => setShowProfile(true)} title={user?.email} style={{
               width: 28, height: 28, borderRadius: '50%', background: 'var(--blue)',
               display: 'flex', alignItems: 'center', justifyContent: 'center',

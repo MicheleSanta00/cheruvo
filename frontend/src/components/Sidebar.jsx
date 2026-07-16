@@ -117,7 +117,7 @@ export default function Sidebar({ ticker, days, period, onLoad, onFetch, loading
             onFocus={() => input.length >= 1 && setShowSuggestions(suggestions.length > 0)}
             placeholder="NVDA, ENI.MI..."
             style={{
-              flex: 1, background: 'var(--dark)',
+              flex: 1, minWidth: 0, background: 'var(--dark)',
               border: '1px solid var(--border-br)',
               color: 'var(--white)', borderRadius: 7,
               padding: '8px 10px', fontSize: 13,
@@ -126,7 +126,8 @@ export default function Sidebar({ ticker, days, period, onLoad, onFetch, loading
           />
           <button
             onClick={() => { setShowSuggestions(false); submit() }}
-            style={{ background: 'var(--blue)', color: 'white', borderRadius: 7, padding: '0 12px', fontSize: 13, fontWeight: 500, display: 'flex', alignItems: 'center' }}
+            className="btn-glow"
+            style={{ color: 'white', borderRadius: 7, padding: '0 12px', fontSize: 13, fontWeight: 500, display: 'flex', alignItems: 'center', flexShrink: 0 }}
           ><Icon name="arrow-right" size={16} color="#fff" /></button>
         </div>
 
@@ -310,8 +311,9 @@ export default function Sidebar({ ticker, days, period, onLoad, onFetch, loading
       <button
         onClick={() => onFetch(ticker)}
         disabled={fetching}
+        className="btn-glow"
         style={{
-          background: 'var(--blue)', color: 'white',
+          color: 'white',
           borderRadius: 8, padding: '11px 0',
           fontSize: 13, fontWeight: 500,
           opacity: fetching ? 0.6 : 1,
