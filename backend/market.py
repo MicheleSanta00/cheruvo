@@ -11,6 +11,7 @@ vista "Mercato" nell'app. Risposta in cache 15 minuti (Redis o in-memory),
 quindi il DB viene interrogato al massimo 4 volte l'ora anche con traffico.
 """
 import logging
+import time
 from datetime import datetime, timezone
 
 from fastapi import APIRouter
@@ -20,6 +21,20 @@ from cache import cache_get, cache_set
 
 logger = logging.getLogger(__name__)
 router = APIRouter(prefix="/market")
+
+
+def _finestra(secondi: int) -> int:
+    """
+    Numero della finestra temporale corrente.
+
+    La chiave di cache lo include, così cambia da sola a ogni intervallo e il
+    dato viene ricalcolato ANCHE se la scadenza lato Redis non funziona.
+    Serviva davvero: /market/stats è rimasto congelato al 14 luglio per cinque
+    giorni e /market/today ha servito la stessa risposta per oltre due ore
+    nonostante una scadenza dichiarata di 15 minuti.
+    """
+    return int(time.time() // secondi)
+
 
 MARKET_TTL = 15 * 60      # 15 minuti
 WINDOW_HOURS = 48         # finestra "oggi"
@@ -77,7 +92,8 @@ STATS_TTL = 30 * 60
 @router.get("/stats")
 def market_stats():
     """Contatori pubblici per la landing: news di oggi, totali, ticker seguiti."""
-    cached = cache_get("market:stats:v2", ttl=STATS_TTL)
+    chiave = f"market:stats:{_finestra(STATS_TTL)}"
+    cached = cache_get(chiave, ttl=STATS_TTL)
     if cached is not None:
         return cached
 
@@ -106,14 +122,15 @@ def market_stats():
     except Exception as e:
         logger.error("market stats error: %s", e)
 
-    cache_set("market:stats:v2", stats, ttl=STATS_TTL if stats["news_total"] else 60)
+    cache_set(chiave, stats, ttl=STATS_TTL if stats["news_total"] else 60)
     return stats
 
 
 @router.get("/today")
 def market_today():
     """Classifica pubblica dei ticker per sentiment recente (cache 15 min)."""
-    cached = cache_get("market:today", ttl=MARKET_TTL)
+    chiave = f"market:today:{_finestra(MARKET_TTL)}"
+    cached = cache_get(chiave, ttl=MARKET_TTL)
     if cached is not None:
         return cached
 
@@ -129,5 +146,5 @@ def market_today():
         "rows": rows,
     }
     # cache anche il risultato vuoto (60s) per non martellare il DB in caso di errori
-    cache_set("market:today", payload, ttl=MARKET_TTL if rows else 60)
+    cache_set(chiave, payload, ttl=MARKET_TTL if rows else 60)
     return payload
