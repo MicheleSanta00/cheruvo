@@ -4,6 +4,13 @@ on:
   schedule:
     - cron: '0 6,12,18,0 * * *'   # 4 volte al giorno: 06:00, 12:00, 18:00, 00:00 UTC
   workflow_dispatch:                # avvio manuale dalla UI di GitHub
+  push:                             # i test girano quando il codice cambia davvero
+    branches: [main]
+    paths:
+      - 'backend/**'
+      - 'data/**'
+      - 'updater.py'
+      - 'requirements-actions.txt'
 
 # Il keep-alive ogni 10 minuti è stato sostituito da UptimeRobot (esterno, gratuito):
 # stesso effetto anti cold-start, zero minuti di GitHub Actions consumati.
@@ -14,8 +21,10 @@ jobs:
     name: Pytest
     runs-on: ubuntu-latest
     timeout-minutes: 5
-    # Gira solo sul cron delle 4 volte/giorno e workflow_dispatch
-    if: github.event_name == 'workflow_dispatch' || (github.event_name == 'schedule' && github.event.schedule != '*/10 * * * *')
+    # I test servono quando il codice CAMBIA, non 4 volte al giorno su codice
+    # identico. Girano quindi sui push e sull'avvio manuale, mai sul cron:
+    # da soli valevano centinaia di minuti Actions al mese buttati.
+    if: github.event_name != 'schedule'
 
     steps:
       - uses: actions/checkout@v4
@@ -45,8 +54,9 @@ jobs:
     name: Fetch news + Alert PRO
     runs-on: ubuntu-latest
     timeout-minutes: 12
-    needs: test
-    if: github.event_name == 'workflow_dispatch' || (github.event_name == 'schedule' && github.event.schedule != '*/10 * * * *')
+    # Niente "needs: test": i test non girano più sul cron, quindi aspettarli
+    # bloccherebbe l'aggiornamento news. Sui push questo job non parte affatto.
+    if: github.event_name != 'push'
 
     steps:
       - uses: actions/checkout@v4
