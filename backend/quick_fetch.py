@@ -164,6 +164,129 @@ def fetch_google_rss(ticker: str) -> list:
         logger.error("QuickFetch Google RSS error: %s", e)
     return news_list
 
+
+# ── GDELT ─────────────────────────────────────────────────────────────────────
+# Licenza: i dataset GDELT sono rilasciati per "unlimited and unrestricted use
+# for any academic, commercial, or governmental use of any kind without fee",
+# con diritto di ridistribuzione. È l'unica fonte davvero libera che abbiamo.
+# Restiamo comunque su titolo + link + attribuzione, senza testo integrale.
+#
+# Disattivata finché GDELT_ENABLED non è impostata: la qualità va validata
+# prima di lasciarle influenzare le medie di sentiment (le query per nome
+# societario producono molto rumore, vedi _e_pertinente).
+GDELT_URL = "https://api.gdeltproject.org/api/v2/doc/doc"
+GDELT_ENABLED = os.environ.get("GDELT_ENABLED", "").strip().lower() in ("1", "true", "yes")
+
+# Lingua locale attesa per borsa, oltre all'inglese
+_LINGUA_BORSA = {"MI": "Italian", "PA": "French", "DE": "German",
+                 "AS": "Dutch", "MC": "Spanish", "L": "English"}
+
+# Suffissi societari: inutili come parole chiave e fonte di falsi positivi
+_SUFFISSI = {"inc", "inc.", "corp", "corp.", "corporation", "spa", "s.p.a.",
+             "plc", "nv", "n.v.", "sa", "s.a.", "ag", "ltd", "limited",
+             "group", "holding", "holdings", "company", "co", "the"}
+
+_nomi_cache: dict[str, str] = {}
+
+
+def _nome_societa(ticker: str) -> str:
+    """Nome esteso della società (per interrogare GDELT), con cache in memoria."""
+    if ticker in _nomi_cache:
+        return _nomi_cache[ticker]
+    nome = ticker.split(".")[0]
+    try:
+        import yfinance as yf
+        info = yf.Ticker(ticker).info or {}
+        esteso = (info.get("longName") or info.get("shortName") or "").strip()
+        if esteso:
+            nome = esteso
+    except Exception as e:
+        logger.info("GDELT: nome societario non risolto per %s (%s)", ticker, e)
+    _nomi_cache[ticker] = nome
+    return nome
+
+
+def _parole_chiave(ticker: str, nome: str) -> list[str]:
+    """
+    Parole che un titolo pertinente dovrebbe contenere.
+    I punti vengono tolti prima del confronto, così "S.p.A." diventa "spa" e
+    finisce tra i suffissi da scartare: se restasse, qualunque notizia su una
+    qualsiasi società italiana risulterebbe pertinente.
+    """
+    parole = []
+    for p in nome.split():
+        p = p.strip(",.'\"").lower().replace(".", "")
+        if p and p not in _SUFFISSI and len(p) > 2 and p not in parole:
+            parole.append(p)
+    base = ticker.split(".")[0].lower()
+    if len(base) > 2 and base not in parole:
+        parole.append(base)
+    return parole or [base]
+
+
+def _e_pertinente(titolo: str, chiavi: list[str]) -> bool:
+    """
+    Guardia anti rumore. Una query per nome societario su GDELT restituisce
+    anche articoli che citano l'azienda di sfuggita o per niente (provato:
+    cercando "nvidia" tornano pezzi su altre società e sulla giacca del CEO).
+    Senza questo filtro quel rumore finirebbe nella media di sentiment.
+
+    Il confronto è su parola intera: cercare "eni" come sottostringa
+    combacerebbe dentro "beni", "veniva" e mezzo vocabolario italiano.
+    """
+    import re
+    t = titolo.lower()
+    return any(re.search(rf"\b{re.escape(k)}\b", t) for k in chiavi)
+
+
+def fetch_gdelt(ticker: str, max_items: int = 25) -> list:
+    if not GDELT_ENABLED:
+        return []
+    news_list = []
+    try:
+        nome = _nome_societa(ticker)
+        chiavi = _parole_chiave(ticker, nome)
+        borsa = ticker.split(".")[-1] if "." in ticker else ""
+        lingue = {"English", _LINGUA_BORSA.get(borsa, "English")}
+
+        resp = requests.get(GDELT_URL, params={
+            "query": f'"{nome}"',
+            "mode": "artlist",
+            "format": "json",
+            "maxrecords": max_items,
+            "timespan": "3d",
+            "sort": "datedesc",
+        }, timeout=15, headers={"User-Agent": "Cheruvo/1.0 (+https://cheruvo.com)"})
+        resp.raise_for_status()
+        articoli = (resp.json() or {}).get("articles", []) or []
+
+        scartati = 0
+        for a in articoli:
+            titolo = (a.get("title") or "").strip()
+            if not titolo:
+                continue
+            if a.get("language") not in lingue:
+                scartati += 1
+                continue
+            if not _e_pertinente(titolo, chiavi):
+                scartati += 1
+                continue
+            news_list.append({
+                "source": f"GDELT · {a.get('domain', 'n/d')}",
+                "title": titolo,
+                # GDELT non fornisce il sommario: lo score si basa sul titolo
+                "summary": "",
+                "published_date": format_date(a.get("seendate", "")),
+                "url": a.get("url", ""),
+                "sentiment": vader_sentiment(titolo),
+            })
+        logger.info("QuickFetch GDELT %s: %d news tenute, %d scartate",
+                    ticker, len(news_list), scartati)
+    except Exception as e:
+        logger.error("QuickFetch GDELT error: %s", e)
+    return news_list
+
+
 def fetch_european_rss(ticker: str) -> list:
     news_list = []
     try:
@@ -171,9 +294,10 @@ def fetch_european_rss(ticker: str) -> list:
         base = ticker.split('.')[0]
         exchange = ticker.split('.')[-1] if '.' in ticker else ''
         
+        # LICENZE — il feed RSS di Yahoo Finance è dichiarato per solo uso NON
+        # commerciale: rimosso perché Cheruvo vende un piano a pagamento.
         urls = [
             f"https://news.google.com/rss/search?q={base}+stock&hl=en&gl=US&ceid=US:en",
-            f"https://feeds.finance.yahoo.com/rss/2.0/headline?s={ticker}&region=US&lang=en-US",
         ]
         
         if exchange == 'MI':
@@ -276,9 +400,13 @@ def save_news(ticker: str, news_list: list) -> int:
 def quick_fetch(ticker: str) -> int:
     logger.info("QuickFetch avviato per %s", ticker)
     all_news = []
+    # LICENZE — NON riattivare fetch_newsapi senza un piano a pagamento:
+    # il piano gratuito "Developer" di NewsAPI è valido solo in ambiente di
+    # sviluppo, vieta l'uso commerciale e ritarda gli articoli di 24 ore
+    # (quindi come segnale di sentiment era comunque vecchio di un giorno).
     all_news.extend(fetch_alpha_vantage(ticker))
-    all_news.extend(fetch_newsapi(ticker))
     all_news.extend(fetch_google_rss(ticker))
+    all_news.extend(fetch_gdelt(ticker))   # no-op finché GDELT_ENABLED non è attiva
     
     # Aggiungi fonti europee se ticker europeo
     if '.' in ticker:

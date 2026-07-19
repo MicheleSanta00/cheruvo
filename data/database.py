@@ -222,8 +222,8 @@ class SuperNewsAnalyzer:
 
     def fetch_rss(self):
         ticker_lower = self.ticker.lower()
+        # LICENZE — feed Yahoo Finance rimosso: dichiarato solo per uso NON commerciale.
         sources = {
-            f"https://feeds.finance.yahoo.com/rss/2.0/headline?s={self.ticker}&region=US&lang=en-US": "Yahoo Finance",
             f"https://finviz.com/rss.ashx?t={self.ticker}": "Finviz",
             f"https://news.google.com/rss/search?q={self.ticker}+stock&hl=en-US&gl=US&ceid=US:en": "Google News",
             f"https://news.google.com/rss/search?q={self.ticker}+earnings&hl=en-US&gl=US&ceid=US:en": "Google News Earnings",
@@ -294,8 +294,7 @@ class SuperNewsAnalyzer:
             f"https://news.google.com/rss/search?q={base}+azione&hl={hl}&gl={country}&ceid={country}:{hl}": f"Google News {country}",
             # Google News in inglese (sempre utile)
             f"https://news.google.com/rss/search?q={base}+stock&hl=en&gl=US&ceid=US:en": "Google News EN",
-            # Yahoo Finance ticker-specifico
-            f"https://feeds.finance.yahoo.com/rss/2.0/headline?s={self.ticker}&region=US&lang=en-US": "Yahoo Finance",
+            # LICENZE — feed Yahoo Finance rimosso: solo uso NON commerciale.
         }
         
         # Fonti italiane se .MI
@@ -452,9 +451,11 @@ class SuperNewsAnalyzer:
         # Determina se è un ticker europeo
         is_european = '.' in self.ticker and self.ticker.split('.')[-1] in ['MI', 'PA', 'DE', 'L', 'AS', 'MC']
         
+        # LICENZE — NewsAPI rimosso: il piano gratuito "Developer" vale solo in
+        # ambiente di sviluppo e vieta l'uso commerciale. Non riattivare senza
+        # un piano a pagamento.
         sources = [
             ("Alpha Vantage", self.fetch_alpha_vantage),
-            ("NewsAPI",       self.fetch_newsapi),
             ("FMP",           self.fetch_fmp_news),
             ("RSS",           self.fetch_rss),
             ("SEC EDGAR",     self.fetch_sec),
