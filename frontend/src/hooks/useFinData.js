@@ -16,6 +16,8 @@ export function useFinData() {
   const load = useCallback(async (ticker, days = 30, period = '3mo') => {
     setLoading(true)
     setError(null)
+    let newsCount = 0
+    let failed = null
     try {
       // Validate ticker
       const vData = await apiFetch(`/validate/${ticker}`)
@@ -23,7 +25,9 @@ export function useFinData() {
 
       // News + stats
       const nData = await apiFetch(`/news/${ticker}?days=${days}`)
-      setNews(nData.news || [])
+      const items = nData.news || []
+      newsCount = items.length
+      setNews(items)
       setStats({
         total:   nData.total,
         avg:     nData.avg_sentiment,
@@ -47,10 +51,14 @@ export function useFinData() {
       setSentiment(sData.sentiment || [])
 
     } catch (e) {
+      failed = e.message
       setError(e.message)
     } finally {
       setLoading(false)
     }
+    // Chi chiama usa newsCount per capire se l'archivio era vuoto e, in quel
+    // caso, far partire il fetch al volo invece di mostrare una pagina vuota.
+    return { newsCount, error: failed }
   }, [])
 
   const triggerFetch = useCallback(async (ticker) => {
@@ -65,5 +73,5 @@ export function useFinData() {
     }
   }, [])
 
-  return { tickerInfo, news, stats, prices, sentiment, loading, fetching, error, load, triggerFetch }
+  return { tickerInfo, news, stats, prices, sentiment, loading, fetching, error, load, triggerFetch, setFetching }
 }

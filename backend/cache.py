@@ -85,10 +85,14 @@ def cache_get(key: str, ttl: int = CACHE_TTL) -> Any | None:
             logger.warning("Redis GET error per '%s': %s", key, e)
             # Fallthrough al fallback in-memory
 
-    # In-memory fallback
+    # In-memory fallback — rispetta il TTL indicato al momento del set
+    # (come Redis SETEX); il parametro ttl resta solo come ripiego.
     entry = _local.get(key)
-    if entry and (time.time() - entry["ts"]) < ttl:
-        return entry["data"]
+    if entry:
+        max_age = entry.get("ttl") or ttl
+        if (time.time() - entry["ts"]) < max_age:
+            return entry["data"]
+        _local.pop(key, None)  # scaduta: libera memoria
     return None
 
 

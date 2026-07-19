@@ -44,7 +44,7 @@ export default function App() {
   const [showHeaderMenu, setShowHeaderMenu] = useState(false)
   const [showMarket, setShowMarket]   = useState(false)
 
-  const { tickerInfo, news, stats, prices, sentiment, loading, fetching, error, load, triggerFetch } = useFinData()
+  const { tickerInfo, news, stats, prices, sentiment, loading, fetching, error, load, triggerFetch, setFetching } = useFinData()
 
   useEffect(() => {
     supabase.auth.getSession().then(({ data: { session } }) => {
@@ -80,17 +80,36 @@ export default function App() {
     }
   }, [user])
 
-  const handleLoad = async (tk, d, p) => {
-    await load(tk, d, p)
+  const handleLoad = async (tk, d, p, autoFetch = true) => {
+    const res = await load(tk, d, p)
     setLoadedTicker(tk)
     setSidebarOpen(false)
     track('ticker_searched', { ticker: tk, days: d, period: p })
+
+    // Ticker mai scaricato prima: invece di mostrare una schermata vuota (che
+    // fa sembrare il sito rotto) scarichiamo le news al volo. Il server lavora
+    // in background, quindi riproviamo a caricare due volte e poi lasciamo
+    // perdere in silenzio. autoFetch=false evita di rientrare qui a catena.
+    if (autoFetch && res && !res.error && res.newsCount === 0) {
+      track('auto_fetch_triggered', { ticker: tk })
+      await triggerFetch(tk)
+      setFetching(true)
+      try {
+        for (const wait of [3000, 4000]) {
+          await new Promise((r) => setTimeout(r, wait))
+          const retry = await load(tk, d, p)
+          if (retry && retry.newsCount > 0) break
+        }
+      } finally {
+        setFetching(false)
+      }
+    }
   }
 
   const handleFetch = async (tk) => {
     track('news_refreshed', { ticker: tk })
     await triggerFetch(tk)
-    setTimeout(() => handleLoad(tk, days, period), 3000)
+    setTimeout(() => handleLoad(tk, days, period, false), 3000)
   }
 
   const handleUpgrade = async () => {

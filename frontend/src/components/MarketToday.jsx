@@ -11,7 +11,7 @@ import Icon from './Icon.jsx'
 
 const TXT = {
   it: {
-    title: 'Mercato oggi', sub: 'Classifica per sentiment delle ultime 48 ore, dalle news analizzate dall\'AI.',
+    title: 'Mercato oggi', sub: 'Classifica per sentiment delle ultime 48 ore, dalle news analizzate dall\'AI. Copre i {n} titoli attualmente seguiti da Cheruvo, non l\'intero mercato.',
     bulls: 'Più rialzisti', bears: 'Più ribassisti', news: 'news', delta7: 'vs 7 giorni',
     empty: 'Dati in aggiornamento — torna tra qualche minuto.', back: '← App',
     updated: 'aggiornato', open: 'Apri →', loading: 'Caricamento…',
@@ -21,7 +21,7 @@ const TXT = {
     lockCta: 'Sblocca con Pro — €9/mese',
   },
   en: {
-    title: 'Market today', sub: 'Sentiment ranking of the last 48 hours, from AI-analyzed news.',
+    title: 'Market today', sub: 'Sentiment ranking of the last 48 hours, from AI-analyzed news. Covers the {n} stocks Cheruvo currently tracks, not the entire market.',
     bulls: 'Most bullish', bears: 'Most bearish', news: 'news', delta7: 'vs 7 days',
     empty: 'Data is updating — check back in a few minutes.', back: '← App',
     updated: 'updated', open: 'Open →', loading: 'Loading…',
@@ -92,7 +92,9 @@ export default function MarketToday({ onExit, onPick, onUpgrade }) {
       </header>
 
       <div style={{ maxWidth: 880, margin: '0 auto', padding: '24px 18px 60px' }}>
-        <p style={{ color: 'var(--muted)', fontSize: 13.5, margin: '0 0 20px' }}>{s.sub}</p>
+        <p style={{ color: 'var(--muted)', fontSize: 13.5, margin: '0 0 20px' }}>
+          {rows.length ? s.sub.replace('{n}', rows.length) : s.sub.replace(' {n}', '')}
+        </p>
 
         {!data && !err && <div style={{ color: 'var(--muted)', fontSize: 13 }}>{s.loading}</div>}
         {(err || (data && !rows.length)) && <div style={{ color: 'var(--muted)', fontSize: 13.5 }}>{s.empty}</div>}

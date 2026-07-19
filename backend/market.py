@@ -77,7 +77,7 @@ STATS_TTL = 30 * 60
 @router.get("/stats")
 def market_stats():
     """Contatori pubblici per la landing: news di oggi, totali, ticker seguiti."""
-    cached = cache_get("market:stats", ttl=STATS_TTL)
+    cached = cache_get("market:stats:v2", ttl=STATS_TTL)
     if cached is not None:
         return cached
 
@@ -106,7 +106,7 @@ def market_stats():
     except Exception as e:
         logger.error("market stats error: %s", e)
 
-    cache_set("market:stats", stats, ttl=STATS_TTL if stats["news_total"] else 60)
+    cache_set("market:stats:v2", stats, ttl=STATS_TTL if stats["news_total"] else 60)
     return stats
 
 
