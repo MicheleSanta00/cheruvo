@@ -448,21 +448,17 @@ class SuperNewsAnalyzer:
         print(f"[{datetime.now():%H:%M:%S}] Aggiornamento {self.ticker}...")
         all_news = []
         
-        # Determina se è un ticker europeo
-        is_european = '.' in self.ticker and self.ticker.split('.')[-1] in ['MI', 'PA', 'DE', 'L', 'AS', 'MC']
-        
-        # LICENZE — NewsAPI rimosso: il piano gratuito "Developer" vale solo in
-        # ambiente di sviluppo e vieta l'uso commerciale. Non riattivare senza
-        # un piano a pagamento.
+        # LICENZE (luglio 2026) — politica "zero rischi legali":
+        #   attive solo fonti con licenza chiara. SEC EDGAR è dominio pubblico.
+        #   Alpha Vantage torna attiva solo con AV_ENABLED=1 (il supporto ha
+        #   confermato via email che il gratuito non copre l'uso commerciale).
+        #   NewsAPI (vieta la produzione), FMP, Google/Finviz RSS, Yahoo RSS e
+        #   Sole24Ore RSS restano definite ma NON chiamate: niente licenza.
         sources = [
-            ("Alpha Vantage", self.fetch_alpha_vantage),
-            ("FMP",           self.fetch_fmp_news),
-            ("RSS",           self.fetch_rss),
-            ("SEC EDGAR",     self.fetch_sec),
+            ("SEC EDGAR", self.fetch_sec),
         ]
-        
-        if is_european:
-            sources.append(("European News", self.fetch_european_news))
+        if os.environ.get("AV_ENABLED", "").strip().lower() in ("1", "true", "yes"):
+            sources.insert(0, ("Alpha Vantage", self.fetch_alpha_vantage))
         
         for nome, fn in sources:
             print(f"  → {nome}")
