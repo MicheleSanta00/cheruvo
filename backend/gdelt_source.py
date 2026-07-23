@@ -26,6 +26,8 @@ import requests
 
 logger = logging.getLogger(__name__)
 
+_WSNORM = re.compile(r"\s+")
+
 GDELT_URL = "https://api.gdeltproject.org/api/v2/doc/doc"
 PAUSA_MINIMA = 5.0         # secondi tra due chiamate GDELT (rate limit)
 _UA = "Cheruvo/1.0 (+https://cheruvo.com)"
@@ -149,7 +151,7 @@ def _fmt_data(seendate: str) -> str | None:
 
 
 def fetch_gdelt(ticker: str, nome: str | None = None,
-                max_items: int = 25, timespan: str = "3d") -> list[dict]:
+                max_items: int = 100, timespan: str = "4d") -> list[dict]:
     """
     News recenti su un ticker da GDELT, già filtrate per lingua e pertinenza.
     Ritorna una lista di dict pronti per il salvataggio (stesso schema delle
@@ -185,6 +187,7 @@ def fetch_gdelt(ticker: str, nome: str | None = None,
         articoli = (resp.json() or {}).get("articles", []) or []
 
         scartati = 0
+        titoli_visti: set[str] = set()
         for a in articoli:
             titolo = (a.get("title") or "").strip()
             if not titolo:
@@ -195,6 +198,15 @@ def fetch_gdelt(ticker: str, nome: str | None = None,
             if not _e_pertinente(titolo, chiavi):
                 scartati += 1
                 continue
+            # Dedup per TITOLO, non solo per URL: lo stesso pezzo sindacato
+            # esce su decine di domini diversi (osservato: 10+ copie identiche
+            # dai siti delle radio iHeart). Senza questo, una singola storia
+            # peserebbe dieci volte nella media del sentiment.
+            chiave_titolo = _WSNORM.sub(" ", titolo.lower()).strip()
+            if chiave_titolo in titoli_visti:
+                scartati += 1
+                continue
+            titoli_visti.add(chiave_titolo)
             news.append({
                 "source": f"GDELT · {a.get('domain', 'n/d')}",
                 "title": titolo,
