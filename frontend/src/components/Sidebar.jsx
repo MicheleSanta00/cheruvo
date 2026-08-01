@@ -17,7 +17,15 @@ const NOMI_BREVI = {
   'ASML.AS':'ASML', 'SHEL.L':'Shell',
 }
 
-const MAX_WATCHLIST_FREE = 3
+// Quanti titoli mettere da soli nella watchlist di chi arriva per la prima
+// volta: l'app non deve mai presentarsi vuota.
+const PRECARICATI = 3
+
+// Tetto del piano gratuito. Alzato da 3 a 5 perché con 3 preinseriti un nuovo
+// utente sarebbe già al limite e non potrebbe aggiungere nemmeno un titolo suo:
+// la prima cosa che vedrebbe sarebbe un muro. Con 5 restano due posti liberi,
+// e "watchlist illimitata" resta comunque un argomento del piano Pro.
+const MAX_WATCHLIST_FREE = 5
 const MAX_DAYS_FREE = 30
 const MAX_DAYS_PRO = 90
 
@@ -34,6 +42,7 @@ export default function Sidebar({ ticker, days, period, hasTicker, onLoad, onFet
   // pubblico (già in cache lato server), non una per ticker.
   const [sentimenti, setSentimenti] = useState({})
   const [conteggi, setConteggi] = useState({})
+  const [righeMercato, setRigheMercato] = useState(null)
   useEffect(() => {
     let vivo = true
     apiFetch('/market/today')
@@ -41,11 +50,41 @@ export default function Sidebar({ ticker, days, period, hasTicker, onLoad, onFet
         if (!vivo) return
         const s = {}, c = {}
         for (const r of d?.rows || []) { s[r.ticker] = r.sentiment; c[r.ticker] = r.news }
-        setSentimenti(s); setConteggi(c)
+        setSentimenti(s); setConteggi(c); setRigheMercato(d?.rows || [])
       })
-      .catch(() => {})
+      .catch(() => { if (vivo) setRigheMercato([]) })
     return () => { vivo = false }
   }, [])
+
+  // La classifica contiene solo i titoli con almeno due notizie nelle ultime
+  // 48 ore: gli altri restavano senza punteggio, con un puntino al posto del
+  // numero. Per quelli chiediamo la media a 7 giorni, una richiesta ciascuno
+  // e solo per i mancanti (al massimo una manciata, ed è tutto in cache lato
+  // server). Meglio un dato più lento che una casella vuota.
+  useEffect(() => {
+    if (righeMercato === null || !watchlist.length) return
+    const mancanti = watchlist.filter((tk) => sentimenti[tk] === undefined)
+    if (!mancanti.length) return
+    let vivo = true
+    Promise.all(mancanti.map((tk) =>
+      apiFetch(`/news/${tk}?days=7`)
+        .then((d) => ({ tk, s: d?.avg_sentiment, n: d?.total }))
+        .catch(() => null)
+    )).then((esiti) => {
+      if (!vivo) return
+      const s = {}, c = {}
+      for (const e of esiti) {
+        if (!e || e.s == null) continue
+        s[e.tk] = e.s
+        if (e.n != null) c[e.tk] = e.n
+      }
+      if (Object.keys(s).length) {
+        setSentimenti((p) => ({ ...s, ...p }))
+        setConteggi((p) => ({ ...c, ...p }))
+      }
+    })
+    return () => { vivo = false }
+  }, [righeMercato, watchlist])
 
   const PERIODS = isPro ? PERIODS_PRO : PERIODS_FREE
   const maxDays = isPro ? MAX_DAYS_PRO : MAX_DAYS_FREE
@@ -72,11 +111,46 @@ export default function Sidebar({ ticker, days, period, hasTicker, onLoad, onFet
 
   useEffect(() => { loadWatchlist() }, [])
 
+  const [letta, setLetta] = useState(false)   // watchlist già letta dal database
+
   const loadWatchlist = async () => {
     const { data, error } = await supabase
       .from('watchlist').select('ticker').order('created_at', { ascending: true })
     if (!error && data?.length > 0) setWatchlist(data.map(r => r.ticker))
+    setLetta(true)
   }
+
+  // Primo accesso: la watchlist si riempie da sola coi titoli col sentiment
+  // più alto del momento. Un'app che si presenta vuota costringe l'utente a
+  // capire da solo da dove cominciare, ed è lì che la maggior parte se ne va.
+  const seminato = useRef(false)
+  useEffect(() => {
+    if (seminato.current) return
+    if (!letta || watchlist.length || !righeMercato?.length) return
+    seminato.current = true
+
+    const migliori = [...righeMercato]
+      .filter((r) => r.sentiment > 0)
+      .sort((a, b) => b.sentiment - a.sentiment)
+      .slice(0, PRECARICATI)
+      .map((r) => r.ticker)
+    if (!migliori.length) return
+
+    ;(async () => {
+      try {
+        const { data: { user } } = await supabase.auth.getUser()
+        if (!user) return
+        await supabase.from('watchlist').insert(
+          migliori.map((tk) => ({ user_id: user.id, ticker: tk }))
+        )
+        setWatchlist(migliori)
+      } catch (_) {
+        // Se il salvataggio fallisce li mostriamo comunque: meglio una
+        // watchlist non persistente che una schermata vuota.
+        setWatchlist(migliori)
+      }
+    })()
+  }, [letta, watchlist.length, righeMercato])
 
   const addTicker = async (tk) => {
     const v = tk.toUpperCase().trim()
