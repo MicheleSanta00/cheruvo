@@ -239,21 +239,14 @@ input  { font-family: var(--sans); }
 @media (prefers-reduced-motion: reduce) {
   .orb .core, .orb .ring, .welcome-glow { animation: none !important; }
 }
-/* ── Dashboard two-column grid ───────────────────────────────────────── */
+/* ── Corpo del titolo ─────────────────────────────────────────────────────
+   Ora è una colonna unica scorrevole (prima erano due affiancate): le regole
+   che forzavano la griglia a una colonna su mobile non servono più, perché
+   una colonna lo è già. Restano solo i ritocchi di spaziatura. */
 @media (max-width: 900px) {
-  .dashboard-grid {
-    grid-template-columns: 1fr !important;
-    grid-template-rows: auto auto !important;
-    overflow-y: auto !important;
-  }
-  /* I due pannelli non scrollano più da soli: un unico blocco scorrevole */
   .dashboard-grid > div {
-    overflow: visible !important;
-    height: auto !important;
-  }
-  .dashboard-grid > div:first-child {
-    border-right: none !important;
-    border-bottom: 1px solid var(--border);
+    padding-left: 12px !important;
+    padding-right: 12px !important;
   }
 }
 /* La colonna delle classifiche richiede spazio vero: sotto i 1100px sparisce

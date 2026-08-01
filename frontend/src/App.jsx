@@ -436,12 +436,15 @@ export default function App() {
               tanti invece che l'identità numerica del titolo. */}
           {stats && <div id="kpi-avg"><KPIGrid stats={stats} /></div>}
 
-          <div className="dashboard-grid" style={{ flex: 1, overflow: 'hidden', display: 'grid', gridTemplateColumns: '380px 1fr', gridTemplateRows: '1fr', minHeight: 0 }}>
+          {/* Una colonna sola, come in un terminale: prima il grafico, poi il
+              flusso notizie, e sotto il commento AI e gli approfondimenti.
+              Prima erano due colonne affiancate e lo sguardo doveva scegliere
+              da che parte cominciare. */}
+          <div className="dashboard-grid" style={{ flex: 1, overflowY: 'auto', display: 'flex', flexDirection: 'column', minHeight: 0 }}>
 
-            {/* ── LEFT PANEL ── */}
+            {/* ── Commento AI e approfondimenti: sotto i dati ── */}
             <div style={{
-              borderRight: '1px solid var(--border)',
-              overflowY: 'auto', padding: '20px 16px',
+              order: 2, padding: '4px 20px 20px',
               display: 'flex', flexDirection: 'column', gap: 16,
             }}>
               {error && <ErrorBanner msg={error} />}
@@ -494,27 +497,30 @@ export default function App() {
               <div style={{ height: 8 }} />
             </div>
 
-            {/* ── RIGHT PANEL ── */}
-            <div style={{ overflowY: 'auto', padding: '20px 20px', display: 'flex', flexDirection: 'column', gap: 20 }}>
+            {/* ── Dati: grafico e notizie, per primi ── */}
+            <div style={{ order: 1, padding: '16px 20px 4px', display: 'flex', flexDirection: 'column', gap: 16 }}>
 
-              {/* Chart */}
+              {/* Grafico dentro un pannello con intestazione a barra, come
+                  nel resto dell'interfaccia: etichetta in maiuscoletto a
+                  sinistra, contesto a destra, bordi netti da un pixel. */}
               {(prices.length > 0 || news.length > 0) && (
-                <div style={{
-                  background: 'rgba(255,255,255,0.02)', border: '1px solid var(--border)',
-                  borderRadius: 12, padding: '16px 20px',
-                }}>
-                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: 14, flexWrap: 'wrap', gap: 8 }}>
-                    <div>
-                      <div style={{ fontSize: 14, fontWeight: 500, letterSpacing: '-0.01em' }}>{t.main.chartTitle(ticker)}</div>
-                      <div style={{ fontSize: 11, color: 'var(--muted)', marginTop: 2 }}>{t.main.chartSub}</div>
-                    </div>
-                    <div style={{ display: 'flex', gap: 6 }}>
+                <div style={{ border: '1px solid var(--border-br)', borderRadius: 8, overflow: 'hidden' }}>
+                  <div style={{
+                    display: 'flex', alignItems: 'center', gap: 10, padding: '7px 12px',
+                    background: 'var(--near-black)', borderBottom: '1px solid var(--border)',
+                  }}>
+                    <span style={{ fontSize: 10, letterSpacing: '.12em', textTransform: 'uppercase', color: 'var(--muted)', fontWeight: 700 }}>
+                      {lang === 'it' ? 'Prezzo e sentiment' : 'Price and sentiment'} · {days}{lang === 'it' ? ' giorni' : ' days'}
+                    </span>
+                    <div style={{ marginLeft: 'auto', display: 'flex', gap: 6 }}>
                       <Legend color="var(--azure)"  label={t.main.price} />
                       <Legend color="var(--green)"  label={t.main.positive} />
                       <Legend color="var(--red)"    label={t.main.negative} />
                     </div>
                   </div>
-                  <div id="chart-area"><Chart prices={prices} sentiment={sentiment} ticker={ticker} stats={stats} /></div>
+                  <div id="chart-area" style={{ padding: '12px 14px 6px' }}>
+                    <Chart prices={prices} sentiment={sentiment} ticker={ticker} stats={stats} />
+                  </div>
                 </div>
               )}
 
@@ -528,6 +534,14 @@ export default function App() {
                   <div style={{ fontSize: 12, color: 'var(--muted)' }}>
                     {t.main.noNewsHint} <b style={{ color: 'var(--white)' }}>{t.main.refreshNews}</b> {t.main.noNewsHint2}
                   </div>
+                </div>
+              )}
+
+              {/* Flusso notizie subito sotto il grafico: sono le due cose che
+                  si guardano davvero, il resto è approfondimento. */}
+              {news.length > 0 && (
+                <div id="top-news">
+                  <TopNews news={news} isPro={isPro} onUpgrade={handleUpgrade} />
                 </div>
               )}
 
@@ -549,13 +563,6 @@ export default function App() {
                   isPro={isPro}
                   onUpgrade={handleUpgrade}
                 />
-              )}
-
-              {/* News */}
-              {news.length > 0 && (
-                <div id="top-news">
-                  <TopNews news={news} isPro={isPro} onUpgrade={handleUpgrade} />
-                </div>
               )}
 
               <div style={{ height: 12 }} />
