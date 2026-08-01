@@ -244,6 +244,14 @@ export default function App() {
             <Icon name="menu" size={18} />
           </button>
 
+          {/* La ricerca sta SEMPRE nella barra: prima spariva appena aprivi un
+              titolo, e per cercarne un altro dovevi tornare alla colonna. */}
+          <HeaderSearch
+            placeholder={t.header.enterTicker}
+            days={days} period={period}
+            onLoad={handleLoad} onTickerChange={setTicker}
+          />
+
           {tickerInfo ? (
             <>
               <span style={{ fontSize: 15, fontWeight: 700, letterSpacing: '-0.01em', flexShrink: 0 }}>{tickerInfo.ticker}</span>
@@ -288,12 +296,32 @@ export default function App() {
                 </span>
               )}
             </>
-          ) : (
-            <HeaderSearch
-              placeholder={t.header.enterTicker}
-              days={days} period={period}
-              onLoad={handleLoad} onTickerChange={setTicker}
-            />
+          ) : null}
+
+          {/* Finestra temporale accanto alla ricerca: riguarda ciò che stai
+              guardando, quindi vive nella barra, non in una colonna laterale. */}
+          {loadedTicker && (
+            <div className="hide-mobile" style={{ display: 'flex', alignItems: 'center', gap: 4, flexShrink: 0, marginLeft: 4 }}>
+              {[7, 14, 30, 60, 90].map((g) => {
+                const bloccato = !isPro && g > 30
+                const attivo = days === g
+                return (
+                  <button
+                    key={g}
+                    onClick={() => { if (bloccato) { handleUpgrade(); return } setDays(g); handleLoad(loadedTicker, g, period) }}
+                    title={bloccato ? (lang === 'it' ? 'Oltre 30 giorni è una funzione Pro' : 'Over 30 days is a Pro feature') : `${g} ${lang === 'it' ? 'giorni' : 'days'}`}
+                    style={{
+                      fontFamily: 'var(--mono)', fontSize: 10.5, fontWeight: 700,
+                      padding: '3px 7px', borderRadius: 5,
+                      border: '1px solid ' + (attivo ? 'rgba(30,92,255,0.5)' : 'var(--border)'),
+                      background: attivo ? 'rgba(30,92,255,0.14)' : 'transparent',
+                      color: attivo ? 'var(--azure)' : bloccato ? 'rgba(255,255,255,0.22)' : 'var(--muted)',
+                      cursor: 'pointer',
+                    }}
+                  >{g}g</button>
+                )
+              })}
+            </div>
           )}
 
           <div style={{ marginLeft: 'auto', display: 'flex', alignItems: 'center', gap: 8, flexShrink: 0 }}>
@@ -512,10 +540,35 @@ export default function App() {
                     <span style={{ fontSize: 10, letterSpacing: '.12em', textTransform: 'uppercase', color: 'var(--muted)', fontWeight: 700 }}>
                       {lang === 'it' ? 'Prezzo e sentiment' : 'Price and sentiment'} · {days}{lang === 'it' ? ' giorni' : ' days'}
                     </span>
-                    <div style={{ marginLeft: 'auto', display: 'flex', gap: 6 }}>
-                      <Legend color="var(--azure)"  label={t.main.price} />
-                      <Legend color="var(--green)"  label={t.main.positive} />
-                      <Legend color="var(--red)"    label={t.main.negative} />
+                    {/* Periodo dei prezzi: sta qui perché è il grafico che
+                        governa, non la colonna laterale. 6M e 1A restano Pro. */}
+                    <div style={{ marginLeft: 'auto', display: 'flex', alignItems: 'center', gap: 10 }}>
+                      <div style={{ display: 'flex', gap: 3 }}>
+                        {[['1mo','1M'], ['3mo','3M'], ['6mo','6M'], ['1y','1A']].map(([v, etichetta]) => {
+                          const bloccato = !isPro && (v === '6mo' || v === '1y')
+                          const attivo = period === v
+                          return (
+                            <button
+                              key={v}
+                              onClick={() => { if (bloccato) { handleUpgrade(); return } setPeriod(v); handleLoad(loadedTicker || ticker, days, v) }}
+                              title={bloccato ? (lang === 'it' ? 'Funzione Pro' : 'Pro feature') : etichetta}
+                              style={{
+                                fontFamily: 'var(--mono)', fontSize: 10, fontWeight: 700,
+                                padding: '2px 7px', borderRadius: 4,
+                                border: '1px solid ' + (attivo ? 'rgba(30,92,255,0.5)' : 'var(--border)'),
+                                background: attivo ? 'rgba(30,92,255,0.14)' : 'transparent',
+                                color: attivo ? 'var(--azure)' : bloccato ? 'rgba(255,255,255,0.22)' : 'var(--muted)',
+                                cursor: 'pointer',
+                              }}
+                            >{etichetta}</button>
+                          )
+                        })}
+                      </div>
+                      <div className="hide-mobile" style={{ display: 'flex', gap: 6 }}>
+                        <Legend color="var(--azure)"  label={t.main.price} />
+                        <Legend color="var(--green)"  label={t.main.positive} />
+                        <Legend color="var(--red)"    label={t.main.negative} />
+                      </div>
                     </div>
                   </div>
                   <div id="chart-area" style={{ padding: '12px 14px 6px' }}>
