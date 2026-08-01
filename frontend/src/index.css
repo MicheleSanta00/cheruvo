@@ -97,6 +97,13 @@ input  { font-family: var(--sans); }
     display: none !important;
   }
 
+  /* La colonna delle classifiche è un lusso da schermo largo: su mobile
+     toglierebbe spazio al contenuto principale. Le stesse informazioni
+     restano nella schermata iniziale. */
+  .market-rail {
+    display: none !important;
+  }
+
   /* Elementi visibili SOLO su mobile (es. menu opzioni header) */
   .mobile-only {
     display: inline-flex !important;
@@ -248,4 +255,10 @@ input  { font-family: var(--sans); }
     border-right: none !important;
     border-bottom: 1px solid var(--border);
   }
+}
+/* La colonna delle classifiche richiede spazio vero: sotto i 1100px sparisce
+   per lasciare respiro a grafico e notizie. Le stesse informazioni restano
+   nella schermata iniziale, che su schermi stretti diventa a una colonna. */
+@media (max-width: 1100px) {
+  .market-rail { display: none !important; }
 }

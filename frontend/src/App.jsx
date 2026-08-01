@@ -7,6 +7,9 @@ import apiFetch    from './apiFetch.js'
 
 import Sidebar     from './components/Sidebar.jsx'
 import KPIGrid     from './components/KPIGrid.jsx'
+import TickerStrip from './components/TickerStrip.jsx'
+import MarketRail  from './components/MarketRail.jsx'
+import StatusBar   from './components/StatusBar.jsx'
 import SummaryCard from './components/SummaryCard.jsx'
 import Chart       from './components/Chart.jsx'
 import TopNews     from './components/TopNews.jsx'
@@ -45,6 +48,22 @@ export default function App() {
   const [showMarket, setShowMarket]   = useState(false)
 
   const { tickerInfo, news, stats, prices, sentiment, loading, fetching, error, load, triggerFetch, setFetching } = useFinData()
+
+  // Dati di mercato caricati UNA volta e condivisi da nastro, colonna destra,
+  // dashboard e barra di stato: prima ogni pezzo se li sarebbe ripresi da solo.
+  const [mercato, setMercato] = useState(null)
+  const [mktStats, setMktStats] = useState(null)
+  useEffect(() => {
+    let vivo = true
+    const carica = () => {
+      apiFetch('/market/today').then((d) => { if (vivo) setMercato(d) }).catch(() => {})
+      apiFetch('/market/stats').then((d) => { if (vivo) setMktStats(d) }).catch(() => {})
+    }
+    carica()
+    // Il backend rigenera ogni 15 minuti: ricontrolliamo con lo stesso ritmo
+    const timer = setInterval(carica, 15 * 60 * 1000)
+    return () => { vivo = false; clearInterval(timer) }
+  }, [])
 
   useEffect(() => {
     supabase.auth.getSession().then(({ data: { session } }) => {
@@ -389,12 +408,22 @@ export default function App() {
           </div>
         </header>
 
+        {/* Nastro ticker: il primo segno che l'applicazione è viva */}
+        <TickerStrip rows={mercato?.rows} onPick={(tk) => { setTicker(tk); handleLoad(tk, days, period) }} />
+
+        {/* Corpo + colonna di mercato sempre visibile a destra */}
+        <div style={{ flex: 1, display: 'flex', minHeight: 0, overflow: 'hidden' }}>
+        <div style={{ flex: 1, display: 'flex', flexDirection: 'column', minWidth: 0, overflow: 'hidden' }}>
+
         {/* ── Content area ── */}
         {!hasData && !error ? (
           /* Empty / loading state — full width */
           <div style={{ flex: 1, overflowY: 'auto', padding: '20px 20px' }}>
             {error && <ErrorBanner msg={error} />}
-            {!loading && !error && <EmptyState t={t} onLoad={handleLoad} days={days} period={period} />}
+            {!loading && !error && (
+              <EmptyState t={t} onLoad={handleLoad} days={days} period={period}
+                mercato={mercato} mktStats={mktStats} />
+            )}
             {loading && <LoadingState />}
           </div>
         ) : (
@@ -534,6 +563,15 @@ export default function App() {
           </div>
           </div>
         )}
+
+        </div>
+        <MarketRail
+          rows={mercato?.rows} stats={mktStats} attivo={loadedTicker}
+          onPick={(tk) => { setTicker(tk); handleLoad(tk, days, period) }}
+        />
+        </div>
+
+        <StatusBar stats={mktStats} updatedAt={mercato?.updated_at} isPro={isPro} />
       </main>
     </div>
   )
@@ -696,22 +734,12 @@ function Pannello({ titolo, extra, children }) {
   )
 }
 
-function EmptyState({ t, onLoad, days, period }) {
+function EmptyState({ t, onLoad, days, period, mercato, mktStats }) {
   const { lang } = useLang()
-  const [mercato, setMercato] = useState(null)
-  const [stats, setStats] = useState(null)
-  const [errore, setErrore] = useState(false)
-
-  useEffect(() => {
-    let vivo = true
-    apiFetch('/market/today')
-      .then((d) => { if (vivo) setMercato(d) })
-      .catch(() => { if (vivo) setErrore(true) })
-    apiFetch('/market/stats')
-      .then((d) => { if (vivo) setStats(d) })
-      .catch(() => {})
-    return () => { vivo = false }
-  }, [])
+  // I dati arrivano già da App: una sola chiamata condivisa con nastro,
+  // colonna destra e barra di stato, invece di quattro richieste uguali.
+  const stats = mktStats
+  const errore = mercato === null && mktStats === null ? false : !mercato
 
   const righe = mercato?.rows || []
   const rialzisti = righe.filter((r) => r.sentiment > 0).slice(0, 6)
