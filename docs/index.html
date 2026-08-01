@@ -815,10 +815,58 @@ function toggleFaq(btn) {
 }
 
 // ── Scroll reveal ─────────────────────────────────────────────────────────
-const observer = new IntersectionObserver(entries => {
-  entries.forEach(e => { if (e.isIntersecting) { e.target.classList.add('visible'); observer.unobserve(e.target) } })
-}, { threshold: 0.12 })
-document.querySelectorAll('.reveal').forEach(el => observer.observe(el))
+// L'animazione è un abbellimento: il contenuto NON deve mai poter restare
+// invisibile. In produzione 32 elementi su 43 rimanevano a opacità 0 anche
+// dopo aver scorso tutta la pagina, lasciando grandi vuoti neri. Perciò ora
+// c'è una rete di sicurezza a tre livelli.
+;(function () {
+  var elementi = [].slice.call(document.querySelectorAll('.reveal'))
+  if (!elementi.length) return
+
+  function mostra(el) { el.classList.add('visible') }
+  function mostraTutti() { elementi.forEach(mostra) }
+
+  // 1. Chi non vuole animazioni, o non ha IntersectionObserver: tutto subito.
+  var senzaAnimazioni = window.matchMedia &&
+    window.matchMedia('(prefers-reduced-motion: reduce)').matches
+  if (senzaAnimazioni || typeof IntersectionObserver !== 'function') {
+    mostraTutti()
+    return
+  }
+
+  // 2. Soglia minima e margine generoso: l'elemento compare appena si affaccia,
+  //    invece di richiedere che sia visibile per il 12%.
+  var observer = new IntersectionObserver(function (voci) {
+    voci.forEach(function (v) {
+      if (v.isIntersecting) { mostra(v.target); observer.unobserve(v.target) }
+    })
+  }, { threshold: 0.01, rootMargin: '0px 0px -5% 0px' })
+  elementi.forEach(function (el) { observer.observe(el) })
+
+  // 3. Rete di sicurezza: a ogni scroll controlliamo a mano chi è entrato in
+  //    vista. Se l'osservatore per qualche motivo non scatta, ci pensa questa.
+  function controllo() {
+    var restano = false
+    elementi.forEach(function (el) {
+      if (el.classList.contains('visible')) return
+      var r = el.getBoundingClientRect()
+      if (r.top < window.innerHeight * 0.95 && r.bottom > 0) mostra(el)
+      else restano = true
+    })
+    if (!restano) {
+      window.removeEventListener('scroll', programma)
+      window.removeEventListener('resize', programma)
+    }
+  }
+  var attesa = null
+  function programma() {
+    if (attesa) return
+    attesa = requestAnimationFrame(function () { attesa = null; controllo() })
+  }
+  window.addEventListener('scroll', programma, { passive: true })
+  window.addEventListener('resize', programma)
+  programma()
+})()
 
 // ── Numeri che contano su quando la stats bar entra in vista ────────────────
 function countUp(el) {
