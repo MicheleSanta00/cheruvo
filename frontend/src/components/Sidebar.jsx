@@ -114,120 +114,119 @@ export default function Sidebar({ ticker, days, period, hasTicker, onLoad, onFet
 
   return (
     <aside style={{
-      width: 220, flexShrink: 0,
-      background: 'var(--near-black)',
+      width: 244, flexShrink: 0,
+      background: 'var(--black)',
       borderRight: '1px solid var(--border)',
       display: 'flex', flexDirection: 'column',
       height: '100%', overflowY: 'auto',
-      padding: '20px 16px', gap: 24,
     }}>
 
-      {/* Logo */}
-      <div style={{ display: 'flex', alignItems: 'center', gap: 9, padding: '0 8px', marginBottom: 4 }}>
-        <img src="/logo-v2.png" alt="Cheruvo" style={{ width: 28, height: 28, filter: 'brightness(1) drop-shadow(0 0 6px rgba(255,255,255,0.8)) drop-shadow(0 0 12px rgba(255,255,255,0.4))' }} />
-        <span style={{ fontSize: 14, fontWeight: 500, letterSpacing: '-0.01em' }}>Cheruvo</span>
+      {/* Logo: stessa altezza della barra in alto, così le due si allineano */}
+      <div style={{
+        display: 'flex', alignItems: 'center', gap: 9, height: 52, flexShrink: 0,
+        padding: '0 14px', borderBottom: '1px solid var(--border)',
+      }}>
+        <img src="/logo-v2.png" alt="Cheruvo" style={{ width: 24, height: 24, objectFit: 'contain' }} />
+        <span style={{ fontSize: 15, fontWeight: 700, letterSpacing: '-0.01em' }}>Cheruvo</span>
       </div>
 
 
-      {/* Watchlist */}
-      <div>
-        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '0 8px', marginBottom: 8 }}>
-          <Label style={{ padding: 0 }}>{t.sidebar.watchlist}</Label>
-          {!isPro && <span style={{ fontSize: 10, color: 'var(--muted)' }}>{watchlist.length}/{MAX_WATCHLIST_FREE}</span>}
+      {/* Watchlist: intestazione a barra e righe a tutta larghezza con
+          divisori da un pixel, esattamente come i pannelli del terminale. */}
+      <div style={{ display: 'flex', flexDirection: 'column' }}>
+        <div style={{
+          display: 'flex', alignItems: 'center', justifyContent: 'space-between',
+          padding: '7px 12px', background: 'var(--near-black)',
+          borderBottom: '1px solid var(--border)',
+        }}>
+          <span style={{ fontSize: 10, letterSpacing: '.12em', textTransform: 'uppercase', color: 'var(--muted)', fontWeight: 700 }}>
+            {t.sidebar.watchlist}
+          </span>
+          <span style={{ fontFamily: 'var(--mono)', fontSize: 10, color: 'var(--muted)', fontWeight: 700 }}>
+            {isPro ? watchlist.length : `${watchlist.length}/${MAX_WATCHLIST_FREE}`}
+          </span>
         </div>
-        <div style={{ display: 'flex', flexDirection: 'column', gap: 2 }}>
-          {watchlist.length === 0 && (
-            <div style={{
-              padding: '10px', borderRadius: 8, fontSize: 12,
-              color: 'var(--muted)', lineHeight: 1.6,
-              background: 'rgba(255,255,255,0.02)',
-              border: '1px dashed rgba(255,255,255,0.07)',
-              marginBottom: 4,
+
+        {watchlist.length === 0 && (
+          <div style={{ padding: '14px 12px', fontSize: 12, color: 'var(--muted)', lineHeight: 1.6 }}>
+            {t.sidebar.watchlistEmpty}
+          </div>
+        )}
+
+        {watchlist.map(tk => {
+          const s = sentimenti[tk]
+          const attivo = ticker === tk
+          return (
+            <div key={tk} className="wl-row" style={{
+              display: 'grid', gridTemplateColumns: '1fr auto auto', gap: 8,
+              alignItems: 'center', padding: '8px 12px',
+              borderBottom: '1px solid var(--border)',
+              background: attivo ? 'rgba(30,92,255,0.10)' : 'transparent',
+              boxShadow: attivo ? 'inset 2px 0 0 var(--blue)' : 'none',
             }}>
-              {t.sidebar.watchlistEmpty}
-            </div>
-          )}
-          {/* Righe compatte con lo score accanto: la watchlist diventa un
-              quadro di lettura, non solo un elenco di scorciatoie. */}
-          {watchlist.map(tk => {
-            const s = sentimenti[tk]
-            const attivo = ticker === tk
-            return (
-              <div key={tk} style={{
-                display: 'grid', gridTemplateColumns: '1fr auto auto', gap: 6,
-                alignItems: 'center', padding: '6px 9px', borderRadius: 6,
-                background: attivo ? 'rgba(30,92,255,0.13)' : 'transparent',
-                boxShadow: attivo ? 'inset 2px 0 0 var(--blue)' : 'none',
-              }}>
-                <button
-                  onClick={() => submit(tk)}
-                  style={{
-                    textAlign: 'left', background: 'transparent', padding: 0,
-                    color: attivo ? 'var(--azure)' : 'var(--white)',
-                    display: 'block', minWidth: 0,
-                  }}
-                >
-                  <span style={{ fontSize: 12.5, fontWeight: 700, display: 'block' }}>{tk}</span>
-                  {/* Nome e numero notizie: la watchlist diventa leggibile a colpo
-                      d'occhio, non solo un elenco di sigle */}
-                  {(NOMI_BREVI[tk] || conteggi[tk] != null) && (
-                    <span style={{ fontSize: 10, color: 'var(--muted)', display: 'block', lineHeight: 1.3 }}>
-                      {NOMI_BREVI[tk] || ''}{NOMI_BREVI[tk] && conteggi[tk] != null ? ' · ' : ''}
-                      {conteggi[tk] != null ? `${conteggi[tk]} news` : ''}
-                    </span>
-                  )}
-                </button>
+              <button
+                onClick={() => submit(tk)}
+                style={{
+                  textAlign: 'left', background: 'transparent', padding: 0,
+                  display: 'block', minWidth: 0, overflow: 'hidden',
+                  color: attivo ? 'var(--azure)' : 'var(--white)',
+                }}
+              >
+                <span style={{ fontSize: 13, fontWeight: 700, display: 'block', letterSpacing: '.01em' }}>{tk}</span>
                 <span style={{
-                  fontFamily: 'var(--mono)', fontVariantNumeric: 'tabular-nums',
-                  fontSize: 11.5, fontWeight: 700, minWidth: 42, textAlign: 'right',
-                  color: s === undefined ? 'transparent'
-                    : s > 0.08 ? 'var(--green)' : s < -0.08 ? 'var(--red)' : 'var(--muted)',
+                  fontSize: 10.5, color: 'var(--muted)', display: 'block', lineHeight: 1.35,
+                  whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis',
                 }}>
-                  {s === undefined ? '·' : `${s > 0 ? '+' : s < 0 ? '−' : ''}${Math.abs(s).toFixed(2)}`}
+                  {NOMI_BREVI[tk] || tk}
+                  {conteggi[tk] != null ? ` · ${conteggi[tk]} news` : ''}
                 </span>
-                <button
-                  onClick={() => removeTicker(tk)}
-                  style={{ fontSize: 11, color: 'var(--muted)', background: 'transparent', padding: '2px 3px', opacity: 0.45, display: 'flex', alignItems: 'center' }}
-                ><Icon name="close" size={11} /></button>
-              </div>
-            )
-          })}
+              </button>
+              <span style={{
+                fontFamily: 'var(--mono)', fontVariantNumeric: 'tabular-nums',
+                fontSize: 12.5, fontWeight: 700, textAlign: 'right',
+                color: s === undefined ? 'var(--muted)'
+                  : s > 0.08 ? 'var(--green)' : s < -0.08 ? 'var(--red)' : 'var(--muted)',
+              }}>
+                {s === undefined ? '·' : `${s > 0 ? '+' : s < 0 ? '−' : ''}${Math.abs(s).toFixed(2)}`}
+              </span>
+              <button
+                onClick={() => removeTicker(tk)}
+                className="wl-del"
+                title={t.sidebar.watchlist}
+                style={{ background: 'transparent', padding: '2px 2px', display: 'flex', alignItems: 'center', color: 'var(--muted)', opacity: 0 }}
+              ><Icon name="close" size={11} /></button>
+            </div>
+          )
+        })}
 
-          {!isPro && watchlist.length >= MAX_WATCHLIST_FREE ? (
-            <button
-              onClick={onUpgrade}
-              style={{
-                marginTop: 6, padding: '7px 10px', borderRadius: 7,
-                fontSize: 12, color: 'var(--azure)',
-                border: '1px dashed rgba(96,165,250,0.3)',
-                background: 'rgba(96,165,250,0.05)', textAlign: 'left',
-              }}
-            >
-              {t.sidebar.proWatchlist}
-            </button>
-          ) : (
-            <button
-              onClick={() => { if (input) addTicker(input) }}
-              disabled={saving}
-              style={{
-                marginTop: 6, padding: '7px 10px', borderRadius: 7,
-                fontSize: 12, color: 'var(--muted)',
-                border: '1px dashed rgba(255,255,255,0.1)',
-                background: 'transparent', textAlign: 'left',
-                opacity: saving ? 0.5 : 1,
-              }}
-            >
-              {saving ? t.sidebar.saving : t.sidebar.addWatchlist}
-            </button>
-          )}
-        </div>
+        {/* Aggiungi: una riga come le altre, non un bottone tratteggiato */}
+        {(!isPro && watchlist.length >= MAX_WATCHLIST_FREE) ? (
+          <button onClick={onUpgrade} style={{
+            padding: '9px 12px', textAlign: 'left', fontSize: 12,
+            color: 'var(--azure)', background: 'transparent',
+            borderBottom: '1px solid var(--border)',
+          }}>{t.sidebar.proWatchlist}</button>
+        ) : (
+          /* Campo inline invece di una finestra di sistema: scrivi e premi
+             Invio, senza che il browser interrompa il flusso con un popup. */
+          <input
+            value={input}
+            onChange={(e) => setInput(e.target.value.toUpperCase())}
+            onKeyDown={(e) => {
+              if (e.key === 'Enter' && input.trim()) { addTicker(input); setInput('') }
+              if (e.key === 'Escape') setInput('')
+            }}
+            disabled={saving}
+            placeholder={t.sidebar.addWatchlist}
+            style={{
+              padding: '9px 12px', fontSize: 12, width: '100%',
+              color: 'var(--white)', background: 'transparent',
+              border: 'none', borderBottom: '1px solid var(--border)',
+              outline: 'none', fontFamily: 'var(--sans)',
+            }}
+          />
+        )}
       </div>
-
-      {/* Finestra giorni e periodo prezzi: hanno senso SOLO quando si sta
-          guardando un titolo. Sulla schermata di mercato erano rumore, e
-          facevano sembrare la colonna un pannello di comandi scollegato. */}
-      {/* Finestra giorni e periodo prezzi vivono ora nella barra in alto,
-          accanto alla ricerca: la colonna resta la sola watchlist. */}
 
       <div style={{ flex: 1 }} />
 
@@ -254,20 +253,6 @@ export default function Sidebar({ ticker, days, period, hasTicker, onLoad, onFet
         </button>
       )}
 
-      {/* Fetch button */}
-      <button
-        onClick={() => onFetch(ticker)}
-        disabled={fetching}
-        className="btn-glow"
-        style={{
-          color: 'white',
-          borderRadius: 8, padding: '11px 0',
-          fontSize: 13, fontWeight: 500,
-          opacity: fetching ? 0.6 : 1,
-        }}
-      >
-        {fetching ? t.sidebar.updating : t.sidebar.refreshNews}
-      </button>
     </aside>
   )
 }

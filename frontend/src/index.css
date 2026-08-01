@@ -255,3 +255,12 @@ input  { font-family: var(--sans); }
 @media (max-width: 1100px) {
   .market-rail { display: none !important; }
 }
+
+/* Rotazione per l'icona di aggiornamento in corso */
+@keyframes spin { to { transform: rotate(360deg); } }
+
+/* Watchlist: la X di rimozione compare solo al passaggio del mouse, così le
+   righe restano pulite come in un terminale */
+.wl-row:hover { background: rgba(255,255,255,0.04) !important; }
+.wl-row:hover .wl-del { opacity: .55 !important; }
+.wl-del:hover { opacity: 1 !important; }

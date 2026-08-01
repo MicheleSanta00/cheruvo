@@ -131,6 +131,17 @@ export default function App() {
     setTimeout(() => handleLoad(tk, days, period, false), 3000)
   }
 
+  // Aggiornamento automatico: il titolo aperto ricarica le notizie da solo
+  // ogni 10 minuti. Prima bisognava premere un bottone, e un'app che aspetta
+  // che tu le dica di lavorare è esattamente quello che sembra un tool.
+  useEffect(() => {
+    if (!loadedTicker) return
+    const timer = setInterval(() => {
+      load(loadedTicker, days, period)
+    }, 10 * 60 * 1000)
+    return () => clearInterval(timer)
+  }, [loadedTicker, days, period, load])
+
   const handleUpgrade = async () => {
     track('upgrade_clicked', { ticker: loadedTicker, from: 'app' })
     const data = await apiFetch('/checkout', {
@@ -325,6 +336,29 @@ export default function App() {
           )}
 
           <div style={{ marginLeft: 'auto', display: 'flex', alignItems: 'center', gap: 8, flexShrink: 0 }}>
+            {/* Aggiornamento: ora è automatico ogni 10 minuti, questo serve solo
+                a forzarlo subito. Icona sola, discreta, come le altre azioni. */}
+            {loadedTicker && (
+              <button
+                onClick={() => handleFetch(loadedTicker)}
+                disabled={fetching}
+                className="hide-mobile"
+                title={fetching ? t.sidebar.updating : t.sidebar.refreshNews}
+                style={{
+                  fontSize: 11, color: 'var(--muted)',
+                  border: '1px solid var(--border)', borderRadius: 6,
+                  padding: '4px 9px', background: 'transparent',
+                  cursor: fetching ? 'default' : 'pointer',
+                  display: 'inline-flex', alignItems: 'center', gap: 5,
+                  opacity: fetching ? 0.5 : 1,
+                }}
+              >
+                <span style={{
+                  display: 'inline-block',
+                  animation: fetching ? 'spin 1s linear infinite' : 'none',
+                }}><Icon name="recent" size={12} /></span>
+              </button>
+            )}
             {news.length > 0 && (
               <>
                 <button onClick={handlePDF} className="hide-mobile" style={{
