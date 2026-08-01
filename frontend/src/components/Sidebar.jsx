@@ -8,6 +8,15 @@ import Icon from './Icon.jsx'
 const PERIODS_FREE = [{ v: '1mo', l: '1M' }, { v: '3mo', l: '3M' }]
 const PERIODS_PRO  = [{ v: '1mo', l: '1M' }, { v: '3mo', l: '3M' }, { v: '6mo', l: '6M' }, { v: '1y', l: '1A' }]
 
+// Nomi brevi per la watchlist: il ticker da solo dice poco a chi inizia
+const NOMI_BREVI = {
+  NVDA:'NVIDIA', AAPL:'Apple', TSLA:'Tesla', MSFT:'Microsoft', GOOGL:'Alphabet',
+  META:'Meta', AMD:'AMD', AMZN:'Amazon', MU:'Micron', INTC:'Intel', NFLX:'Netflix',
+  GE:'GE', 'ENI.MI':'Eni', 'ENEL.MI':'Enel', 'ISP.MI':'Intesa', 'UCG.MI':'UniCredit',
+  'STM.MI':'STMicro', 'RACE.MI':'Ferrari', 'LVMH.PA':'LVMH', 'SAP.DE':'SAP',
+  'ASML.AS':'ASML', 'SHEL.L':'Shell',
+}
+
 const MAX_WATCHLIST_FREE = 3
 const MAX_DAYS_FREE = 30
 const MAX_DAYS_PRO = 90
@@ -24,14 +33,15 @@ export default function Sidebar({ ticker, days, period, hasTicker, onLoad, onFet
   // Sentiment di ogni titolo in watchlist. Una sola chiamata all'endpoint
   // pubblico (già in cache lato server), non una per ticker.
   const [sentimenti, setSentimenti] = useState({})
+  const [conteggi, setConteggi] = useState({})
   useEffect(() => {
     let vivo = true
     apiFetch('/market/today')
       .then((d) => {
         if (!vivo) return
-        const m = {}
-        for (const r of d?.rows || []) m[r.ticker] = r.sentiment
-        setSentimenti(m)
+        const s = {}, c = {}
+        for (const r of d?.rows || []) { s[r.ticker] = r.sentiment; c[r.ticker] = r.news }
+        setSentimenti(s); setConteggi(c)
       })
       .catch(() => {})
     return () => { vivo = false }
@@ -217,11 +227,21 @@ export default function Sidebar({ ticker, days, period, hasTicker, onLoad, onFet
                 <button
                   onClick={() => submit(tk)}
                   style={{
-                    fontSize: 12.5, fontWeight: 700, textAlign: 'left',
+                    textAlign: 'left', background: 'transparent', padding: 0,
                     color: attivo ? 'var(--azure)' : 'var(--white)',
-                    background: 'transparent', padding: 0,
+                    display: 'block', minWidth: 0,
                   }}
-                >{tk}</button>
+                >
+                  <span style={{ fontSize: 12.5, fontWeight: 700, display: 'block' }}>{tk}</span>
+                  {/* Nome e numero notizie: la watchlist diventa leggibile a colpo
+                      d'occhio, non solo un elenco di sigle */}
+                  {(NOMI_BREVI[tk] || conteggi[tk] != null) && (
+                    <span style={{ fontSize: 10, color: 'var(--muted)', display: 'block', lineHeight: 1.3 }}>
+                      {NOMI_BREVI[tk] || ''}{NOMI_BREVI[tk] && conteggi[tk] != null ? ' · ' : ''}
+                      {conteggi[tk] != null ? `${conteggi[tk]} news` : ''}
+                    </span>
+                  )}
+                </button>
                 <span style={{
                   fontFamily: 'var(--mono)', fontVariantNumeric: 'tabular-nums',
                   fontSize: 11.5, fontWeight: 700, minWidth: 42, textAlign: 'right',

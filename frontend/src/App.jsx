@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useRef } from 'react'
 import Auth        from './components/Auth.jsx'
 import Profile     from './components/Profile.jsx'
 import { supabase } from './supabase.js'
@@ -584,6 +584,21 @@ function HeaderSearch({ placeholder, days, period, onLoad, onTickerChange }) {
   const [q, setQ] = useState('')
   const [sugg, setSugg] = useState([])
   const [open, setOpen] = useState(false)
+  const campo = useRef(null)
+
+  // Ctrl+K (o Cmd+K) porta il cursore qui da qualunque punto dell'app: è il
+  // gesto che chi usa strumenti professionali si aspetta di trovare.
+  useEffect(() => {
+    const tasto = (e) => {
+      if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === 'k') {
+        e.preventDefault()
+        campo.current?.focus()
+        campo.current?.select()
+      }
+    }
+    window.addEventListener('keydown', tasto)
+    return () => window.removeEventListener('keydown', tasto)
+  }, [])
 
   const change = (e) => {
     const v = e.target.value.toUpperCase()
@@ -609,21 +624,29 @@ function HeaderSearch({ placeholder, days, period, onLoad, onTickerChange }) {
   }
 
   return (
-    <div style={{ position: 'relative', flex: 1, maxWidth: 340, minWidth: 0 }}>
+    <div style={{ position: 'relative', flex: 1, maxWidth: 380, minWidth: 0 }}>
       <input
+        ref={campo}
         value={q}
         onChange={change}
-        onKeyDown={e => { if (e.key === 'Enter') go(); if (e.key === 'Escape') setOpen(false) }}
+        onKeyDown={e => { if (e.key === 'Enter') go(); if (e.key === 'Escape') { setOpen(false); e.currentTarget.blur() } }}
         onBlur={() => setTimeout(() => setOpen(false), 150)}
         onFocus={() => q.length >= 1 && setOpen(sugg.length > 0)}
         placeholder={placeholder}
         style={{
           width: '100%', background: 'var(--dark)',
           border: '1px solid var(--border-br)', color: 'var(--white)',
-          borderRadius: 7, padding: '7px 12px', fontSize: 13,
+          borderRadius: 7, padding: '7px 52px 7px 12px', fontSize: 13,
           outline: 'none', fontFamily: 'var(--sans)',
         }}
       />
+      {/* Promemoria della scorciatoia, come nei terminali */}
+      <span className="hide-mobile" style={{
+        position: 'absolute', right: 8, top: '50%', transform: 'translateY(-50%)',
+        fontFamily: 'var(--mono)', fontSize: 9.5, color: 'var(--muted)',
+        border: '1px solid var(--border-br)', borderRadius: 4,
+        padding: '1px 5px', pointerEvents: 'none', letterSpacing: '.04em',
+      }}>Ctrl K</span>
       {open && (
         <div style={{
           position: 'absolute', top: 'calc(100% + 6px)', left: 0, right: 0,
