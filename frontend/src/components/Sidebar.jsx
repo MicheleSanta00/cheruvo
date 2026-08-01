@@ -31,7 +31,9 @@ const MAX_DAYS_PRO = 90
 
 export default function Sidebar({ ticker, days, period, hasTicker, onLoad, onFetch, loading, fetching, onTickerChange, onDaysChange, onPeriodChange, isPro, onUpgrade }) {
   const { t } = useLang()
-  const [input, setInput] = useState(ticker)
+  // Campo "aggiungi": parte vuoto. Prima ereditava il ticker aperto e
+  // compariva una riga fantasma con dentro NVDA.
+  const [input, setInput] = useState('')
   const [watchlist, setWatchlist] = useState([])
   const [saving, setSaving] = useState(false)
   const [suggestions, setSuggestions] = useState([])
@@ -74,9 +76,13 @@ export default function Sidebar({ ticker, days, period, hasTicker, onLoad, onFet
       if (!vivo) return
       const s = {}, c = {}
       for (const e of esiti) {
-        if (!e || e.s == null) continue
+        if (!e) continue
+        // Zero notizie non significa "sentiment neutro": significa che non
+        // sappiamo. Mostrare 0.00 sarebbe un numero inventato.
+        if (!e.n) { c[e.tk] = 0; continue }
+        if (e.s == null) continue
         s[e.tk] = e.s
-        if (e.n != null) c[e.tk] = e.n
+        c[e.tk] = e.n
       }
       if (Object.keys(s).length) {
         setSentimenti((p) => ({ ...s, ...p }))
@@ -252,16 +258,20 @@ export default function Sidebar({ ticker, days, period, hasTicker, onLoad, onFet
                   whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis',
                 }}>
                   {NOMI_BREVI[tk] || tk}
-                  {conteggi[tk] != null ? ` · ${conteggi[tk]} news` : ''}
+                  {/* "0 news" non aggiunge niente: si scrive solo se ce ne sono */}
+                  {conteggi[tk] ? ` · ${conteggi[tk]} news` : ''}
                 </span>
               </button>
-              <span style={{
-                fontFamily: 'var(--mono)', fontVariantNumeric: 'tabular-nums',
-                fontSize: 12.5, fontWeight: 700, textAlign: 'right',
-                color: s === undefined ? 'var(--muted)'
-                  : s > 0.08 ? 'var(--green)' : s < -0.08 ? 'var(--red)' : 'var(--muted)',
-              }}>
-                {s === undefined ? '·' : `${s > 0 ? '+' : s < 0 ? '−' : ''}${Math.abs(s).toFixed(2)}`}
+              <span
+                title={s === undefined ? (t.sidebar.watchlistEmpty ? 'Nessuna notizia recente' : '') : ''}
+                style={{
+                  fontFamily: 'var(--mono)', fontVariantNumeric: 'tabular-nums',
+                  fontSize: 12.5, fontWeight: 700, textAlign: 'right',
+                  color: s === undefined ? 'var(--muted)'
+                    : s > 0.08 ? 'var(--green)' : s < -0.08 ? 'var(--red)' : 'var(--muted)',
+                }}>
+                {/* Trattino, non zero: senza notizie il sentiment non esiste */}
+                {s === undefined ? '—' : `${s > 0 ? '+' : s < 0 ? '−' : ''}${Math.abs(s).toFixed(2)}`}
               </span>
               <button
                 onClick={() => removeTicker(tk)}
