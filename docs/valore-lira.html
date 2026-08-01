@@ -1,0 +1,414 @@
+<!DOCTYPE html>
+<html lang="it">
+<head>
+<meta charset="utf-8"/>
+<meta name="viewport" content="width=device-width, initial-scale=1"/>
+<title>Quanto valgono oggi le lire? Calcolatore potere d'acquisto 1861-2025 | Cheruvo</title>
+<meta name="description" content="Scopri quanto valgono oggi 100.000 lire del 1985, un milione del 1990 o mille euro del 2005. Calcolo istantaneo sui coefficienti ufficiali ISTAT, dal 1861 a oggi. Gratis, senza registrazione."/>
+<link rel="canonical" href="https://cheruvo.com/valore-lira"/>
+<meta name="robots" content="index,follow,max-image-preview:large"/>
+
+<meta property="og:type" content="website"/>
+<meta property="og:site_name" content="Cheruvo"/>
+<meta property="og:title" content="Quanto valgono oggi le tue lire?"/>
+<meta property="og:description" content="100.000 lire del 1985, un milione del 1990: scopri quanto varrebbero oggi. Dati ufficiali ISTAT dal 1861."/>
+<meta property="og:url" content="https://cheruvo.com/valore-lira"/>
+<meta property="og:image" content="https://cheruvo.com/og-image.png"/>
+<meta name="twitter:card" content="summary_large_image"/>
+<meta name="twitter:title" content="Quanto valgono oggi le tue lire?"/>
+<meta name="twitter:description" content="Dal 1861 a oggi, sui coefficienti ufficiali ISTAT. Gratis, senza registrazione."/>
+<meta name="twitter:image" content="https://cheruvo.com/og-image.png"/>
+
+<link rel="icon" href="favicon.png"/>
+<link rel="preconnect" href="https://fonts.googleapis.com"/>
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin/>
+<link href="https://fonts.googleapis.com/css2?family=DM+Serif+Display&family=DM+Sans:wght@400;500;700&family=JetBrains+Mono:wght@400;700&display=swap" rel="stylesheet"/>
+
+<script type="application/ld+json">
+{
+  "@context":"https://schema.org",
+  "@type":"WebApplication",
+  "name":"Calcolatore valore della moneta",
+  "url":"https://cheruvo.com/valore-lira",
+  "applicationCategory":"FinanceApplication",
+  "operatingSystem":"Web",
+  "offers":{"@type":"Offer","price":"0","priceCurrency":"EUR"},
+  "description":"Calcola il valore attuale di lire ed euro dal 1861 a oggi usando i coefficienti ufficiali ISTAT.",
+  "creator":{"@type":"Organization","name":"Cheruvo","url":"https://cheruvo.com"}
+}
+</script>
+<script type="application/ld+json">
+{
+  "@context":"https://schema.org",
+  "@type":"FAQPage",
+  "mainEntity":[
+    {"@type":"Question","name":"Quanto valgono oggi 100.000 lire del 1985?",
+     "acceptedAnswer":{"@type":"Answer","text":"100.000 lire del 1985 corrispondono a circa 155 euro di oggi. Il coefficiente ISTAT per il 1985 è 3,011: le 100.000 lire diventano 301.100 lire in valori attuali, che divise per 1936,27 danno il valore in euro."}},
+    {"@type":"Question","name":"Come si calcola la rivalutazione monetaria?",
+     "acceptedAnswer":{"@type":"Answer","text":"Si moltiplica l'importo per il coefficiente ISTAT dell'anno di riferimento, basato sull'indice FOI dei prezzi al consumo per famiglie di operai e impiegati. Per gli importi in lire si divide poi per 1936,27, il tasso fisso di conversione con l'euro."}},
+    {"@type":"Question","name":"Quante lire era un euro?",
+     "acceptedAnswer":{"@type":"Answer","text":"Il tasso di conversione fissato irrevocabilmente il 31 dicembre 1998 è 1 euro = 1936,27 lire."}}
+  ]
+}
+</script>
+
+<style>
+:root{
+  --black:#000; --near-black:#0a0a0a; --dark:#111; --card:#141414;
+  --blue:#1e5cff; --azure:#60a5fa; --white:#fff; --off-white:#b8c4d4;
+  --muted:#4a5568; --border:rgba(255,255,255,.06); --border-strong:rgba(255,255,255,.12);
+  --green:#34d399; --red:#f87171;
+  --serif:'DM Serif Display',Georgia,serif;
+  --sans:'DM Sans',system-ui,sans-serif;
+  --mono:'JetBrains Mono',monospace;
+}
+*{box-sizing:border-box;margin:0;padding:0}
+body{
+  background:var(--black);color:var(--white);font-family:var(--sans);
+  line-height:1.6;-webkit-font-smoothing:antialiased;
+  background-image:radial-gradient(ellipse 80% 50% at 50% -10%,rgba(30,92,255,.16),transparent 60%);
+  background-repeat:no-repeat;min-height:100vh;
+}
+a{color:var(--azure);text-decoration:none}
+a:hover{text-decoration:underline}
+.wrap{max-width:760px;margin:0 auto;padding:0 20px}
+
+/* header */
+header{padding:22px 0;border-bottom:1px solid var(--border)}
+.hrow{display:flex;align-items:center;justify-content:space-between;gap:16px}
+.brand{display:flex;align-items:center;gap:10px;color:var(--white)}
+.brand img{width:26px;height:26px}
+.brand span{font-family:var(--serif);font-size:19px}
+.hlink{font-size:14px;color:var(--off-white)}
+
+/* hero */
+h1{font-family:var(--serif);font-size:clamp(30px,6vw,46px);line-height:1.12;margin:46px 0 14px;letter-spacing:-.01em}
+.sub{color:var(--off-white);font-size:clamp(15px,2.4vw,17px);max-width:56ch;margin-bottom:30px}
+
+/* calcolatore */
+.calc{background:var(--card);border:1px solid var(--border-strong);border-radius:16px;padding:24px}
+.fields{display:grid;grid-template-columns:1.5fr 1fr;gap:14px}
+@media(max-width:560px){.fields{grid-template-columns:1fr}}
+label{display:block;font-size:12px;letter-spacing:.08em;text-transform:uppercase;color:var(--muted);margin-bottom:7px;font-weight:700}
+.ctrl{position:relative}
+input,select{
+  width:100%;background:var(--near-black);border:1px solid var(--border-strong);
+  color:var(--white);border-radius:10px;padding:15px 14px;font-size:19px;
+  font-family:var(--mono);outline:none;transition:border-color .15s,box-shadow .15s;
+}
+select{font-family:var(--sans);cursor:pointer}
+input:focus,select:focus{border-color:var(--blue);box-shadow:0 0 0 3px rgba(30,92,255,.18)}
+.cur{
+  position:absolute;right:13px;top:50%;transform:translateY(-50%);
+  font-size:12px;color:var(--muted);font-weight:700;letter-spacing:.06em;pointer-events:none;
+}
+
+/* risultato */
+.res{margin-top:22px;padding-top:22px;border-top:1px solid var(--border)}
+.res-lab{font-size:13px;color:var(--muted);margin-bottom:6px}
+.res-big{font-family:var(--serif);font-size:clamp(36px,9vw,58px);line-height:1.05;color:var(--green);letter-spacing:-.02em}
+.res-note{color:var(--off-white);font-size:15px;margin-top:12px}
+.res-note b{color:var(--white)}
+.badge{
+  display:inline-block;margin-top:14px;font-family:var(--mono);font-size:12.5px;
+  color:var(--off-white);background:var(--near-black);border:1px solid var(--border-strong);
+  border-radius:999px;padding:6px 13px;
+}
+.err{color:var(--red);font-size:15px;margin-top:6px}
+
+/* azioni */
+.acts{display:flex;flex-wrap:wrap;gap:9px;margin-top:20px}
+.btn{
+  border:1px solid var(--border-strong);background:var(--near-black);color:var(--white);
+  border-radius:999px;padding:10px 17px;font-size:14px;font-family:var(--sans);
+  cursor:pointer;transition:.15s;
+}
+.btn:hover{border-color:var(--blue);background:#141a2e}
+.btn-p{background:var(--blue);border-color:var(--blue);font-weight:700}
+.btn-p:hover{background:#3b7bff}
+
+/* esempi */
+.sec-t{font-family:var(--serif);font-size:23px;margin:46px 0 14px}
+.chips{display:flex;flex-wrap:wrap;gap:9px}
+.chip{
+  border:1px solid var(--border-strong);background:var(--card);color:var(--off-white);
+  border-radius:999px;padding:9px 15px;font-size:14px;cursor:pointer;transition:.15s;
+}
+.chip:hover{border-color:var(--blue);color:var(--white)}
+
+/* testo */
+.prose{color:var(--off-white);font-size:15.5px;margin-top:12px}
+.prose p{margin-bottom:13px}
+.prose h3{color:var(--white);font-size:16.5px;margin:22px 0 7px;font-weight:700}
+
+/* cta */
+.cta{
+  margin:46px 0;padding:26px;border-radius:16px;text-align:center;
+  background:linear-gradient(135deg,rgba(30,92,255,.14),rgba(30,92,255,.04));
+  border:1px solid rgba(30,92,255,.3);
+}
+.cta h2{font-family:var(--serif);font-size:23px;margin-bottom:9px}
+.cta p{color:var(--off-white);font-size:15px;margin-bottom:17px;max-width:48ch;margin-left:auto;margin-right:auto}
+
+footer{border-top:1px solid var(--border);padding:26px 0 46px;margin-top:36px;color:var(--muted);font-size:13.5px}
+footer a{color:var(--off-white)}
+.src{margin-top:9px;font-size:12.5px;line-height:1.7}
+</style>
+</head>
+<body>
+
+<header>
+  <div class="wrap hrow">
+    <a class="brand" href="/"><img src="logo-v2.png" alt=""/><span>Cheruvo</span></a>
+    <a class="hlink" href="/">Torna al sito &rarr;</a>
+  </div>
+</header>
+
+<main class="wrap">
+  <h1>Quanto valgono oggi le tue lire?</h1>
+  <p class="sub">
+    Le 100.000 lire che tuo padre guadagnava in una settimana, il milione messo da parte nel 1990,
+    i mille euro del 2005. Scopri quanto varrebbero adesso, sui coefficienti ufficiali ISTAT dal 1861.
+  </p>
+
+  <section class="calc">
+    <div class="fields">
+      <div>
+        <label for="imp">Importo</label>
+        <div class="ctrl">
+          <input id="imp" type="text" inputmode="decimal" value="100.000" autocomplete="off"/>
+          <span class="cur" id="cur">LIRE</span>
+        </div>
+      </div>
+      <div>
+        <label for="anno">Anno</label>
+        <select id="anno"></select>
+      </div>
+    </div>
+
+    <div class="res" id="res">
+      <div class="res-lab">Valore di oggi</div>
+      <div class="res-big" id="big">—</div>
+      <div class="res-note" id="note"></div>
+      <div class="badge" id="badge"></div>
+    </div>
+
+    <div class="acts">
+      <button class="btn btn-p" id="share">Copia il link del risultato</button>
+      <button class="btn" id="wa">Condividi su WhatsApp</button>
+    </div>
+  </section>
+
+  <h2 class="sec-t">Prova questi</h2>
+  <div class="chips" id="chips"></div>
+
+  <div class="cta">
+    <h2>Ti interessa cosa muove i prezzi oggi?</h2>
+    <p>Cheruvo legge le notizie finanziarie con l'AI e ti mostra il sentiment su ogni azione, anche di Borsa Italiana. Piano base gratuito.</p>
+    <a class="btn btn-p" href="https://app.cheruvo.com?ref=valore-lira" style="display:inline-block;text-decoration:none">Prova Cheruvo gratis</a>
+  </div>
+
+  <h2 class="sec-t">Come funziona il calcolo</h2>
+  <div class="prose">
+    <p>
+      Il calcolo usa l'indice <b>FOI</b> (prezzi al consumo per le famiglie di operai e impiegati,
+      al netto dei tabacchi), lo stesso indice che per legge si usa per rivalutare affitti e assegni
+      di mantenimento. ISTAT pubblica un coefficiente per ogni anno dal 1861: moltiplicando l'importo
+      per quel coefficiente si ottiene il valore in potere d'acquisto attuale.
+    </p>
+
+    <h3>E le lire?</h3>
+    <p>
+      Per gli anni fino al 2001 l'importo si intende in lire. Dopo la rivalutazione, il risultato viene
+      diviso per <b>1936,27</b>, il tasso di conversione fissato in modo irrevocabile il 31 dicembre 1998.
+      Dal 2002 in poi gli importi sono in euro e la conversione non serve.
+    </p>
+
+    <h3>Cosa significa davvero</h3>
+    <p>
+      Il numero non dice quanto ti darebbero oggi per quelle banconote, ma quanto ci compreresti.
+      È una misura del potere d'acquisto medio: la spesa, l'affitto, il pieno di benzina. Sulle singole
+      voci le differenze possono essere molto più marcate, perché i prezzi non salgono tutti insieme.
+    </p>
+  </div>
+
+  <footer>
+    <div>
+      <b>Fonte dei dati:</b> ISTAT, coefficienti annuali di rivalutazione monetaria 1861-2025
+      (indice FOI al netto dei tabacchi, base 2025=100).
+    </div>
+    <div class="src">
+      Dati ISTAT distribuiti con licenza Creative Commons Attribuzione 3.0.
+      Pagina informativa: <a href="https://www.istat.it/notizia/indice-dei-prezzi-per-le-rivalutazioni-monetarie/" rel="noopener" target="_blank">istat.it</a>.
+      Questo strumento non è un servizio ufficiale ISTAT. Per usi legali fa fede il
+      <a href="https://rivaluta.istat.it/Rivaluta/Widget/calcolatoreWidget.jsp" rel="noopener" target="_blank">calcolatore ufficiale</a>.
+      <br/>
+      &copy; <span id="yy"></span> Cheruvo &middot; <a href="/privacy.html">Privacy</a> &middot; <a href="/termini.html">Termini</a>
+    </div>
+  </footer>
+</main>
+
+<script>
+// Coefficienti ufficiali ISTAT: traducono un valore monetario dell'anno indicato
+// in valori 2025. Fonte: coefficienti_annuali_1861_2025 (indice FOI al netto dei tabacchi).
+const C = {
+  1861:11324.851, 1862:11256.215, 1863:11593.48, 1864:11920.895, 1865:12123.208, 1866:11997.904, 1867:11710.438, 1868:11256.215,
+  1869:11188.407, 1870:11028.952, 1871:10698.592, 1872:9466.236, 1873:8929.209, 1874:8719.603, 1875:10182.432, 1876:9623.189,
+  1877:9249.38, 1878:9603.286, 1879:9723.956, 1880:9380.179, 1881:10028.486, 1882:10272.542, 1883:10613.003, 1884:10823.284,
+  1885:10588.8, 1886:10600.888, 1887:10625.146, 1888:10493.082, 1889:10318.197, 1890:9963.924, 1891:9996.101, 1892:10082.929,
+  1893:10306.745, 1894:10352.706, 1895:10410.737, 1896:10457.632, 1897:10481.239, 1898:10410.737, 1899:10576.74, 1900:10528.773,
+  1901:10516.849, 1902:10588.8, 1903:10283.918, 1904:10160.151, 1905:10149.047, 1906:9963.924, 1907:9514.731, 1908:9613.227,
+  1909:9889.646, 1910:9623.189, 1911:9389.664, 1912:9304.988, 1913:9286.378, 1914:9286.378, 1915:8678.858, 1916:6935.308,
+  1917:4903.05, 1918:3516.235, 1919:3463.774, 1920:2635.929, 1921:2228.018, 1922:2241.462, 1923:2254.522, 1924:2177.856,
+  1925:1938.701, 1926:1797.247, 1927:1965.787, 1928:2121.146, 1929:2087.765, 1930:2156.113, 1931:2386.63, 1932:2450.878,
+  1933:2604.874, 1934:2746.636, 1935:2708.188, 1936:2517.998, 1937:2300.316, 1938:2136.273, 1939:2045.908, 1940:1753.139,
+  1941:1515.154, 1942:1310.895, 1943:781.682, 1944:175.898, 1945:89.309, 1946:75.674, 1947:46.695, 1948:44.102,
+  1949:43.464, 1950:44.057, 1951:40.156, 1952:38.519, 1953:37.785, 1954:36.795, 1955:35.793, 1956:34.095,
+  1957:33.448, 1958:31.921, 1959:32.053, 1960:31.225, 1961:30.338, 1962:28.866, 1963:26.848, 1964:25.345,
+  1965:24.29, 1966:23.813, 1967:23.346, 1968:23.052, 1969:22.423, 1970:21.338, 1971:20.322, 1972:19.241,
+  1973:17.433, 1974:14.595, 1975:12.456, 1976:10.69, 1977:9.052, 1978:8.05, 1979:6.955, 1980:5.741,
+  1981:4.837, 1982:4.157, 1983:3.615, 1984:3.27, 1985:3.011, 1986:2.838, 1987:2.712, 1988:2.584,
+  1989:2.424, 1990:2.285, 1991:2.147, 1992:2.039, 1993:1.955, 1994:1.881, 1995:1.785, 1996:1.718,
+  1997:1.689, 1998:1.659, 1999:1.633, 2000:1.592, 2001:1.551, 2002:1.514, 2003:1.478, 2004:1.449,
+  2005:1.425, 2006:1.397, 2007:1.373, 2008:1.33, 2009:1.32, 2010:1.3, 2011:1.266, 2012:1.229,
+  2013:1.215, 2014:1.213, 2015:1.214, 2016:1.215, 2017:1.202, 2018:1.189, 2019:1.183, 2020:1.187,
+  2021:1.165, 2022:1.078, 2023:1.023, 2024:1.014, 2025:1.0
+};
+
+const LIRA = 1936.27;          // tasso fisso irrevocabile lira/euro
+const ULTIMO_ANNO_LIRA = 2001; // dal 2002 gli importi si intendono in euro
+
+const $ = id => document.getElementById(id);
+const anni = Object.keys(C).map(Number).sort((a,b)=>a-b);
+const ANNO_MAX = anni[anni.length-1];
+
+const nfIt = (v, dec=2) => v.toLocaleString('it-IT',{minimumFractionDigits:dec,maximumFractionDigits:dec});
+const eur  = v => '€ ' + nfIt(v, v < 1000 ? 2 : 0);
+
+// Accetta "100.000", "100000", "1.234,56" — formati che un italiano scrive davvero
+function leggiImporto(s){
+  s = String(s).trim().replace(/[€\s]/g,'');
+  if(!s) return NaN;
+  if(s.includes(',')) s = s.replace(/\./g,'').replace(',','.');   // 1.234,56
+  else if(/^\d{1,3}(\.\d{3})+$/.test(s)) s = s.replace(/\./g,''); // 100.000
+  return parseFloat(s);
+}
+
+function calcola(){
+  const anno = parseInt($('anno').value, 10);
+  const imp  = leggiImporto($('imp').value);
+  const inLire = anno <= ULTIMO_ANNO_LIRA;
+  $('cur').textContent = inLire ? 'LIRE' : 'EURO';
+
+  if(!isFinite(imp) || imp <= 0){
+    $('big').textContent = '—';
+    $('note').innerHTML = '<span class="err">Inserisci un importo valido.</span>';
+    $('badge').textContent = '';
+    return;
+  }
+
+  const coef = C[anno];
+  const valore2025 = imp * coef;                       // stessa valuta di partenza
+  const oggi = inLire ? valore2025 / LIRA : valore2025; // le lire diventano euro
+
+  $('big').textContent = eur(oggi);
+
+  // Il "quanto serviva allora" e il calo di potere d'acquisto rendono il dato tangibile
+  const equivAllora = inLire ? imp / LIRA : imp;
+  const perdita = (1 - 1/coef) * 100;
+
+  $('note').innerHTML =
+    '<b>' + nfIt(imp,0) + (inLire ? ' lire' : ' euro') + '</b> del <b>' + anno + '</b> ' +
+    'avevano il potere d\'acquisto di <b>' + eur(oggi) + '</b> di oggi.' +
+    (inLire ? ' Al cambio fisso erano ' + eur(equivAllora) + ' nominali.' : '');
+
+  $('badge').textContent = anno === ANNO_MAX
+    ? 'Anno di riferimento: nessuna rivalutazione'
+    : 'Coefficiente ISTAT ' + anno + ': ' + nfIt(coef,3) +
+      ' · potere d\'acquisto perso ' + nfIt(perdita,1) + '%';
+
+  aggiornaUrl(imp, anno);
+}
+
+// L'URL contiene il risultato: cosi il link condiviso riapre lo stesso calcolo
+function aggiornaUrl(imp, anno){
+  const u = new URL(location.href);
+  u.searchParams.set('i', String(imp));
+  u.searchParams.set('a', String(anno));
+  history.replaceState(null, '', u);
+}
+
+function initAnni(){
+  const sel = $('anno');
+  // Ordine decrescente: gli anni recenti sono i piu cercati
+  for(let i = anni.length - 1; i >= 0; i--){
+    const o = document.createElement('option');
+    o.value = anni[i]; o.textContent = anni[i];
+    sel.appendChild(o);
+  }
+  sel.value = '1985';
+}
+
+const ESEMPI = [
+  {t:'100.000 lire del 1985', i:100000, a:1985},
+  {t:'1 milione del 1990',    i:1000000, a:1990},
+  {t:'50.000 lire del 1970',  i:50000,  a:1970},
+  {t:'1.000 lire del 1960',   i:1000,   a:1960},
+  {t:'10.000 lire del 1995',  i:10000,  a:1995},
+  {t:'1.000 € del 2005',      i:1000,   a:2005},
+  {t:'20.000 € del 2015',     i:20000,  a:2015}
+];
+
+function initChips(){
+  const box = $('chips');
+  ESEMPI.forEach(e => {
+    const b = document.createElement('button');
+    b.className = 'chip'; b.type = 'button'; b.textContent = e.t;
+    b.onclick = () => {
+      $('imp').value = e.i.toLocaleString('it-IT');
+      $('anno').value = e.a;
+      calcola();
+      document.querySelector('.calc').scrollIntoView({behavior:'smooth',block:'center'});
+    };
+    box.appendChild(b);
+  });
+}
+
+function initDaUrl(){
+  const p = new URLSearchParams(location.search);
+  const i = p.get('i'), a = p.get('a');
+  if(a && C[parseInt(a,10)]) $('anno').value = String(parseInt(a,10));
+  if(i && isFinite(parseFloat(i))) $('imp').value = parseFloat(i).toLocaleString('it-IT');
+}
+
+function testo(){
+  return $('note').textContent.replace(/\s+/g,' ').trim();
+}
+
+$('share').onclick = async () => {
+  const btn = $('share');
+  try{
+    await navigator.clipboard.writeText(location.href);
+    btn.textContent = 'Link copiato';
+  }catch(_){
+    btn.textContent = 'Copia non riuscita';
+  }
+  setTimeout(()=>{ btn.textContent = 'Copia il link del risultato'; }, 2000);
+};
+
+$('wa').onclick = () => {
+  const msg = encodeURIComponent(testo() + '\n' + location.href);
+  window.open('https://wa.me/?text=' + msg, '_blank', 'noopener');
+};
+
+$('imp').addEventListener('input', calcola);
+$('anno').addEventListener('change', calcola);
+
+$('yy').textContent = new Date().getFullYear();
+initAnni();
+initChips();
+initDaUrl();
+calcola();
+</script>
+</body>
+</html>

@@ -58,9 +58,58 @@ class TestScoreBatch:
         with patch("sentiment_groq._get_groq", return_value=_mock_groq('{"scores": [0.5, "boh"]}')):
             assert score_batch(ARTICLES) == [0.5, None]
 
-    def test_padding_con_none_se_scores_mancanti(self):
+    def test_lista_nuda_incompleta_scarta_il_batch(self):
+        """
+        Lista senza indici e più corta del previsto: NON si può sapere quale
+        articolo il modello abbia saltato. Prima si riempiva col padding in
+        coda, il che assegnava i punteggi agli articoli sbagliati in silenzio.
+        Ora l'intero batch viene scartato: meglio nessun punteggio che uno finto.
+        """
         with patch("sentiment_groq._get_groq", return_value=_mock_groq('{"scores": [0.5]}')):
-            assert score_batch(ARTICLES) == [0.5, None]
+            assert score_batch(ARTICLES) is None
+
+
+class TestMappaturaPerIndice:
+    """
+    Il modello rimanda il numero dell'articolo con ogni punteggio, così un
+    elemento saltato non fa scalare tutti gli altri.
+    """
+
+    def test_indici_espliciti(self):
+        r = '{"scores": [{"n": 1, "s": 0.6}, {"n": 2, "s": -0.45}]}'
+        with patch("sentiment_groq._get_groq", return_value=_mock_groq(r)):
+            assert score_batch(ARTICLES) == [0.6, -0.45]
+
+    def test_articolo_saltato_non_sposta_gli_altri(self):
+        """Il bug storico: manca il n.1, il punteggio del n.2 resta sul n.2."""
+        r = '{"scores": [{"n": 2, "s": -0.45}]}'
+        with patch("sentiment_groq._get_groq", return_value=_mock_groq(r)):
+            assert score_batch(ARTICLES) == [None, -0.45]
+
+    def test_ordine_sparso(self):
+        r = '{"scores": [{"n": 2, "s": -0.45}, {"n": 1, "s": 0.6}]}'
+        with patch("sentiment_groq._get_groq", return_value=_mock_groq(r)):
+            assert score_batch(ARTICLES) == [0.6, -0.45]
+
+    def test_indice_fuori_range_ignorato(self):
+        r = '{"scores": [{"n": 1, "s": 0.6}, {"n": 99, "s": 0.9}]}'
+        with patch("sentiment_groq._get_groq", return_value=_mock_groq(r)):
+            assert score_batch(ARTICLES) == [0.6, None]
+
+    def test_titoli_gdelt_ripuliti(self):
+        """GDELT spezza la punteggiatura: va normalizzata prima del modello."""
+        client = _mock_groq('{"scores": [{"n": 1, "s": 0.1}]}')
+        with patch("sentiment_groq._get_groq", return_value=client):
+            score_batch([{"title": "Netflix , Inc . Shares Up 1 . 6 %", "summary": ""}])
+        inviato = client.chat.completions.create.call_args[1]["messages"][0]["content"]
+        assert "Netflix, Inc. Shares Up 1.6%" in inviato
+
+    def test_scoring_deterministico(self):
+        """temperature deve essere 0: stessa notizia, stesso punteggio."""
+        client = _mock_groq('{"scores": [{"n": 1, "s": 0.1}, {"n": 2, "s": 0.2}]}')
+        with patch("sentiment_groq._get_groq", return_value=client):
+            score_batch(ARTICLES)
+        assert client.chat.completions.create.call_args[1]["temperature"] == 0
 
     def test_batch_vuoto(self):
         assert score_batch([]) == []

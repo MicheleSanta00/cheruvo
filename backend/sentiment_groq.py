@@ -15,6 +15,7 @@ Modello: env GROQ_SCORE_MODEL (default llama-3.3-70b-versatile, lo stesso
 già usato per AI Summary e Academy — garantito attivo sull'account).
 """
 import os
+import re
 import json
 import time
 import logging
@@ -49,10 +50,13 @@ Rules:
 - Headlines may be in English, Italian or other languages: score them all
 - Use the full range, not just extremes
 
-Respond ONLY with a JSON object of this exact shape (no text, no markdown):
-{{"scores": [score1, score2, score3, ...]}}
+CRITICAL: every item must be scored and must carry back its own number "n".
+Never skip an item, never renumber, never reorder.
 
-News to score (index matches output position):
+Respond ONLY with a JSON object of this exact shape (no text, no markdown):
+{{"scores": [{{"n": 1, "s": 0.4}}, {{"n": 2, "s": -0.2}}, ...]}}
+
+News to score:
 {items}
 """
 
@@ -71,8 +75,20 @@ def score_batch(articles: list[dict]) -> list | None:
     if not articles:
         return []
 
+    # I titoli GDELT arrivano con spazi attorno alla punteggiatura
+    # ("Netflix , Inc . $NFLX", "Shares Up 1 . 6 %"): ripulirli prima di darli
+    # al modello evita che li interpreti come frasi spezzate.
+    def _titolo(t: str) -> str:
+        t = t or ""
+        t = re.sub(r"(\d)\s*([.,])\s*(\d)", r"\1\2\3", t)   # "1 . 6" -> "1.6"
+        t = re.sub(r"(\d)\s*-\s*(\w)", r"\1-\2", t)          # "52 - Week" -> "52-Week"
+        t = re.sub(r"\s+([,.;:%!?])", r"\1", t)              # spazio prima della punteggiatura
+        t = re.sub(r"\(\s+", "(", t)
+        t = re.sub(r"\s+\)", ")", t)
+        return re.sub(r"\s{2,}", " ", t).strip()
+
     items_text = "\n".join(
-        f"{i+1}. {a['title']} — {a.get('summary', '')[:120]}"
+        f"{i+1}. {_titolo(a['title'])} — {(a.get('summary') or '')[:120]}"
         for i, a in enumerate(articles)
     )
     prompt = BATCH_PROMPT.format(items=items_text)
@@ -81,8 +97,13 @@ def score_batch(articles: list[dict]) -> list | None:
         response = _get_groq().chat.completions.create(
             model=GROQ_SCORE_MODEL,
             messages=[{"role": "user", "content": prompt}],
-            max_tokens=400,
-            temperature=0.1,   # quasi deterministico per consistency
+            # ~18 token per elemento {"n":12,"s":-0.4}, più margine per la cornice
+            # JSON. Con un tetto fisso troppo basso la risposta veniva TRONCATA e
+            # gli ultimi articoli restavano senza punteggio.
+            max_tokens=120 + 20 * len(articles),
+            # 0 e non 0.1: con 0.1 la stessa identica notizia riceveva punteggi
+            # diversi in run diversi (osservato in produzione: +0.3 e -0.6).
+            temperature=0,
             response_format={"type": "json_object"},
         )
         raw = (response.choices[0].message.content or "").strip()
@@ -98,17 +119,52 @@ def score_batch(articles: list[dict]) -> list | None:
         if not isinstance(scores, list):
             raise ValueError(f"Risposta senza lista scores: {type(scores)}")
 
-        result = []
-        for i, s in enumerate(scores[:len(articles)]):
+        def _pulisci(v) -> float | None:
             try:
-                result.append(round(max(-1.0, min(1.0, float(s))), 4))
+                return round(max(-1.0, min(1.0, float(v))), 4)
             except (TypeError, ValueError):
-                logger.warning("Score non valido per articolo %d: %r", i, s)
-                result.append(None)
+                return None
 
-        # Padding con None se Groq restituisce meno score del previsto
-        while len(result) < len(articles):
-            result.append(None)
+        result: list[float | None] = [None] * len(articles)
+
+        # Formato con indice esplicito: {"n": 3, "s": 0.4}.
+        # È l'unico affidabile. Prima si mappava per POSIZIONE: se il modello
+        # saltava un articolo, tutti i punteggi successivi scalavano di uno e
+        # finivano sulla notizia sbagliata, in silenzio. È così che nascevano i
+        # sentiment assurdi (una notizia sul litio segnata +0.3 in un batch e
+        # -0.6 in un altro). Con l'indice, un elemento saltato resta None e
+        # basta: non contamina i vicini.
+        con_indice = [x for x in scores if isinstance(x, dict)]
+        if con_indice:
+            fuori_range = 0
+            for x in con_indice:
+                n = x.get("n", x.get("i", x.get("index")))
+                try:
+                    pos = int(n) - 1          # il prompt numera da 1
+                except (TypeError, ValueError):
+                    continue
+                if 0 <= pos < len(articles):
+                    result[pos] = _pulisci(x.get("s", x.get("score")))
+                else:
+                    fuori_range += 1
+            if fuori_range:
+                logger.warning("Groq: %d indici fuori range su %d articoli",
+                               fuori_range, len(articles))
+        else:
+            # Formato legacy (lista nuda di numeri): accettato SOLO se la
+            # lunghezza combacia esattamente. Se non combacia non sappiamo
+            # quale articolo sia stato saltato, quindi è più sicuro scartare
+            # tutto il batch che assegnare punteggi a caso.
+            if len(scores) != len(articles):
+                logger.warning("Groq: %d punteggi per %d articoli, batch scartato "
+                               "(rischio disallineamento)", len(scores), len(articles))
+                return None
+            result = [_pulisci(s) for s in scores]
+
+        mancanti = sum(1 for r in result if r is None)
+        if mancanti:
+            logger.info("Groq: %d/%d articoli senza punteggio valido (restano com'erano)",
+                        mancanti, len(articles))
         return result
 
     except json.JSONDecodeError as e:
