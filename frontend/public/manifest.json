@@ -22,14 +22,7 @@
       "name": "Mercato oggi",
       "short_name": "Mercato",
       "description": "La classifica del sentiment di oggi",
-      "url": "/?market=1",
-      "icons": [{ "src": "/icon-192.png", "sizes": "192x192" }]
-    },
-    {
-      "name": "Academy",
-      "short_name": "Academy",
-      "description": "Impara la finanza giocando",
-      "url": "/?academy=1",
+      "url": "/",
       "icons": [{ "src": "/icon-192.png", "sizes": "192x192" }]
     }
   ]

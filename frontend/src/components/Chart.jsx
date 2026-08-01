@@ -242,18 +242,12 @@ function DataPanel({ prices, sentiment, stats, correlation }) {
               valueColor={sentColor(lastSent)}
               sub={<span style={{ color: sentColor(lastSent) }}>{sentLabel(lastSent)}</span>}
             />
-            <Block label="Sentiment medio" value={fmt(avgSent)}
-              valueColor={sentColor(avgSent)}
-              sub={<span style={{ color: sentColor(avgSent) }}>{sentLabel(avgSent)}</span>}
-            />
-            <Block label="Picco positivo" value={fmt(maxSent)} valueColor="#4ade80"
-              sub={<span style={{ color: '#64748b' }}>massimo registrato</span>}
-            />
-            <Block label="Picco negativo" value={fmt(minSent)} valueColor="#f87171"
-              sub={<span style={{ color: '#64748b' }}>minimo registrato</span>}
-            />
+            {/* Sentiment medio e picchi stanno già nella striscia in alto:
+                ripeterli qui significava mostrare gli stessi numeri due volte,
+                con due stili diversi. Qui resta solo ciò che è specifico del
+                grafico: il dato più recente, la correlazione e i conteggi. */}
 
-            {/* NUOVO: Correlazione sentiment/prezzo */}
+            {/* Correlazione sentiment/prezzo */}
             <Block
               label="Correlazione sent/prezzo"
               value={correlation != null ? (correlation > 0 ? '+' : '') + correlation : 'N/D'}

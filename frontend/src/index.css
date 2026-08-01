@@ -16,6 +16,11 @@
   --red:         #f87171;
   --serif:       'DM Serif Display', Georgia, serif;
   --sans:        'DM Sans', system-ui, sans-serif;
+  /* Monospaziato per TUTTI i valori numerici: prezzi, score, contatori.
+     È il dettaglio che fa sembrare l'app un terminale finanziario invece
+     che un sito. Font di sistema, così non aggiunge richieste di rete. */
+  --mono: ui-monospace, 'SF Mono', 'JetBrains Mono', 'Cascadia Mono',
+          'Roboto Mono', Menlo, Consolas, monospace;
 }
 
 *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }

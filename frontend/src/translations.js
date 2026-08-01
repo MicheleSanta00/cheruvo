@@ -69,6 +69,19 @@ export const translations = {
       welcomeTitle: 'Ciao, benvenuto su Cheruvo!',
       welcomeDesc: 'Cheruvo analizza il sentiment delle notizie finanziarie in tempo reale. Seleziona un titolo per vedere come il mercato lo percepisce — bullish, bearish o neutro.',
       suggestions: 'Inizia con un ticker popolare',
+      // Dashboard iniziale
+      boardTitle: 'Mercato oggi',
+      boardSub: 'Sentiment delle ultime 48 ore, dalle news analizzate dall\'AI',
+      bulls: 'Più rialzisti',
+      bears: 'Più ribassisti',
+      kTickers: 'Titoli seguiti',
+      kNews: 'Notizie analizzate',
+      k24h: 'Ultime 24 ore',
+      kRanked: 'In classifica',
+      updatedAt: 'aggiornato',
+      loading: 'Caricamento dati di mercato…',
+      offline: 'Dati non disponibili al momento. Cerca un ticker per iniziare.',
+      newsShort: 'news',
     },
     // Profile
     profile: {
@@ -177,6 +190,19 @@ export const translations = {
       welcomeTitle: 'Hi, welcome to Cheruvo!',
       welcomeDesc: 'Cheruvo analyses financial news sentiment in real time. Select a stock to see how the market perceives it — bullish, bearish or neutral.',
       suggestions: 'Start with a popular ticker',
+      // Opening dashboard
+      boardTitle: 'Market today',
+      boardSub: 'Sentiment of the last 48 hours, from AI-analysed news',
+      bulls: 'Most bullish',
+      bears: 'Most bearish',
+      kTickers: 'Stocks tracked',
+      kNews: 'News analysed',
+      k24h: 'Last 24 hours',
+      kRanked: 'In ranking',
+      updatedAt: 'updated',
+      loading: 'Loading market data…',
+      offline: 'Data unavailable right now. Search a ticker to get started.',
+      newsShort: 'news',
     },
     // Profile
     profile: {

@@ -57,14 +57,14 @@ export default function App() {
     })
   }, [])
 
-  // Apri direttamente l'Academy se si arriva dal sottodominio academy.* o con ?academy
-  // (?market apre lo screener — usato anche dalle scorciatoie PWA)
+  // L'Academy non è più nell'interfaccia, ma resta raggiungibile dal
+  // sottodominio academy.* o con ?academy: così i link già in giro non si
+  // rompono e riattivarla è questione di rimettere un bottone.
+  // ?market non serve più: la schermata iniziale È il mercato.
   useEffect(() => {
     const params = new URLSearchParams(window.location.search)
     if (window.location.hostname.startsWith('academy.') || params.get('academy') !== null) {
       setShowAcademy(true)
-    } else if (params.get('market') !== null) {
-      setShowMarket(true)
     }
   }, [])
 
@@ -201,6 +201,7 @@ export default function App() {
         className={`sidebar-wrapper ${sidebarOpen ? 'sidebar-open' : ''}`}>
         <Sidebar
           ticker={ticker} days={days} period={period}
+          hasTicker={!!loadedTicker}
           loading={loading} fetching={fetching} isPro={isPro}
           onTickerChange={setTicker} onDaysChange={setDays} onPeriodChange={setPeriod}
           onLoad={(tk, d, p) => handleLoad(tk, d, p)}
@@ -226,15 +227,46 @@ export default function App() {
 
           {tickerInfo ? (
             <>
-              <span style={{ fontSize: 15, fontWeight: 600, letterSpacing: '-0.01em', flexShrink: 0 }}>{tickerInfo.ticker}</span>
+              <span style={{ fontSize: 15, fontWeight: 700, letterSpacing: '-0.01em', flexShrink: 0 }}>{tickerInfo.ticker}</span>
               <span style={{ fontSize: 13, color: 'var(--muted)', flexShrink: 0 }}>·</span>
               <span style={{ fontSize: 13, color: 'var(--muted)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{tickerInfo.nome}</span>
-              {tickerInfo.settore && tickerInfo.settore !== 'N/A' && (
+
+              {/* Prezzo e giudizio accanto al nome: in un terminale l'identità
+                  di un titolo è ticker + prezzo + stato, non solo il nome. */}
+              {prices?.length > 0 && (() => {
+                const ultimo = prices[prices.length - 1]
+                const primo = prices[0]
+                const px = Number(ultimo?.Close ?? ultimo?.close)
+                const px0 = Number(primo?.Close ?? primo?.close)
+                if (!isFinite(px)) return null
+                const varPct = isFinite(px0) && px0 ? ((px - px0) / px0) * 100 : null
+                const su = varPct != null && varPct >= 0
+                return (
+                  <span className="hide-mobile" style={{
+                    display: 'inline-flex', alignItems: 'baseline', gap: 7, flexShrink: 0,
+                    fontFamily: 'var(--mono)', fontVariantNumeric: 'tabular-nums', marginLeft: 4,
+                  }}>
+                    <span style={{ fontSize: 14, fontWeight: 700 }}>{px.toFixed(2)}</span>
+                    {varPct != null && (
+                      <span style={{ fontSize: 11.5, fontWeight: 700, color: su ? 'var(--green)' : 'var(--red)' }}>
+                        {su ? '+' : '−'}{Math.abs(varPct).toFixed(2)}%
+                      </span>
+                    )}
+                  </span>
+                )
+              })()}
+
+              {stats?.avg != null && (
                 <span className="hide-mobile" style={{
-                  fontSize: 11, color: 'var(--azure)', flexShrink: 0,
-                  background: 'rgba(96,165,250,0.08)', border: '1px solid rgba(96,165,250,0.15)',
-                  padding: '2px 8px', borderRadius: 100,
-                }}>{tickerInfo.settore}</span>
+                  fontSize: 10, fontWeight: 700, letterSpacing: '0.06em', textTransform: 'uppercase',
+                  flexShrink: 0, padding: '2px 8px', borderRadius: 5,
+                  fontFamily: 'var(--mono)',
+                  color: stats.avg > 0.08 ? 'var(--green)' : stats.avg < -0.08 ? 'var(--red)' : 'var(--muted)',
+                  background: stats.avg > 0.08 ? 'rgba(52,211,153,0.10)' : stats.avg < -0.08 ? 'rgba(248,113,113,0.10)' : 'rgba(255,255,255,0.04)',
+                  border: '1px solid var(--border-br)',
+                }}>
+                  {stats.avg > 0 ? '+' : stats.avg < 0 ? '−' : ''}{Math.abs(stats.avg).toFixed(2)}
+                </span>
               )}
             </>
           ) : (
@@ -278,16 +310,10 @@ export default function App() {
                 border: 'none', borderRadius: 6, padding: '4px 10px', cursor: 'pointer', fontWeight: 500,
               }}>{t.header.upgradePro}</button>
             )}
-            <button onClick={() => setShowMarket(true)} className="hide-mobile" title={lang === 'it' ? 'Mercato oggi' : 'Market today'} style={{
-              fontSize: 11, color: 'var(--white)', background: 'transparent',
-              border: '1px solid var(--border)', borderRadius: 6, padding: '4px 10px',
-              cursor: 'pointer', fontWeight: 500,
-            }}><Icon name="compare" size={13} /> {lang === 'it' ? 'Mercato' : 'Market'}</button>
-            <button onClick={() => setShowAcademy(true)} className="hide-mobile" title="Cheruvo Academy" style={{
-              fontSize: 11, color: 'var(--white)', background: 'transparent',
-              border: '1px solid var(--border)', borderRadius: 6, padding: '4px 10px',
-              cursor: 'pointer', fontWeight: 500,
-            }}><Icon name="academy" size={14} /> Academy</button>
+            {/* "Mercato" rimosso: la schermata iniziale È il mercato, il bottone
+                mostrava la stessa cosa due volte. L'Academy è stata tolta
+                dall'interfaccia perché fuori fuoco rispetto al prodotto: il
+                codice resta in academy/, quindi si può riattivare quando serve. */}
             <a href="https://cheruvo.com/guida.html" target="_blank" rel="noreferrer" className="hide-mobile" title={lang === 'it' ? 'Guida all\'uso' : 'User guide'} style={{
               display: 'inline-flex', alignItems: 'center', textDecoration: 'none',
               fontSize: 11, color: 'var(--white)', background: 'transparent',
@@ -340,12 +366,7 @@ export default function App() {
                           </button>
                         </>
                       )}
-                      <button onClick={() => { close(); setShowMarket(true) }} style={item}>
-                        <Icon name="compare" size={14} /> {lang === 'it' ? 'Mercato oggi' : 'Market today'}
-                      </button>
-                      <button onClick={() => { close(); setShowAcademy(true) }} style={item}>
-                        <Icon name="academy" size={14} /> Academy
-                      </button>
+                      {/* Mercato e Academy tolti anche dal menu mobile, per coerenza */}
                       <a href="https://cheruvo.com/guida.html" target="_blank" rel="noreferrer" onClick={close} style={item}>
                         <Icon name="book" size={14} /> {lang === 'it' ? 'Guida' : 'Guide'}
                       </a>
@@ -378,7 +399,15 @@ export default function App() {
           </div>
         ) : (
           /* Two-column dashboard */
-          <div className="dashboard-grid" style={{ flex: 1, overflow: 'hidden', display: 'grid', gridTemplateColumns: '380px 1fr', gridTemplateRows: '1fr' }}>
+          <div style={{ flex: 1, overflow: 'hidden', display: 'flex', flexDirection: 'column', minHeight: 0 }}>
+
+          {/* Striscia metriche a tutta larghezza, subito sotto l'intestazione:
+              è la fascia di riepilogo del titolo, come in un terminale. Prima
+              stava dentro la colonna da 380px, dove sembrava un widget fra i
+              tanti invece che l'identità numerica del titolo. */}
+          {stats && <div id="kpi-avg"><KPIGrid stats={stats} /></div>}
+
+          <div className="dashboard-grid" style={{ flex: 1, overflow: 'hidden', display: 'grid', gridTemplateColumns: '380px 1fr', gridTemplateRows: '1fr', minHeight: 0 }}>
 
             {/* ── LEFT PANEL ── */}
             <div style={{
@@ -392,9 +421,6 @@ export default function App() {
               {loadedTicker && (
                 <SummaryCard ticker={loadedTicker} isPro={isPro} onUpgrade={handleUpgrade} />
               )}
-
-              {/* KPI */}
-              {stats && <div id="kpi-avg"><KPIGrid stats={stats} /></div>}
 
               {/* Stats PRO — collassabili */}
               {news.length > 0 && isPro && (
@@ -505,6 +531,7 @@ export default function App() {
 
               <div style={{ height: 12 }} />
             </div>
+          </div>
           </div>
         )}
       </main>
@@ -633,84 +660,154 @@ const SUGGESTED_TICKERS = [
   { symbol: 'ENEL.MI',name: 'Enel',           flag: '🇮🇹' },
 ]
 
-function EmptyState({ t, onLoad, days, period }) {
-  const [showWelcome, setShowWelcome] = useState(() => {
-    return !localStorage.getItem('cheruvo_welcomed')
-  })
+// ── Schermata iniziale: una PLANCIA, non un cartello di benvenuto ───────────
+// Prima qui c'era un orb animato con "Benvenuto": bello ma vuoto, e faceva
+// sembrare Cheruvo un tool in attesa di comandi. Ora chi apre l'app vede
+// subito lo stato del mercato, come in un terminale professionale.
 
-  const dismissWelcome = () => {
-    localStorage.setItem('cheruvo_welcomed', '1')
-    setShowWelcome(false)
-  }
+// Numeri sempre monospaziati e tabulari: è il dettaglio che più distingue
+// un terminale finanziario da un sito qualsiasi.
+const numStyle = {
+  fontFamily: 'var(--mono, ui-monospace, monospace)',
+  fontVariantNumeric: 'tabular-nums',
+  fontWeight: 700,
+}
+const segno = (v) => (v > 0.08 ? 'var(--green, #2ee6a8)' : v < -0.08 ? 'var(--red, #f87171)' : 'var(--muted)')
+const fmt = (v) => `${v > 0 ? '+' : v < 0 ? '−' : ''}${Math.abs(Number(v)).toFixed(2)}`
 
-  const handleSuggestion = (symbol) => {
-    dismissWelcome()
-    onLoad(symbol, days, period)
-  }
-
+function Pannello({ titolo, extra, children }) {
   return (
     <div style={{
-      flex: 1, display: 'flex', flexDirection: 'column',
-      alignItems: 'center', justifyContent: 'center', position: 'relative',
-      padding: '60px 40px', textAlign: 'center', gap: 20, maxWidth: 560, margin: '0 auto',
+      border: '1px solid var(--border-br)', borderRadius: 10,
+      background: 'rgba(255,255,255,0.015)', overflow: 'hidden',
     }}>
-      {/* Glow soffuso + Sentiment Orb: dà vita alla schermata iniziale (lega app e landing) */}
-      <div className="welcome-glow" aria-hidden="true" />
-      <div className="orb" title="Il battito del mercato" style={{ position: 'relative', zIndex: 1, marginBottom: 4 }}>
-        <span className="ring"></span><span className="ring r2"></span><span className="core"></span>
+      <div style={{
+        display: 'flex', alignItems: 'center', justifyContent: 'space-between',
+        padding: '8px 12px', borderBottom: '1px solid var(--border-br)',
+        background: 'rgba(255,255,255,0.02)',
+      }}>
+        <span style={{ fontSize: 10.5, letterSpacing: '0.12em', textTransform: 'uppercase', color: 'var(--muted)', fontWeight: 700 }}>
+          {titolo}
+        </span>
+        {extra && <span style={{ fontSize: 10.5, color: 'var(--muted)', ...numStyle, fontWeight: 500 }}>{extra}</span>}
+      </div>
+      {children}
+    </div>
+  )
+}
+
+function EmptyState({ t, onLoad, days, period }) {
+  const { lang } = useLang()
+  const [mercato, setMercato] = useState(null)
+  const [stats, setStats] = useState(null)
+  const [errore, setErrore] = useState(false)
+
+  useEffect(() => {
+    let vivo = true
+    apiFetch('/market/today')
+      .then((d) => { if (vivo) setMercato(d) })
+      .catch(() => { if (vivo) setErrore(true) })
+    apiFetch('/market/stats')
+      .then((d) => { if (vivo) setStats(d) })
+      .catch(() => {})
+    return () => { vivo = false }
+  }, [])
+
+  const righe = mercato?.rows || []
+  const rialzisti = righe.filter((r) => r.sentiment > 0).slice(0, 6)
+  const ribassisti = righe.filter((r) => r.sentiment <= 0).slice(-6).reverse()
+  const ora = mercato?.updated_at
+    ? new Date(mercato.updated_at).toLocaleTimeString(lang === 'it' ? 'it-IT' : 'en-US', { hour: '2-digit', minute: '2-digit' })
+    : null
+
+  const Riga = ({ r, i }) => (
+    <button
+      onClick={() => onLoad(r.ticker, days, period)}
+      style={{
+        display: 'grid', gridTemplateColumns: '18px 1fr auto auto', gap: 10,
+        alignItems: 'center', width: '100%', padding: '7px 12px',
+        borderBottom: '1px solid var(--border-br)', background: 'transparent',
+        border: 'none', borderRadius: 0, cursor: 'pointer', textAlign: 'left',
+        color: 'var(--white)', fontSize: 13,
+      }}
+      onMouseEnter={(e) => { e.currentTarget.style.background = 'rgba(255,255,255,0.04)' }}
+      onMouseLeave={(e) => { e.currentTarget.style.background = 'transparent' }}
+    >
+      <span style={{ ...numStyle, fontWeight: 500, fontSize: 10.5, color: 'var(--muted)' }}>{i + 1}</span>
+      <span style={{ fontWeight: 700 }}>{r.ticker}</span>
+      <span style={{ fontSize: 10.5, color: 'var(--muted)' }}>{r.news} {t.empty.newsShort}</span>
+      <span style={{ ...numStyle, color: segno(r.sentiment) }}>{fmt(r.sentiment)}</span>
+    </button>
+  )
+
+  const Metrica = ({ etichetta, valore }) => (
+    <div style={{ padding: '10px 14px', borderRight: '1px solid var(--border-br)', flex: 1, minWidth: 110 }}>
+      <div style={{ fontSize: 10, letterSpacing: '0.11em', textTransform: 'uppercase', color: 'var(--muted)', fontWeight: 700 }}>
+        {etichetta}
+      </div>
+      <div style={{ ...numStyle, fontSize: 18, marginTop: 3 }}>{valore ?? '—'}</div>
+    </div>
+  )
+
+  return (
+    <div style={{ flex: 1, overflow: 'auto', padding: '18px 20px 28px' }}>
+      {/* intestazione */}
+      <div style={{ display: 'flex', alignItems: 'baseline', gap: 12, flexWrap: 'wrap', marginBottom: 14 }}>
+        <h2 style={{ fontFamily: 'var(--serif)', fontSize: 21, fontWeight: 400, letterSpacing: '-0.01em' }}>
+          {t.empty.boardTitle}
+        </h2>
+        <span style={{ fontSize: 12.5, color: 'var(--muted)' }}>{t.empty.boardSub}</span>
+        {ora && (
+          <span style={{ marginLeft: 'auto', fontSize: 11, color: 'var(--muted)', ...numStyle, fontWeight: 500 }}>
+            {t.empty.updatedAt} {ora}
+          </span>
+        )}
       </div>
 
-      {/* Welcome banner — solo al primo accesso */}
-      {showWelcome && (
-        <div style={{
-          width: '100%', background: 'rgba(30,92,255,0.08)',
-          border: '1px solid rgba(30,92,255,0.25)', borderRadius: 14,
-          padding: '20px 24px', textAlign: 'left', position: 'relative',
-        }}>
-          <button
-            onClick={dismissWelcome}
-            style={{
-              position: 'absolute', top: 12, right: 12,
-              background: 'transparent', color: 'var(--muted)',
-              fontSize: 16, padding: '2px 6px', borderRadius: 4,
-              border: '1px solid transparent', display: 'flex', alignItems: 'center',
-            }}
-          ><Icon name="close" size={15} /></button>
-          <div style={{ fontSize: 13, fontWeight: 600, color: 'var(--azure)', marginBottom: 6, display: 'flex', alignItems: 'center', gap: 7 }}>
-            <Icon name="welcome" size={16} /> {t.empty.welcomeTitle}
-          </div>
-          <div style={{ fontSize: 13, color: 'var(--muted)', lineHeight: 1.7 }}>
-            {t.empty.welcomeDesc}
-          </div>
+      {/* fascia metriche */}
+      <div style={{
+        display: 'flex', flexWrap: 'wrap', border: '1px solid var(--border-br)',
+        borderRadius: 10, overflow: 'hidden', marginBottom: 16,
+        background: 'rgba(255,255,255,0.015)',
+      }}>
+        <Metrica etichetta={t.empty.kTickers} valore={stats?.tickers} />
+        <Metrica etichetta={t.empty.kNews} valore={stats?.news_total?.toLocaleString(lang === 'it' ? 'it-IT' : 'en-US')} />
+        <Metrica etichetta={t.empty.k24h} valore={stats?.news_today} />
+        <Metrica etichetta={t.empty.kRanked} valore={righe.length || null} />
+      </div>
+
+      {/* classifiche */}
+      {!mercato && !errore && (
+        <div style={{ color: 'var(--muted)', fontSize: 13, padding: '20px 0' }}>{t.empty.loading}</div>
+      )}
+      {(errore || (mercato && !righe.length)) && (
+        <div style={{ color: 'var(--muted)', fontSize: 13, padding: '20px 0' }}>{t.empty.offline}</div>
+      )}
+      {righe.length > 0 && (
+        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(280px, 1fr))', gap: 14 }}>
+          <Pannello titolo={t.empty.bulls} extra={`${rialzisti.length}`}>
+            {rialzisti.map((r, i) => <Riga key={r.ticker} r={r} i={i} />)}
+            {!rialzisti.length && <div style={{ padding: 12, color: 'var(--muted)', fontSize: 12.5 }}>—</div>}
+          </Pannello>
+          <Pannello titolo={t.empty.bears} extra={`${ribassisti.length}`}>
+            {ribassisti.map((r, i) => <Riga key={r.ticker} r={r} i={i} />)}
+            {!ribassisti.length && <div style={{ padding: 12, color: 'var(--muted)', fontSize: 12.5 }}>—</div>}
+          </Pannello>
         </div>
       )}
 
-      {/* Icona */}
-      <div style={{ width: 80, height: 80, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-        <img src="/logo-v2.png" alt="Cheruvo" style={{ width: 80, height: 80, filter: 'brightness(1) drop-shadow(0 0 12px rgba(255,255,255,0.9)) drop-shadow(0 0 24px rgba(255,255,255,0.5)) drop-shadow(0 0 40px rgba(255,255,255,0.2))' }} />
-      </div>
-
-      <div>
-        <h2 style={{ fontFamily: 'var(--serif)', fontSize: 26, fontWeight: 400, letterSpacing: '-0.02em', marginBottom: 10 }}>
-          {t.empty.title}
-        </h2>
-        <p style={{ fontSize: 14, color: 'var(--muted)', lineHeight: 1.7 }}>
-          {t.empty.desc}
-        </p>
-      </div>
-
-      {/* Ticker suggeriti */}
-      <div style={{ width: '100%' }}>
-        <div style={{ fontSize: 11, color: 'var(--muted)', letterSpacing: '0.08em', textTransform: 'uppercase', marginBottom: 10 }}>
+      {/* ticker suggeriti, in forma compatta */}
+      <div style={{ marginTop: 20 }}>
+        <div style={{ fontSize: 10.5, color: 'var(--muted)', letterSpacing: '0.12em', textTransform: 'uppercase', marginBottom: 9, fontWeight: 700 }}>
           {t.empty.suggestions}
         </div>
-        <div style={{ display: 'flex', flexWrap: 'wrap', gap: 8, justifyContent: 'center' }}>
+        <div style={{ display: 'flex', flexWrap: 'wrap', gap: 7 }}>
           {SUGGESTED_TICKERS.map(tk => (
             <button
               key={tk.symbol}
-              onClick={() => handleSuggestion(tk.symbol)}
+              onClick={() => onLoad(tk.symbol, days, period)}
               style={{
-                padding: '8px 14px', borderRadius: 8, fontSize: 13,
+                padding: '6px 11px', borderRadius: 7, fontSize: 12.5,
                 border: '1px solid var(--border-br)',
                 background: 'rgba(255,255,255,0.03)',
                 color: 'var(--white)', cursor: 'pointer',
@@ -727,7 +824,7 @@ function EmptyState({ t, onLoad, days, period }) {
               }}
             >
               <span>{tk.flag}</span>
-              <span style={{ fontWeight: 600 }}>{tk.symbol}</span>
+              <span style={{ fontWeight: 700 }}>{tk.symbol}</span>
               <span style={{ fontSize: 11, color: 'var(--muted)' }}>{tk.name}</span>
             </button>
           ))}

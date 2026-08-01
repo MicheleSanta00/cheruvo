@@ -2,6 +2,7 @@ import { useState, useEffect, useRef } from 'react'
 import { supabase } from '../supabase.js'
 import { TICKERS } from '../data/tickers.js'
 import { useLang } from '../LangContext.jsx'
+import apiFetch from '../apiFetch.js'
 import Icon from './Icon.jsx'
 
 const PERIODS_FREE = [{ v: '1mo', l: '1M' }, { v: '3mo', l: '3M' }]
@@ -11,7 +12,7 @@ const MAX_WATCHLIST_FREE = 3
 const MAX_DAYS_FREE = 30
 const MAX_DAYS_PRO = 90
 
-export default function Sidebar({ ticker, days, period, onLoad, onFetch, loading, fetching, onTickerChange, onDaysChange, onPeriodChange, isPro, onUpgrade }) {
+export default function Sidebar({ ticker, days, period, hasTicker, onLoad, onFetch, loading, fetching, onTickerChange, onDaysChange, onPeriodChange, isPro, onUpgrade }) {
   const { t } = useLang()
   const [input, setInput] = useState(ticker)
   const [watchlist, setWatchlist] = useState([])
@@ -19,6 +20,22 @@ export default function Sidebar({ ticker, days, period, onLoad, onFetch, loading
   const [suggestions, setSuggestions] = useState([])
   const [showSuggestions, setShowSuggestions] = useState(false)
   const inputRef = useRef(null)
+
+  // Sentiment di ogni titolo in watchlist. Una sola chiamata all'endpoint
+  // pubblico (già in cache lato server), non una per ticker.
+  const [sentimenti, setSentimenti] = useState({})
+  useEffect(() => {
+    let vivo = true
+    apiFetch('/market/today')
+      .then((d) => {
+        if (!vivo) return
+        const m = {}
+        for (const r of d?.rows || []) m[r.ticker] = r.sentiment
+        setSentimenti(m)
+      })
+      .catch(() => {})
+    return () => { vivo = false }
+  }, [])
 
   const PERIODS = isPro ? PERIODS_PRO : PERIODS_FREE
   const maxDays = isPro ? MAX_DAYS_PRO : MAX_DAYS_FREE
@@ -185,26 +202,41 @@ export default function Sidebar({ ticker, days, period, onLoad, onFetch, loading
               {t.sidebar.watchlistEmpty}
             </div>
           )}
-          {watchlist.map(tk => (
-            <div key={tk} style={{
-              display: 'flex', justifyContent: 'space-between', alignItems: 'center',
-              padding: '8px 10px', borderRadius: 7,
-              background: ticker === tk ? 'rgba(30,92,255,0.15)' : 'transparent',
-            }}>
-              <button
-                onClick={() => submit(tk)}
-                style={{
-                  fontSize: 13, fontWeight: 500, flex: 1, textAlign: 'left',
-                  color: ticker === tk ? 'var(--azure)' : 'var(--white)',
-                  background: 'transparent',
-                }}
-              >{tk}</button>
-              <button
-                onClick={() => removeTicker(tk)}
-                style={{ fontSize: 11, color: 'var(--muted)', background: 'transparent', padding: '2px 4px', opacity: 0.5, display: 'flex', alignItems: 'center' }}
-              ><Icon name="close" size={12} /></button>
-            </div>
-          ))}
+          {/* Righe compatte con lo score accanto: la watchlist diventa un
+              quadro di lettura, non solo un elenco di scorciatoie. */}
+          {watchlist.map(tk => {
+            const s = sentimenti[tk]
+            const attivo = ticker === tk
+            return (
+              <div key={tk} style={{
+                display: 'grid', gridTemplateColumns: '1fr auto auto', gap: 6,
+                alignItems: 'center', padding: '6px 9px', borderRadius: 6,
+                background: attivo ? 'rgba(30,92,255,0.13)' : 'transparent',
+                boxShadow: attivo ? 'inset 2px 0 0 var(--blue)' : 'none',
+              }}>
+                <button
+                  onClick={() => submit(tk)}
+                  style={{
+                    fontSize: 12.5, fontWeight: 700, textAlign: 'left',
+                    color: attivo ? 'var(--azure)' : 'var(--white)',
+                    background: 'transparent', padding: 0,
+                  }}
+                >{tk}</button>
+                <span style={{
+                  fontFamily: 'var(--mono)', fontVariantNumeric: 'tabular-nums',
+                  fontSize: 11.5, fontWeight: 700, minWidth: 42, textAlign: 'right',
+                  color: s === undefined ? 'transparent'
+                    : s > 0.08 ? 'var(--green)' : s < -0.08 ? 'var(--red)' : 'var(--muted)',
+                }}>
+                  {s === undefined ? '·' : `${s > 0 ? '+' : s < 0 ? '−' : ''}${Math.abs(s).toFixed(2)}`}
+                </span>
+                <button
+                  onClick={() => removeTicker(tk)}
+                  style={{ fontSize: 11, color: 'var(--muted)', background: 'transparent', padding: '2px 3px', opacity: 0.45, display: 'flex', alignItems: 'center' }}
+                ><Icon name="close" size={11} /></button>
+              </div>
+            )
+          })}
 
           {!isPro && watchlist.length >= MAX_WATCHLIST_FREE ? (
             <button
@@ -236,6 +268,10 @@ export default function Sidebar({ ticker, days, period, onLoad, onFetch, loading
         </div>
       </div>
 
+      {/* Finestra giorni e periodo prezzi: hanno senso SOLO quando si sta
+          guardando un titolo. Sulla schermata di mercato erano rumore, e
+          facevano sembrare la colonna un pannello di comandi scollegato. */}
+      {hasTicker && (<>
       {/* Days slider */}
       <div>
         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '0 8px', marginBottom: 4 }}>
@@ -281,6 +317,7 @@ export default function Sidebar({ ticker, days, period, onLoad, onFetch, loading
           })}
         </div>
       </div>
+      </>)}
 
       <div style={{ flex: 1 }} />
 
