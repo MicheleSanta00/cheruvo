@@ -58,7 +58,7 @@ def _count_remaining() -> int:
         cur.execute("""
             SELECT count(*) FROM news
             WHERE source <> 'Alpha Vantage'
-              AND COALESCE(score_source, 'vader') = 'vader'
+              AND COALESCE(score_source, 'vader') <> 'llm2'
         """)
         n = cur.fetchone()[0]
         cur.close()
@@ -74,7 +74,7 @@ def _fetch_chunk(limit: int):
         cur.execute("""
             SELECT id, title, summary FROM news
             WHERE source <> 'Alpha Vantage'
-              AND COALESCE(score_source, 'vader') = 'vader'
+              AND COALESCE(score_source, 'vader') <> 'llm2'
             ORDER BY published_date DESC NULLS LAST
             LIMIT %s
         """, (limit,))
@@ -86,7 +86,16 @@ def _fetch_chunk(limit: int):
 
 
 def _apply(ids_scores):
-    """Aggiorna sentiment + score_source='llm' solo per gli score validi."""
+    """
+    Aggiorna sentiment + score_source='llm2' solo per gli score validi.
+
+    Il marcatore è VERSIONATO ('llm2', non 'llm') perché i punteggi scritti
+    dalla versione precedente erano inaffidabili: il modello rispondeva con una
+    lista posizionale e, se saltava un articolo, tutti i punteggi successivi
+    finivano sulla notizia sbagliata. Quelle righe risultavano già 'llm' e non
+    sarebbero mai state riprocessate. Con il marcatore nuovo vengono ripassate
+    tutte, e in futuro basterà incrementare la versione per rifare la bonifica.
+    """
     import psycopg2.extras
     pairs = [(i, s) for i, s in ids_scores if s is not None]
     if not pairs:
@@ -96,7 +105,7 @@ def _apply(ids_scores):
         cur = conn.cursor()
         psycopg2.extras.execute_values(
             cur,
-            "UPDATE news SET sentiment = data.score, score_source = 'llm' "
+            "UPDATE news SET sentiment = data.score, score_source = 'llm2' "
             "FROM (VALUES %s) AS data(id, score) WHERE news.id = data.id",
             pairs, template="(%s, %s::real)")
         conn.commit()

@@ -163,7 +163,8 @@ class TestLlmRefineOnDemand:
         with patch("sentiment_groq.score_batch", return_value=[0.62, None]):
             n = _llm_refine(news)
         assert n == 1
-        assert news[0]["sentiment"] == 0.62 and news[0]["score_source"] == "llm"
+        # 'llm2' = versione con mappatura per indice; le vecchie 'llm' vanno ripassate
+        assert news[0]["sentiment"] == 0.62 and news[0]["score_source"] == "llm2"
         assert news[1]["sentiment"] == 0.1                      # None → resta VADER
         assert news[2]["sentiment"] == 0.5                      # AV mai toccato
 

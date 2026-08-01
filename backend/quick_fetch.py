@@ -248,7 +248,10 @@ def _llm_refine(news_list: list, max_items: int = 40) -> int:
             for n, s in zip(chunk, scores):
                 if s is not None:
                     n["sentiment"] = s
-                    n["score_source"] = "llm"
+                    # 'llm2' = scoring con mappatura per indice (vedi
+                    # sentiment_groq). Le righe marcate 'llm' vengono dalla
+                    # versione con il disallineamento e vanno ripassate.
+                    n["score_source"] = "llm2"
                     refined += 1
     except Exception as e:
         logger.warning("LLM refine saltato (%s) — score VADER conservati", e)

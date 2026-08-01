@@ -192,7 +192,7 @@ def rescore_non_av_news(ticker: str, batch_size: int = 10,
             FROM news
             WHERE ticker = %s
               AND source != 'Alpha Vantage'
-              AND COALESCE(score_source, 'vader') = 'vader'
+              AND COALESCE(score_source, 'vader') <> 'llm2'
               AND published_date >= NOW() - INTERVAL '7 days'
             ORDER BY published_date DESC
             LIMIT %s
@@ -226,7 +226,7 @@ def rescore_non_av_news(ticker: str, batch_size: int = 10,
                 cur = conn.cursor()
                 psycopg2.extras.execute_values(
                     cur,
-                    "UPDATE news SET sentiment = data.score, score_source = 'llm' "
+                    "UPDATE news SET sentiment = data.score, score_source = 'llm2' "
                     "FROM (VALUES %s) AS data(id, score) WHERE news.id = data.id",
                     pairs,
                     template="(%s, %s::real)",
