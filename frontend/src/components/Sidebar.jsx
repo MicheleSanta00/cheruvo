@@ -177,7 +177,9 @@ export default function Sidebar({ ticker, days, period, hasTicker, onLoad, onFet
 
   const submit = (tk) => {
     const v = (tk || input).toUpperCase()
-    setInput(v)
+    // Niente setInput qui: il campo in fondo serve ad AGGIUNGERE un titolo,
+    // non è più la casella di ricerca. Scrivendoci dentro il ticker appena
+    // aperto compariva una riga fantasma con scritto "NVDA" sotto la lista.
     onTickerChange(v)
     onLoad(v, days, period)
   }

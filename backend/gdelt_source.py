@@ -166,25 +166,50 @@ def fetch_gdelt(ticker: str, nome: str | None = None,
         termine = _termine_query(ticker, nome)
         chiavi = _parole_chiave(ticker, nome)
         borsa = ticker.split(".")[-1] if "." in ticker else ""
-        lingue = {"English", _LINGUA_BORSA.get(borsa, "English")}
+        lingua_locale = _LINGUA_BORSA.get(borsa, "English")
+        lingue = {"English", lingua_locale}
 
-        _rispetta_rate_limit()
-        resp = requests.get(GDELT_URL, params={
-            "query": termine,                 # UN token, MAI tra virgolette
-            "mode": "artlist",
-            "format": "json",
-            "maxrecords": max_items,
-            "timespan": timespan,
-            "sort": "datedesc",
-        }, timeout=15, headers={"User-Agent": _UA})
-        resp.raise_for_status()
+        # Per le borse non anglofone facciamo una seconda interrogazione
+        # ristretta alla lingua locale.
+        #
+        # Perché: la query nuda cerca in tutto il mondo e per un nome corto
+        # come "Eni" torna quasi solo rumore (verificato dal vivo: su 20
+        # risultati, 1 solo parlava davvero della società, gli altri erano
+        # articoli rumeni, arabi e nigeriani). Il filtro a valle li butta, ma
+        # intanto hanno consumato tutti i 100 posti disponibili. Con
+        # sourcelang: i 100 posti sono già tutti nella lingua giusta, e infatti
+        # escono pezzi che la query nuda non restituiva mai.
+        #
+        # sourcelang: si scrive DA SOLO accanto al termine. Non funziona né
+        # dentro parentesi né in OR con un'altra lingua (provato: risposta
+        # vuota), da qui la seconda chiamata invece di una query sola.
+        varianti = [termine]
+        if lingua_locale != "English":
+            varianti.append(f"{termine} sourcelang:{lingua_locale.lower()}")
 
-        # GDELT a volte risponde 200 con corpo vuoto (rate limit): gestiamolo
-        testo = (resp.text or "").strip()
-        if not testo:
-            logger.warning("GDELT %s: risposta vuota (probabile rate limit)", ticker)
+        articoli = []
+        for q in varianti:
+            _rispetta_rate_limit()
+            resp = requests.get(GDELT_URL, params={
+                "query": q,                   # UN token, MAI tra virgolette
+                "mode": "artlist",
+                "format": "json",
+                "maxrecords": max_items,
+                "timespan": timespan,
+                "sort": "datedesc",
+            }, timeout=15, headers={"User-Agent": _UA})
+            resp.raise_for_status()
+
+            # GDELT a volte risponde 200 con corpo vuoto (rate limit)
+            testo = (resp.text or "").strip()
+            if not testo:
+                logger.warning("GDELT %s (query='%s'): risposta vuota "
+                               "(probabile rate limit)", ticker, q)
+                continue
+            articoli.extend((resp.json() or {}).get("articles", []) or [])
+
+        if not articoli:
             return []
-        articoli = (resp.json() or {}).get("articles", []) or []
 
         scartati = 0
         titoli_visti: set[str] = set()
@@ -215,8 +240,9 @@ def fetch_gdelt(ticker: str, nome: str | None = None,
                 "url": a.get("url", ""),
                 "sentiment": _vader(titolo),
             })
-        logger.info("GDELT %s (query='%s'): %d tenute, %d scartate",
-                    ticker, termine, len(news), scartati)
+        logger.info("GDELT %s (query='%s', %d interrogazioni, %d articoli grezzi): "
+                    "%d tenute, %d scartate",
+                    ticker, termine, len(varianti), len(articoli), len(news), scartati)
     except Exception as e:
         logger.error("GDELT %s error: %s", ticker, e)
     return news

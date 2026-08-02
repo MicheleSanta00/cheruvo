@@ -2,7 +2,7 @@ import { useState, useMemo, useEffect } from 'react'
 import {
   ComposedChart, Area, Bar, Line,
   XAxis, YAxis, CartesianGrid, Tooltip,
-  ResponsiveContainer, ReferenceLine, Cell, Brush,
+  ResponsiveContainer, ReferenceLine, Cell,
 } from 'recharts'
 import Icon from './Icon.jsx'
 
@@ -189,19 +189,25 @@ function DataPanel({ prices, sentiment, stats, correlation }) {
     : c < -0.5 ? 'Forte negativa' : c < -0.3 ? 'Moderata negativa'
     : 'Debole / assente'
 
-  const Block = ({ label, value, sub, valueColor = '#f1f5f9', big }) => (
+  // Celle piatte, non schedine arrotondate: stesso linguaggio della striscia
+  // KPI in alto. Numeri monospaziati e tabellari così le cifre restano
+  // incolonnate quando cambiano.
+  const Block = ({ label, value, sub, valueColor = 'var(--off-white)', big }) => (
     <div style={{
-      background: 'rgba(255,255,255,0.02)',
-      border: '1px solid rgba(255,255,255,0.07)',
-      borderRadius: 10, padding: '12px 14px',
+      background: 'var(--near-black)',
+      border: '1px solid var(--border)',
+      padding: '9px 12px',
     }}>
-      <div style={{ fontSize: 10, color: '#64748b', letterSpacing: '0.06em', textTransform: 'uppercase', marginBottom: 6 }}>
+      <div style={{ fontSize: 9.5, color: 'var(--muted)', letterSpacing: '0.12em', textTransform: 'uppercase', fontWeight: 700, marginBottom: 5 }}>
         {label}
       </div>
-      <div style={{ fontSize: big ? 20 : 15, fontWeight: 600, letterSpacing: '-0.02em', color: valueColor, lineHeight: 1 }}>
+      <div style={{
+        fontFamily: 'var(--mono)', fontVariantNumeric: 'tabular-nums',
+        fontSize: big ? 19 : 15, fontWeight: 700, color: valueColor, lineHeight: 1,
+      }}>
         {value}
       </div>
-      {sub && <div style={{ fontSize: 11, marginTop: 4 }}>{sub}</div>}
+      {sub && <div style={{ fontSize: 10.5, marginTop: 4 }}>{sub}</div>}
     </div>
   )
 
@@ -214,7 +220,7 @@ function DataPanel({ prices, sentiment, stats, correlation }) {
       <div style={{ fontSize: 10, color: '#475569', letterSpacing: '0.08em', textTransform: 'uppercase', marginBottom: 8, display: 'flex', alignItems: 'center', gap: 5 }}>
         <Icon name="analyzer" size={12} /> Prezzi
       </div>
-      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(130px, 1fr))', gap: 8, marginBottom: 16 }}>
+      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(130px, 1fr))', gap: 1, background: 'var(--border)', marginBottom: 16 }}>
         <Block label="Ultimo prezzo" value={`$${last.Close?.toFixed(2)}`} big
           sub={<span style={{ color: isUp ? '#4ade80' : '#f87171' }}>
             {isUp ? '+' : ''}{change.toFixed(2)} ({isUp ? '+' : ''}{pct.toFixed(2)}%) sul periodo
@@ -237,7 +243,7 @@ function DataPanel({ prices, sentiment, stats, correlation }) {
           <div style={{ fontSize: 10, color: '#475569', letterSpacing: '0.08em', textTransform: 'uppercase', marginBottom: 8, display: 'flex', alignItems: 'center', gap: 5 }}>
             <Icon name="ai-brain" size={12} /> Sentiment & Correlazione
           </div>
-          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(130px, 1fr))', gap: 8 }}>
+          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(130px, 1fr))', gap: 1, background: 'var(--border)' }}>
             <Block label="Sentiment recente" value={fmt(lastSent)} big
               valueColor={sentColor(lastSent)}
               sub={<span style={{ color: sentColor(lastSent) }}>{sentLabel(lastSent)}</span>}
@@ -275,6 +281,14 @@ const fmtDate = d => {
   if (!d) return ''
   const p = d.split('-')
   return p.length >= 3 ? `${p[2]}/${p[1]}` : d
+}
+
+// Interruttori del grafico: squadrati e in maiuscoletto come il resto della
+// plancia. Erano pillole arrotondate, l'unica cosa tonda in tutta la pagina.
+const stileInterruttore = {
+  fontSize: 10, letterSpacing: '.1em', textTransform: 'uppercase', fontWeight: 700,
+  padding: '4px 10px', borderRadius: 3, border: '1px solid var(--border-br)',
+  fontFamily: 'var(--sans)',
 }
 
 // ── Componente principale ─────────────────────────────────────────────────
@@ -348,18 +362,18 @@ export default function Chart({ prices, sentiment, ticker, stats }) {
           const active = showCandles === (i === 1)
           return (
             <button key={lbl} onClick={() => setShowCandles(i === 1)} style={{
-              fontSize: 11, padding: '4px 12px', borderRadius: 6, cursor: 'pointer',
-              background: active ? 'rgba(96,165,250,0.15)' : 'transparent',
-              border: active ? '1px solid rgba(96,165,250,0.4)' : '1px solid rgba(255,255,255,0.1)',
-              color: active ? '#60a5fa' : '#64748b',
+              ...stileInterruttore, cursor: 'pointer',
+              background: active ? 'rgba(96,165,250,0.14)' : 'transparent',
+              borderColor: active ? 'rgba(96,165,250,0.45)' : 'var(--border-br)',
+              color: active ? 'var(--azure)' : 'var(--muted)',
             }}>{lbl}</button>
           )
         })}
         <button onClick={() => setShowMA(v => !v)} style={{
-          fontSize: 11, padding: '4px 12px', borderRadius: 6, cursor: 'pointer',
+          ...stileInterruttore, cursor: 'pointer',
           background: showMA ? 'rgba(250,204,21,0.12)' : 'transparent',
-          border: showMA ? '1px solid rgba(250,204,21,0.35)' : '1px solid rgba(255,255,255,0.1)',
-          color: showMA ? '#facc15' : '#64748b',
+          borderColor: showMA ? 'rgba(250,204,21,0.4)' : 'var(--border-br)',
+          color: showMA ? '#facc15' : 'var(--muted)',
         }}>MA7 Sentiment</button>
       </div>
 
@@ -380,7 +394,11 @@ export default function Chart({ prices, sentiment, ticker, stats }) {
             </linearGradient>
           </defs>
           <CartesianGrid strokeDasharray="3 4" stroke="rgba(255,255,255,0.04)" vertical={false}/>
-          <XAxis dataKey="date" tickFormatter={fmtDate} interval={xInt}
+          {/* preserveStartEnd: l'ultimo giorno viene SEMPRE etichettato.
+              Con il solo interval numerico l'asse si fermava a un tick prima
+              della fine (es. "30/07" mentre il dato arrivava al 31/07) e
+              sembrava che i prezzi fossero fermi da un giorno. */}
+          <XAxis dataKey="date" tickFormatter={fmtDate} interval="preserveStartEnd" minTickGap={isMobile ? 44 : 60}
             tick={{ fontSize: 10, fill: '#475569' }} axisLine={false} tickLine={false}/>
           <YAxis yAxisId="price" orientation="right" domain={[minP, maxP]}
             tickFormatter={v => `$${v.toFixed(0)}`}
@@ -435,7 +453,11 @@ export default function Chart({ prices, sentiment, ticker, stats }) {
       <ResponsiveContainer width="100%" height={isMobile ? 150 : 120}>
         <ComposedChart data={display} margin={chartMargin}>
           <CartesianGrid strokeDasharray="3 4" stroke="rgba(255,255,255,0.04)" vertical={false}/>
-          <XAxis dataKey="date" tickFormatter={fmtDate} interval={xInt}
+          {/* preserveStartEnd: l'ultimo giorno viene SEMPRE etichettato.
+              Con il solo interval numerico l'asse si fermava a un tick prima
+              della fine (es. "30/07" mentre il dato arrivava al 31/07) e
+              sembrava che i prezzi fossero fermi da un giorno. */}
+          <XAxis dataKey="date" tickFormatter={fmtDate} interval="preserveStartEnd" minTickGap={isMobile ? 44 : 60}
             tick={{ fontSize: 10, fill: '#475569' }} axisLine={false} tickLine={false}/>
           <YAxis yAxisId="sent" orientation="right" domain={[-1, 1]}
             ticks={[-1, -0.5, 0, 0.5, 1]} tickFormatter={v => v.toFixed(1)}
@@ -465,16 +487,12 @@ export default function Chart({ prices, sentiment, ticker, stats }) {
             />
           )}
 
-          {/* Brush per zoom — solo se ci sono abbastanza dati */}
-          {display.length > 20 && (
-            <Brush
-              dataKey="date" height={isMobile ? 26 : 18} stroke="rgba(255,255,255,0.08)"
-              fill="rgba(255,255,255,0.02)"
-              travellerWidth={isMobile ? 12 : 6}
-              tickFormatter={fmtDate}
-              startIndex={Math.max(0, display.length - 30)}
-            />
-          )}
+          {/* Il Brush è stato tolto di proposito. Apparteneva solo a questo
+              grafico e partiva zoomato sugli ultimi 30 giorni: il sentiment
+              sotto copriva quindi un periodo diverso dai prezzi sopra, e i due
+              assi non combaciavano proprio dove servono di più, cioè quando li
+              confronti. Il periodo ora lo governano i pulsanti 1M/3M/6M/1A,
+              che valgono per entrambi i grafici. */}
         </ComposedChart>
       </ResponsiveContainer>
     </div>

@@ -572,7 +572,11 @@ export default function App() {
                     background: 'var(--near-black)', borderBottom: '1px solid var(--border)',
                   }}>
                     <span style={{ fontSize: 10, letterSpacing: '.12em', textTransform: 'uppercase', color: 'var(--muted)', fontWeight: 700 }}>
-                      {lang === 'it' ? 'Prezzo e sentiment' : 'Price and sentiment'} · {days}{lang === 'it' ? ' giorni' : ' days'}
+                      {/* Prima qui c'era "· {days} giorni", che però è la finestra
+                          delle NOTIZIE, non quella dei prezzi: si leggeva
+                          "30 giorni" con il grafico impostato su 3M. I due
+                          selettori sono entrambi visibili e bastano da soli. */}
+                      {lang === 'it' ? 'Prezzo e sentiment' : 'Price and sentiment'}
                     </span>
                     {/* Periodo dei prezzi: sta qui perché è il grafico che
                         governa, non la colonna laterale. 6M e 1A restano Pro. */}
@@ -659,10 +663,16 @@ export default function App() {
         )}
 
         </div>
-        <MarketRail
-          rows={mercato?.rows} stats={mktStats} attivo={loadedTicker}
-          onPick={(tk) => { setTicker(tk); handleLoad(tk, days, period) }}
-        />
+        {/* La colonna destra compare solo quando sei dentro un titolo. Nella
+            schermata iniziale il centro mostra già "Più rialzisti / Più
+            ribassisti": tenerla accesa significava stampare la stessa
+            classifica due volte, affiancata a sé stessa. */}
+        {hasData && (
+          <MarketRail
+            rows={mercato?.rows} stats={mktStats} attivo={loadedTicker}
+            onPick={(tk) => { setTicker(tk); handleLoad(tk, days, period) }}
+          />
+        )}
         </div>
 
         <StatusBar stats={mktStats} updatedAt={mercato?.updated_at} isPro={isPro} />
