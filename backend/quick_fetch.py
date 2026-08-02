@@ -20,6 +20,7 @@ from vaderSentiment.vaderSentiment import SentimentIntensityAnalyzer
 from dateutil import parser as dateparser
 from database import get_pool
 from gdelt_source import fetch_gdelt
+from sec_source import fetch_sec
 
 logger = logging.getLogger(__name__)
 
@@ -308,6 +309,10 @@ def quick_fetch(ticker: str) -> int:
     # Yahoo/Sole24Ore RSS. Le funzioni restano sopra come riferimento.
     if GDELT_ENABLED:
         all_news.extend(fetch_gdelt(ticker))
+    # SEC: atti pubblici del governo USA, pubblico dominio. Nessuna licenza da
+    # chiedere e nessuna chiave da farsi revocare. Vale solo per i titoli USA
+    # e ritorna lista vuota per gli altri, quindi si può chiamare sempre.
+    all_news.extend(fetch_sec(ticker))
     if AV_ENABLED:
         all_news.extend(fetch_alpha_vantage(ticker))
 

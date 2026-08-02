@@ -38,8 +38,15 @@ DEFAULT_TICKERS = [
     'LVMH.PA', 'SAP.DE', 'ASML.AS', 'SHEL.L',
 ]
 
-# Quanti ticker processare per run
-MAX_TICKERS = 12
+# Quanti ticker processare per run.
+#
+# Era 12 su 18 di default: sei titoli restavano fuori a ogni giro, e quelli
+# aggiunti dagli utenti in watchlist competevano per gli slot avanzati. Il
+# risultato era una watchlist con metà delle righe senza dati.
+# Con 24 ci stanno tutti i default più le watchlist di un piccolo numero di
+# utenti. Il costo è tempo, non denaro: GDELT impone 5 secondi tra le
+# chiamate, quindi ~2 minuti, ben dentro il timeout di 12 minuti del workflow.
+MAX_TICKERS = 24
 
 
 def get_watchlist_tickers() -> list[str]:
