@@ -38,6 +38,8 @@ export default function Sidebar({ ticker, days, period, hasTicker, onLoad, onFet
   const [saving, setSaving] = useState(false)
   const [suggestions, setSuggestions] = useState([])
   const [showSuggestions, setShowSuggestions] = useState(false)
+  const [verificando, setVerificando] = useState(false)
+  const [errore, setErrore] = useState('')
   const inputRef = useRef(null)
 
   // Sentiment di ogni titolo in watchlist. Una sola chiamata all'endpoint
@@ -95,24 +97,31 @@ export default function Sidebar({ ticker, days, period, hasTicker, onLoad, onFet
   const PERIODS = isPro ? PERIODS_PRO : PERIODS_FREE
   const maxDays = isPro ? MAX_DAYS_PRO : MAX_DAYS_FREE
 
+  // Suggerimenti mentre scrivi, come nella ricerca in alto. Chi già segue un
+  // titolo non se lo ritrova proposto una seconda volta.
   const handleInputChange = (e) => {
     const val = e.target.value.toUpperCase()
     setInput(val)
+    setErrore('')
     if (val.length >= 1) {
       const filtered = TICKERS.filter(tk =>
-        tk.symbol.startsWith(val) || tk.name.toUpperCase().includes(val)
-      ).slice(0, 6)
+        (tk.symbol.startsWith(val) || tk.name.toUpperCase().includes(val)) &&
+        !watchlist.includes(tk.symbol)
+      ).slice(0, 5)
       setSuggestions(filtered)
       setShowSuggestions(filtered.length > 0)
     } else {
+      setSuggestions([])
       setShowSuggestions(false)
     }
   }
 
+  // Cliccando un suggerimento lo si AGGIUNGE alla watchlist. Prima apriva il
+  // titolo e basta, che è il gesto della ricerca, non di questo campo.
   const selectSuggestion = (tk) => {
-    setInput(tk.symbol)
     setShowSuggestions(false)
-    submit(tk.symbol)
+    setInput('')
+    addTicker(tk.symbol)
   }
 
   useEffect(() => { loadWatchlist() }, [])
@@ -158,15 +167,47 @@ export default function Sidebar({ ticker, days, period, hasTicker, onLoad, onFet
     })()
   }, [letta, watchlist.length, righeMercato])
 
+  // Salva SOLO ticker che esistono davvero.
+  //
+  // Prima bastava scrivere una parola qualsiasi e finiva dritta nel database:
+  // la watchlist si riempiva di righe inventate, per sempre senza prezzo e
+  // senza notizie, e l'utente non capiva se fosse colpa sua o del prodotto.
+  //
+  // Il controllo è a due livelli. I 294 titoli dell'elenco locale passano
+  // subito, senza rete. Per tutto il resto si chiede a /validate, che
+  // interroga Yahoo: così restano ammessi anche i titoli fuori elenco (sono
+  // decine di migliaia), ma solo se esistono per davvero.
   const addTicker = async (tk) => {
-    const v = tk.toUpperCase().trim()
-    if (!v || watchlist.includes(v)) return
+    const v = (tk || '').toUpperCase().trim()
+    if (!v) return
+    if (watchlist.includes(v)) { setErrore(t.sidebar.giaPresente(v)); return }
     if (!isPro && watchlist.length >= MAX_WATCHLIST_FREE) { onUpgrade(); return }
+
+    setErrore('')
+    if (!TICKERS.some(x => x.symbol === v)) {
+      setVerificando(true)
+      try {
+        const info = await apiFetch(`/validate/${encodeURIComponent(v)}`)
+        if (!info?.valid) { setErrore(t.sidebar.nonTrovato(v)); return }
+      } catch (_) {
+        // Rete o backend giù: meglio non salvare che salvare alla cieca.
+        setErrore(t.sidebar.nonTrovato(v))
+        return
+      } finally {
+        setVerificando(false)
+      }
+    }
+
     setSaving(true)
-    const { data: { user } } = await supabase.auth.getUser()
-    await supabase.from('watchlist').insert({ user_id: user.id, ticker: v })
-    setWatchlist(prev => [...prev, v])
-    setSaving(false)
+    try {
+      const { data: { user } } = await supabase.auth.getUser()
+      await supabase.from('watchlist').insert({ user_id: user.id, ticker: v })
+      setWatchlist(prev => [...prev, v])
+      setInput('')
+      setShowSuggestions(false)
+    } finally {
+      setSaving(false)
+    }
   }
 
   const removeTicker = async (tk) => {
@@ -295,22 +336,67 @@ export default function Sidebar({ ticker, days, period, hasTicker, onLoad, onFet
         ) : (
           /* Campo inline invece di una finestra di sistema: scrivi e premi
              Invio, senza che il browser interrompa il flusso con un popup. */
-          <input
-            value={input}
-            onChange={(e) => setInput(e.target.value.toUpperCase())}
-            onKeyDown={(e) => {
-              if (e.key === 'Enter' && input.trim()) { addTicker(input); setInput('') }
-              if (e.key === 'Escape') setInput('')
-            }}
-            disabled={saving}
-            placeholder={t.sidebar.addWatchlist}
-            style={{
-              padding: '9px 12px', fontSize: 12, width: '100%',
-              color: 'var(--white)', background: 'transparent',
-              border: 'none', borderBottom: '1px solid var(--border)',
-              outline: 'none', fontFamily: 'var(--sans)',
-            }}
-          />
+          <>
+            <input
+              ref={inputRef}
+              value={input}
+              onChange={handleInputChange}
+              onKeyDown={(e) => {
+                if (e.key === 'Enter') {
+                  // Invio senza aver scelto nulla: prende il primo
+                  // suggerimento, che è quasi sempre quello voluto.
+                  const scelto = showSuggestions && suggestions.length
+                    ? suggestions[0].symbol : input.trim()
+                  if (scelto) { setShowSuggestions(false); addTicker(scelto) }
+                }
+                if (e.key === 'Escape') { setInput(''); setShowSuggestions(false); setErrore('') }
+              }}
+              onBlur={() => setTimeout(() => setShowSuggestions(false), 150)}
+              onFocus={() => setShowSuggestions(suggestions.length > 0)}
+              disabled={saving || verificando}
+              placeholder={t.sidebar.addWatchlist}
+              style={{
+                padding: '9px 12px', fontSize: 12, width: '100%',
+                color: 'var(--white)', background: 'transparent',
+                border: 'none', borderBottom: '1px solid var(--border)',
+                outline: 'none', fontFamily: 'var(--sans)',
+              }}
+            />
+
+            {/* Suggerimenti come righe piene, non come pannello che galleggia:
+                la colonna è stretta e un menu sospeso verrebbe tagliato dal
+                bordo. Così sono righe come le altre della watchlist. */}
+            {showSuggestions && suggestions.map((tk) => (
+              <button
+                key={tk.symbol}
+                onMouseDown={(e) => { e.preventDefault(); selectSuggestion(tk) }}
+                className="wl-row"
+                style={{
+                  display: 'grid', gridTemplateColumns: '1fr auto', gap: 8,
+                  alignItems: 'baseline', width: '100%', textAlign: 'left',
+                  padding: '7px 12px', background: 'var(--near-black)',
+                  border: 'none', borderBottom: '1px solid var(--border)',
+                  borderRadius: 0, cursor: 'pointer', color: 'var(--white)',
+                }}
+              >
+                <span style={{ overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                  <span style={{ fontWeight: 700, fontSize: 12 }}>{tk.symbol}</span>
+                  <span style={{ color: 'var(--muted)', fontSize: 10.5, marginLeft: 6 }}>{tk.name}</span>
+                </span>
+                <span style={{ color: 'var(--azure)', fontSize: 13, lineHeight: 1 }}>+</span>
+              </button>
+            ))}
+
+            {(verificando || errore) && (
+              <div style={{
+                padding: '7px 12px', fontSize: 10.5, lineHeight: 1.45,
+                borderBottom: '1px solid var(--border)',
+                color: errore ? 'var(--red)' : 'var(--muted)',
+              }}>
+                {errore || t.sidebar.verificando}
+              </div>
+            )}
+          </>
         )}
       </div>
 
