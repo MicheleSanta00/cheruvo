@@ -78,6 +78,10 @@ jobs:
           RESEND_API_KEY:          ${{ secrets.RESEND_API_KEY }}
           FROM_EMAIL:              ${{ secrets.FROM_EMAIL }}
           FRONTEND_URL:            ${{ secrets.FRONTEND_URL }}
+          # Destinatario degli allarmi sulla copertura notizie (salute.py).
+          # Se manca, il controllo gira lo stesso ma scrive solo nei log, che è
+          # esattamente il modo in cui il crollo di luglio è passato inosservato.
+          ADMIN_EMAIL:             ${{ secrets.ADMIN_EMAIL }}
           GROQ_API_KEY:            ${{ secrets.GROQ_API_KEY }}
           PYTHONPATH:              ${{ github.workspace }}/backend
         run: python updater.py
