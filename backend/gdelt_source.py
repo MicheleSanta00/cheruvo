@@ -39,12 +39,74 @@ _UA = "Cheruvo/1.0 (+https://cheruvo.com)"
 _ultima_chiamata = 0.0
 
 
+# Pausa effettiva: parte da PAUSA_MINIMA e si allunga da sola ogni volta che
+# GDELT risponde 429. Serve perché il nostro limitatore vale per UN processo,
+# mentre a bussare siamo in due contemporaneamente: il backend su Render (fetch
+# a richiesta dell'utente) e il cron su GitHub Actions. Nessuno dei due sa cosa
+# sta facendo l'altro, quindi l'unico segnale reale è il rifiuto di GDELT.
+_pausa_corrente = PAUSA_MINIMA
+PAUSA_MASSIMA = 30.0
+
+
 def _rispetta_rate_limit():
     global _ultima_chiamata
-    attesa = PAUSA_MINIMA - (time.time() - _ultima_chiamata)
+    attesa = _pausa_corrente - (time.time() - _ultima_chiamata)
     if attesa > 0:
         time.sleep(attesa)
     _ultima_chiamata = time.time()
+
+
+def _rallenta():
+    """Dopo un 429: raddoppia la pausa per il resto della vita del processo."""
+    global _pausa_corrente
+    _pausa_corrente = min(_pausa_corrente * 2, PAUSA_MASSIMA)
+    logger.warning("GDELT ha risposto 429: pausa portata a %.0fs", _pausa_corrente)
+
+
+def _interroga(q: str, max_items: int, timespan: str, tentativi: int = 3) -> list[dict]:
+    """
+    Una interrogazione a GDELT. Non solleva MAI: se va male ritorna [].
+    Sul 429 aspetta e riprova, perché quel codice non significa "non ci sono
+    notizie" ma "hai bussato troppo presto", e trattarlo come un errore
+    definitivo faceva perdere il giro a quel ticker fino a sei ore dopo.
+    """
+    for tentativo in range(tentativi):
+        try:
+            _rispetta_rate_limit()
+            resp = requests.get(GDELT_URL, params={
+                "query": q,                   # UN token, MAI tra virgolette
+                "mode": "artlist",
+                "format": "json",
+                "maxrecords": max_items,
+                "timespan": timespan,
+                "sort": "datedesc",
+            }, timeout=15, headers={"User-Agent": _UA})
+
+            if resp.status_code == 429:
+                _rallenta()
+                if tentativo < tentativi - 1:
+                    time.sleep(_pausa_corrente * (tentativo + 1))
+                    continue
+                logger.warning("GDELT '%s': 429 anche dopo %d tentativi, salto",
+                               q, tentativi)
+                return []
+
+            resp.raise_for_status()
+
+            # GDELT a volte risponde 200 con corpo vuoto (altra faccia del
+            # rate limit): non è un errore, ma non c'è nulla da leggere.
+            testo = (resp.text or "").strip()
+            if not testo:
+                logger.warning("GDELT '%s': risposta vuota", q)
+                return []
+            return (resp.json() or {}).get("articles", []) or []
+
+        except Exception as e:
+            logger.warning("GDELT '%s' tentativo %d/%d fallito: %s",
+                           q, tentativo + 1, tentativi, e)
+            if tentativo < tentativi - 1:
+                time.sleep(2 * (tentativo + 1))
+    return []
 
 # Lingua locale attesa per borsa, oltre all'inglese
 _LINGUA_BORSA = {"MI": "Italian", "PA": "French", "DE": "German",
@@ -164,6 +226,17 @@ def fetch_gdelt(ticker: str, nome: str | None = None,
         if ticker.upper() not in TERMINE_QUERY and not nome:
             nome = _nome_da_yfinance(ticker)
         termine = _termine_query(ticker, nome)
+
+        # Se il nome societario non si è risolto, _termine_query ripiega sulla
+        # sigla di borsa (EZJ.L -> "EZJ"). Cercare "EZJ" sui giornali non porta
+        # a nulla: nessun articolo su easyJet la chiama così. Meglio non
+        # sprecare una chiamata, visto che GDELT ce ne concede poche.
+        base = ticker.split(".")[0].upper()
+        if ticker.upper() not in TERMINE_QUERY and termine.upper() == base:
+            logger.info("GDELT %s: nome societario non risolto, cercherei '%s' "
+                        "che non compare nei giornali. Salto.", ticker, base)
+            return []
+
         chiavi = _parole_chiave(ticker, nome)
         borsa = ticker.split(".")[-1] if "." in ticker else ""
         lingua_locale = _LINGUA_BORSA.get(borsa, "English")
@@ -187,28 +260,14 @@ def fetch_gdelt(ticker: str, nome: str | None = None,
         if lingua_locale != "English":
             varianti.append(f"{termine} sourcelang:{lingua_locale.lower()}")
 
+        # Ogni interrogazione è indipendente: se la prima fallisce la seconda
+        # ci prova lo stesso, e quello che è già arrivato non si butta.
         articoli = []
         for q in varianti:
-            _rispetta_rate_limit()
-            resp = requests.get(GDELT_URL, params={
-                "query": q,                   # UN token, MAI tra virgolette
-                "mode": "artlist",
-                "format": "json",
-                "maxrecords": max_items,
-                "timespan": timespan,
-                "sort": "datedesc",
-            }, timeout=15, headers={"User-Agent": _UA})
-            resp.raise_for_status()
-
-            # GDELT a volte risponde 200 con corpo vuoto (rate limit)
-            testo = (resp.text or "").strip()
-            if not testo:
-                logger.warning("GDELT %s (query='%s'): risposta vuota "
-                               "(probabile rate limit)", ticker, q)
-                continue
-            articoli.extend((resp.json() or {}).get("articles", []) or [])
+            articoli.extend(_interroga(q, max_items, timespan))
 
         if not articoli:
+            logger.info("GDELT %s (query='%s'): nessun articolo", ticker, termine)
             return []
 
         scartati = 0
