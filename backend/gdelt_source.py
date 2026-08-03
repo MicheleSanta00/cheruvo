@@ -212,12 +212,101 @@ def _fmt_data(seendate: str) -> str | None:
         return f"{s[0:4]}-{s[4:6]}-{s[6:8]} 00:00:00"
 
 
+def _da_articolo(a: dict) -> dict:
+    """Traduce un articolo GDELT nello schema usato dal resto del progetto."""
+    titolo = (a.get("title") or "").strip()
+    return {
+        "source": f"GDELT · {a.get('domain', 'n/d')}",
+        "title": titolo,
+        "summary": "",   # GDELT non fornisce il sommario
+        "published_date": _fmt_data(a.get("seendate", "")),
+        "url": a.get("url", ""),
+        "sentiment": _vader(titolo),
+    }
+
+
+# ── Raccolta per MERCATO ──────────────────────────────────────────────────
+#
+# Il vincolo di GDELT non è quante notizie esistono, è quante volte puoi
+# chiedere: fra una chiamata e l'altra serve una pausa, e chi sfora si prende
+# un 429. Con una interrogazione per titolo, sei società italiane costavano
+# dodici chiamate. Chiedendo invece "(Eni OR Enel OR Ferrari OR ...)" una volta
+# sola e smistando gli articoli in locale, le stesse sei società ne costano due.
+#
+# Si applica SOLO alle borse non anglofone, che sono quelle dove la raccolta
+# oggi non funziona. I titoli americani continuano ad avere la loro
+# interrogazione dedicata, perché lì funziona già e ognuno merita per intero
+# i 250 posti disponibili: NVDA da solo ne riempirebbe più di AMZN e MU messi
+# insieme, e accorpandoli i più piccoli sparirebbero.
+_cache_mercato: dict[str, tuple[float, list[dict]]] = {}
+CACHE_MERCATO_S = 1800     # 30 minuti: il cron gira ogni 6 ore, il web molto più spesso
+_or_supportato: bool | None = None   # None = non ancora scoperto
+
+
+def _ticker_del_mercato(lingua: str) -> list[str]:
+    """I ticker noti quotati su una borsa che parla quella lingua."""
+    return [tk for tk in TERMINE_QUERY
+            if "." in tk and _LINGUA_BORSA.get(tk.split(".")[-1]) == lingua]
+
+
+def _articoli_del_mercato(lingua: str, max_items: int, timespan: str) -> list[dict]:
+    """
+    Articoli grezzi per tutte le società di un mercato, con una interrogazione
+    sola (o due: lingua locale e inglese). Il risultato resta in cache per
+    mezz'ora, così i titoli successivi dello stesso mercato non ripagano il
+    costo della chiamata.
+    """
+    global _or_supportato
+    adesso = time.time()
+    if lingua in _cache_mercato:
+        quando, articoli = _cache_mercato[lingua]
+        if adesso - quando < CACHE_MERCATO_S:
+            return articoli
+
+    tickers = _ticker_del_mercato(lingua)
+    if not tickers:
+        return []
+    termini = sorted({TERMINE_QUERY[tk] for tk in tickers})
+    gruppo = "(" + " OR ".join(termini) + ")"
+
+    articoli = []
+    for q in (f"{gruppo} sourcelang:{lingua.lower()}", f"{gruppo} sourcelang:english"):
+        articoli.extend(_interroga(q, max_items, timespan))
+
+    # Non ho potuto verificare da fuori se GDELT accetta l'OR fra parentesi:
+    # ero io stesso finito sotto rate limit mentre lo provavo. Invece di
+    # tirare a indovinare, il codice se ne accorge da solo al primo giro e lo
+    # scrive nel log. Se non funziona si torna al metodo per titolo, che è
+    # meno efficiente ma sicuro.
+    if not articoli:
+        if _or_supportato is None:
+            logger.warning("GDELT mercato %s: la query raggruppata non ha reso "
+                           "nulla. Torno al metodo per singolo titolo.", lingua)
+        _or_supportato = False
+        _cache_mercato[lingua] = (adesso, [])
+        return []
+
+    if _or_supportato is None:
+        logger.info("GDELT: query raggruppate supportate, %d titoli con 2 chiamate",
+                    len(tickers))
+    _or_supportato = True
+    logger.info("GDELT mercato %s (%d società, 2 interrogazioni): %d articoli grezzi",
+                lingua, len(tickers), len(articoli))
+    _cache_mercato[lingua] = (adesso, articoli)
+    return articoli
+
+
 def fetch_gdelt(ticker: str, nome: str | None = None,
-                max_items: int = 100, timespan: str = "4d") -> list[dict]:
+                max_items: int = 250, timespan: str = "7d") -> list[dict]:
     """
     News recenti su un ticker da GDELT, già filtrate per lingua e pertinenza.
     Ritorna una lista di dict pronti per il salvataggio (stesso schema delle
     altre fonti). Non solleva eccezioni: in caso di errore ritorna lista vuota.
+
+    max_items 250 è il tetto consentito da GDELT e non costa chiamate in più.
+    timespan 7 giorni invece di 4: sui titoli europei le notizie sono rare e
+    una finestra stretta le perdeva soltanto. Il salvataggio scarta i doppioni,
+    quindi allargare non produce righe ripetute.
     """
     news: list[dict] = []
     try:
@@ -256,15 +345,24 @@ def fetch_gdelt(ticker: str, nome: str | None = None,
         # sourcelang: si scrive DA SOLO accanto al termine. Non funziona né
         # dentro parentesi né in OR con un'altra lingua (provato: risposta
         # vuota), da qui la seconda chiamata invece di una query sola.
-        varianti = [termine]
-        if lingua_locale != "English":
-            varianti.append(f"{termine} sourcelang:{lingua_locale.lower()}")
-
-        # Ogni interrogazione è indipendente: se la prima fallisce la seconda
-        # ci prova lo stesso, e quello che è già arrivato non si butta.
+        # Borsa non anglofona e società in mappa: prova prima il paniere del
+        # mercato, che di solito è già stato scaricato per un altro titolo e
+        # quindi non costa nessuna chiamata.
         articoli = []
-        for q in varianti:
-            articoli.extend(_interroga(q, max_items, timespan))
+        via = "titolo"
+        if lingua_locale != "English" and ticker.upper() in TERMINE_QUERY:
+            articoli = _articoli_del_mercato(lingua_locale, max_items, timespan)
+            if articoli:
+                via = "mercato"
+
+        if not articoli:
+            varianti = [termine]
+            if lingua_locale != "English":
+                varianti.append(f"{termine} sourcelang:{lingua_locale.lower()}")
+            # Ogni interrogazione è indipendente: se la prima fallisce la
+            # seconda ci prova lo stesso, e quello che è già arrivato resta.
+            for q in varianti:
+                articoli.extend(_interroga(q, max_items, timespan))
 
         if not articoli:
             logger.info("GDELT %s (query='%s'): nessun articolo", ticker, termine)
@@ -291,17 +389,10 @@ def fetch_gdelt(ticker: str, nome: str | None = None,
                 scartati += 1
                 continue
             titoli_visti.add(chiave_titolo)
-            news.append({
-                "source": f"GDELT · {a.get('domain', 'n/d')}",
-                "title": titolo,
-                "summary": "",   # GDELT non fornisce il sommario
-                "published_date": _fmt_data(a.get("seendate", "")),
-                "url": a.get("url", ""),
-                "sentiment": _vader(titolo),
-            })
-        logger.info("GDELT %s (query='%s', %d interrogazioni, %d articoli grezzi): "
+            news.append(_da_articolo(a))
+        logger.info("GDELT %s (via %s, query='%s', %d articoli grezzi): "
                     "%d tenute, %d scartate",
-                    ticker, termine, len(varianti), len(articoli), len(news), scartati)
+                    ticker, via, termine, len(articoli), len(news), scartati)
     except Exception as e:
         logger.error("GDELT %s error: %s", ticker, e)
     return news

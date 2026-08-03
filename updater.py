@@ -147,6 +147,14 @@ if __name__ == "__main__":
     logger.info("Fetch completato: %d nuove news, %d errori su %d ticker",
                 total_new, errors, len(selected))
 
+    # Controllo salute: registra la copertura del giorno e avvisa se peggiora.
+    # Sta QUI, subito dopo il fetch, perché è il fetch che vogliamo sorvegliare.
+    try:
+        from salute import controlla_e_registra
+        controlla_e_registra()
+    except Exception as e:
+        logger.error("Errore controllo salute: %s", e)
+
     # Ri-classifica le news non-AV con Groq per score di qualità finanziaria
     if os.environ.get("GROQ_API_KEY"):
         logger.info("Ri-classificazione sentiment con Groq (news non-AV)...")
