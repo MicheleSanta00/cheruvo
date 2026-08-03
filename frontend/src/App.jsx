@@ -51,16 +51,46 @@ export default function App() {
   // dashboard e barra di stato: prima ogni pezzo se li sarebbe ripresi da solo.
   const [mercato, setMercato] = useState(null)
   const [mktStats, setMktStats] = useState(null)
+  // Vero quando il backend non risponde: quasi sempre significa che Render lo
+  // ha spento per inattività (succede dopo un quarto d'ora) e ci mette circa un
+  // minuto a ripartire. Prima l'errore veniva ingoiato in silenzio e l'utente
+  // restava davanti a una fila di trattini e a un "Caricamento" che non
+  // finiva mai, indistinguibile da un prodotto rotto.
+  const [risveglio, setRisveglio] = useState(false)
+
   useEffect(() => {
     let vivo = true
-    const carica = () => {
-      apiFetch('/market/today').then((d) => { if (vivo) setMercato(d) }).catch(() => {})
-      apiFetch('/market/stats').then((d) => { if (vivo) setMktStats(d) }).catch(() => {})
+    let attesa = null
+
+    const carica = (tentativo = 0) => {
+      Promise.all([
+        apiFetch('/market/today'),
+        apiFetch('/market/stats'),
+      ])
+        .then(([oggi, stat]) => {
+          if (!vivo) return
+          setMercato(oggi)
+          setMktStats(stat)
+          setRisveglio(false)
+        })
+        .catch(() => {
+          if (!vivo) return
+          setRisveglio(true)
+          // Riprova con attese crescenti: 4, 8, 12, 16 e poi 20 secondi fissi.
+          // Il risveglio dura circa un minuto, quindi entro il quinto tentativo
+          // di solito è tornato, e chi sta guardando lo vede comparire da solo
+          // senza dover ricaricare la pagina.
+          if (tentativo < 8) {
+            attesa = setTimeout(() => carica(tentativo + 1),
+                                Math.min(4000 * (tentativo + 1), 20000))
+          }
+        })
     }
+
     carica()
     // Il backend rigenera ogni 15 minuti: ricontrolliamo con lo stesso ritmo
-    const timer = setInterval(carica, 15 * 60 * 1000)
-    return () => { vivo = false; clearInterval(timer) }
+    const timer = setInterval(() => carica(), 15 * 60 * 1000)
+    return () => { vivo = false; clearInterval(timer); clearTimeout(attesa) }
   }, [])
 
   useEffect(() => {
@@ -75,15 +105,27 @@ export default function App() {
   }, [])
 
   useEffect(() => {
-    if (user) {
-      apiFetch(`/subscription/${user.id}`)
-        .then(data => {
-          const pro = data.status === 'pro'
-          setIsPro(pro)
-          identifyUser(user.id, user.email, pro ? 'pro' : 'free')
-        })
-        .catch(() => setIsPro(false))
-    }
+    if (!user) return
+
+    // L'identificazione parte SUBITO, prima di qualsiasi chiamata al backend.
+    //
+    // Prima stava dentro il .then() dell'abbonamento: se quella chiamata
+    // falliva, e con Render che si addormenta dopo un quarto d'ora succede
+    // spesso, l'utente restava anonimo per tutta la sessione. Nelle statistiche
+    // comparivano profili senza nome che però avevano cercato titoli e
+    // aggiornato notizie, cioè cose che si possono fare solo da registrati.
+    // Il risultato era non riuscire a distinguere i propri utenti dagli
+    // sconosciuti, che con pochi utenti è esattamente ciò che non ci si può
+    // permettere.
+    identifyUser(user.id, user.email)
+
+    apiFetch(`/subscription/${user.id}`)
+      .then(data => {
+        const pro = data.status === 'pro'
+        setIsPro(pro)
+        identifyUser(user.id, user.email, pro ? 'pro' : 'free')
+      })
+      .catch(() => setIsPro(false))
   }, [user])
 
   const handleLoad = async (tk, d, p, autoFetch = true) => {
@@ -471,7 +513,7 @@ export default function App() {
             {error && <ErrorBanner msg={error} />}
             {!loading && !error && (
               <EmptyState t={t} onLoad={handleLoad} days={days} period={period}
-                mercato={mercato} mktStats={mktStats} />
+                mercato={mercato} mktStats={mktStats} risveglio={risveglio} />
             )}
             {loading && <LoadingState />}
           </div>
@@ -911,7 +953,7 @@ function Pannello({ titolo, extra, children }) {
   )
 }
 
-function EmptyState({ t, onLoad, days, period, mercato, mktStats }) {
+function EmptyState({ t, onLoad, days, period, mercato, mktStats, risveglio }) {
   const { lang } = useLang()
   // I dati arrivano già da App: una sola chiamata condivisa con nastro,
   // colonna destra e barra di stato, invece di quattro richieste uguali.
@@ -983,7 +1025,22 @@ function EmptyState({ t, onLoad, days, period, mercato, mktStats }) {
 
       {/* classifiche */}
       {!mercato && !errore && (
-        <div style={{ color: 'var(--muted)', fontSize: 13, padding: '20px 0' }}>{t.empty.loading}</div>
+        <div style={{
+          color: risveglio ? 'var(--azure)' : 'var(--muted)', fontSize: 13,
+          padding: '16px 14px', lineHeight: 1.6,
+          border: risveglio ? '1px solid rgba(96,165,250,0.25)' : 'none',
+          borderRadius: risveglio ? 8 : 0,
+          background: risveglio ? 'rgba(96,165,250,0.05)' : 'transparent',
+        }}>
+          {risveglio ? (
+            <>
+              <strong>{t.empty.wakingTitle}</strong>
+              <div style={{ color: 'var(--muted)', fontSize: 12.5, marginTop: 4 }}>
+                {t.empty.wakingDesc}
+              </div>
+            </>
+          ) : t.empty.loading}
+        </div>
       )}
       {(errore || (mercato && !righe.length)) && (
         <div style={{ color: 'var(--muted)', fontSize: 13, padding: '20px 0' }}>{t.empty.offline}</div>

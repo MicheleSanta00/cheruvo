@@ -57,9 +57,13 @@ export function initAnalytics() {
   })
 }
 
-export function identifyUser(userId, email, tier = 'free') {
+// tier assente = piano ancora ignoto (il backend non ha risposto). In quel caso
+// NON scriviamo la proprietà: dichiarare 'free' senza saperlo sporcherebbe le
+// statistiche, e soprattutto sovrascriverebbe un 'pro' già registrato ogni
+// volta che il backend è addormentato.
+export function identifyUser(userId, email, tier = null) {
   if (!_ph) return
-  _ph.identify(userId, { email, tier })
+  _ph.identify(userId, tier ? { email, tier } : { email })
 }
 
 export function resetUser() {
