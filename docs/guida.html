@@ -3,11 +3,11 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Guida a Cheruvo — come usare Sentiment Analyzer e Academy</title>
-<meta name="description" content="La guida completa a Cheruvo: come cercare un titolo, leggere il sentiment, usare grafici, correlazione, alert e la Academy. Passo per passo, con esempi.">
+<title>Guida a Cheruvo — come leggere il sentiment delle azioni</title>
+<meta name="description" content="La guida completa a Cheruvo: come cercare un titolo, leggere il sentiment, usare grafici, correlazione, watchlist e alert. Passo per passo, con esempi.">
 <link rel="canonical" href="https://cheruvo.com/guida.html">
 <meta property="og:title" content="Guida a Cheruvo — come usare l'app">
-<meta property="og:description" content="Come usare Sentiment Analyzer e Academy, passo per passo.">
+<meta property="og:description" content="Come leggere il sentiment delle azioni, passo per passo.">
 <meta property="og:type" content="website">
 <meta property="og:url" content="https://cheruvo.com/guida.html">
 <meta property="og:image" content="https://cheruvo.com/og-image.png">
@@ -116,13 +116,6 @@
     <a href="#export">Export e alert</a>
     <a href="#mercato">Mercato oggi</a>
     <a href="#watchlist">La watchlist</a>
-    <div class="grp">Academy</div>
-    <a href="#academy">Cos'è l'Academy</a>
-    <a href="#ruolo">Studente o docente</a>
-    <a href="#giochi">I quattro tipi di lezione</a>
-    <a href="#xp">XP e classifica</a>
-    <a href="#classi">Le classi</a>
-    <a href="#libro">Lezioni dal libro</a>
     <div class="grp">Altro</div>
     <a href="#pro">Cosa sblocca Pro</a>
     <a href="#faq">Problemi comuni</a>
@@ -131,10 +124,11 @@
   <!-- CONTENUTO -->
   <main id="content">
     <h1>Guida a Cheruvo</h1>
-    <p class="lead">Come usare Sentiment Analyzer e Academy, passo per passo. Usa la ricerca qui sopra per saltare a un argomento.</p>
+    <p class="lead">Come leggere il sentiment delle azioni, passo per passo. Usa la ricerca qui sopra per saltare a un argomento.</p>
 
     <h2 id="intro">Cos'è Cheruvo</h2>
-    <p>Cheruvo è una piattaforma per l'investitore retail con due strumenti. Il <strong>Sentiment Analyzer</strong> legge migliaia di notizie finanziarie con l'AI e ti dice, per ogni azione, se il mercato è rialzista o ribassista. La <strong>Academy</strong> ti insegna la finanza giocando, con quiz, simulatori e classi virtuali. Le due app condividono lo stesso account e sono entrambe gratuite; alcune funzioni avanzate sono riservate al piano Pro.</p>
+    <p>Cheruvo legge le notizie finanziarie con l'AI e ti dice, per ogni azione, se il tono di quello che si scrive è rialzista o ribassista. Copre i mercati statunitensi ed europei, Borsa Italiana compresa. L'uso è gratuito con la registrazione; alcune funzioni sono riservate al piano Pro.</p>
+    <div class="box"><strong>Cosa non è.</strong> Cheruvo non prevede i prezzi e non dà consigli di investimento. Misura il tono delle notizie pubblicate, che è una cosa diversa e va letta insieme a tutto il resto.</div>
 
     <h2 id="accesso">Creare l'account</h2>
     <div class="step"><span class="n">1</span><div>Apri <a href="https://app.cheruvo.com">app.cheruvo.com</a> e registrati con email e password.</div></div>
@@ -145,8 +139,8 @@
     <hr class="divider">
 
     <h2 id="cerca">Cercare un titolo</h2>
-    <p>Dalla barra laterale, scrivi il simbolo (ticker) di un'azione e premi invio. Cheruvo supporta i mercati USA ed europei: ad esempio <strong>NVDA</strong> (NVIDIA), <strong>AAPL</strong> (Apple), <strong>ENI.MI</strong> (Eni, Borsa Italiana), <strong>SAP.DE</strong> (SAP, Germania). Se non ricordi il simbolo, inizia a digitare il nome e scegli dal suggerimento.</p>
-    <figure class="shot"><img src="assets/guide/02-cerca.png" alt="Ricerca di un ticker nella barra laterale" loading="lazy" onerror="this.style.display='none';this.nextElementSibling.style.display='flex'"><div class="shot-ph" style="display:none">📷 Ricerca ticker nella sidebar<br><b>assets/guide/02-cerca.png</b></div><figcaption>La ricerca di un titolo con il suggerimento automatico.</figcaption></figure>
+    <p>Dalla barra di ricerca in alto, scrivi il simbolo (ticker) di un'azione e premi invio. Da qualunque punto dell'app la scorciatoia <strong>Ctrl+K</strong> (su Mac <strong>Cmd+K</strong>) ci porta il cursore. Cheruvo supporta i mercati USA ed europei: ad esempio <strong>NVDA</strong> (NVIDIA), <strong>AAPL</strong> (Apple), <strong>ENI.MI</strong> (Eni, Borsa Italiana), <strong>SAP.DE</strong> (SAP, Germania). Se non ricordi il simbolo, inizia a digitare il nome e scegli dal suggerimento.</p>
+    <figure class="shot"><img src="assets/guide/02-cerca.png" alt="Ricerca di un ticker dalla barra in alto" loading="lazy" onerror="this.style.display='none';this.nextElementSibling.style.display='flex'"><div class="shot-ph" style="display:none">📷 Ricerca ticker dalla barra in alto<br><b>assets/guide/02-cerca.png</b></div><figcaption>La ricerca di un titolo con il suggerimento automatico.</figcaption></figure>
 
     <h2 id="score">Il sentiment score</h2>
     <p>Il <strong>sentiment score</strong> è un numero da <strong>−1</strong> (molto ribassista) a <strong>+1</strong> (molto rialzista) che misura l'umore delle notizie su quel titolo. Vicino a +1 significa ottimismo diffuso, vicino a −1 pessimismo, intorno a 0 il mercato è neutro o diviso. Lo score giornaliero è la media dei punteggi di tutte le notizie di quel giorno.</p>
@@ -159,7 +153,7 @@
     <h2 id="grafico">Il grafico prezzo + sentiment</h2>
     <p>Il grafico sovrappone il <strong>prezzo</strong> del titolo alla curva del <strong>sentiment</strong>, giorno per giorno. Guarda soprattutto le <strong>divergenze</strong>: quando il sentiment sale mentre il prezzo è fermo (o viceversa), spesso qualcosa sta cambiando. Con lo zoom puoi restringere il periodo; la media mobile a 7 giorni (MA7) smussa il rumore.</p>
     <div class="step"><span class="n">1</span><div>Usa il cursore sui giorni per leggere prezzo e sentiment esatti.</div></div>
-    <div class="step"><span class="n">2</span><div>Cambia il periodo (1M, 3M e — con Pro — 6M/1A) dalla barra laterale.</div></div>
+    <div class="step"><span class="n">2</span><div>Cambia il periodo (1M, 3M e, con Pro, 6M/1A) dai pulsanti nell'intestazione del grafico. La finestra delle notizie (7, 14, 30 e con Pro 60 e 90 giorni) si imposta invece dalla barra in alto: sono due cose distinte.</div></div>
     <figure class="shot"><img src="assets/guide/04-grafico.png" alt="Grafico prezzo sovrapposto al sentiment" loading="lazy" onerror="this.style.display='none';this.nextElementSibling.style.display='flex'"><div class="shot-ph" style="display:none">📷 Grafico prezzo + sentiment<br><b>assets/guide/04-grafico.png</b></div><figcaption>Prezzo e sentiment sovrapposti nel tempo.</figcaption></figure>
 
     <h2 id="news">Le notizie</h2>
@@ -184,40 +178,7 @@
     <figure class="shot"><img src="assets/guide/07-mercato.png" alt="La schermata Mercato oggi" loading="lazy" onerror="this.style.display='none';this.nextElementSibling.style.display='flex'"><div class="shot-ph" style="display:none">📷 Schermata Mercato oggi<br><b>assets/guide/07-mercato.png</b></div><figcaption>La classifica del sentiment di oggi.</figcaption></figure>
 
     <h2 id="watchlist">La watchlist</h2>
-    <p>Aggiungi i tuoi titoli preferiti alla <strong>watchlist</strong> dalla barra laterale per ritrovarli con un clic. Nel piano gratuito puoi seguire fino a 3 titoli; con Pro sono illimitati e alimentano gli alert e il digest settimanale via email.</p>
-
-    <hr class="divider">
-
-    <h2 id="academy">Cos'è l'Academy</h2>
-    <p>La <strong>Academy</strong> è la sezione educativa di Cheruvo: impari la finanza <em>facendo</em>, non leggendo muri di testo. Si apre dal pulsante <strong>Academy</strong> ed è gratuita, con login. Trovi percorsi tematici (le basi, il rischio, la psicologia dell'investitore…) composti da lezioni-gioco brevi da 2–4 minuti.</p>
-    <figure class="shot"><img src="assets/guide/08-academy.png" alt="La home dell'Academy con i percorsi" loading="lazy" onerror="this.style.display='none';this.nextElementSibling.style.display='flex'"><div class="shot-ph" style="display:none">📷 Home Academy (percorsi)<br><b>assets/guide/08-academy.png</b></div><figcaption>I percorsi di apprendimento dell'Academy.</figcaption></figure>
-
-    <h2 id="ruolo">Studente o docente</h2>
-    <p>Al primo ingresso nell'Academy scegli il ruolo: <strong>studente</strong> (segui le lezioni e la classifica) o <strong>docente</strong> (crei classi e assegni contenuti). Puoi cambiarlo quando vuoi dalle impostazioni dell'Academy.</p>
-
-    <h2 id="giochi">I quattro tipi di lezione</h2>
-    <ul>
-      <li><strong>Quiz a tempo</strong> — domande a risposta multipla con spiegazione dopo ogni risposta.</li>
-      <li><strong>Flashcard</strong> — carte fronte/retro per memorizzare i termini; quelle sbagliate ritornano più spesso.</li>
-      <li><strong>Simulatore</strong> — cursori interattivi: muovi i parametri (es. interesse composto, inflazione, PAC) e vedi subito il risultato.</li>
-      <li><strong>Scenario</strong> — una mini-storia a bivi: scegli e vedi le conseguenze, applicando i concetti a una situazione reale.</li>
-    </ul>
-    <figure class="shot"><img src="assets/guide/09-lezione.png" alt="Una lezione-gioco dell'Academy" loading="lazy" onerror="this.style.display='none';this.nextElementSibling.style.display='flex'"><div class="shot-ph" style="display:none">📷 Una lezione-gioco<br><b>assets/guide/09-lezione.png</b></div><figcaption>Esempio di lezione interattiva.</figcaption></figure>
-
-    <h2 id="xp">XP e classifica</h2>
-    <p>Ogni lezione completata dà <strong>XP</strong> (punti esperienza), con bonus per le risposte corrette. Gli XP alimentano la <strong>classifica</strong> tra utenti, disponibile in versione settimanale e di sempre. La partecipazione è volontaria (opt-in) e puoi usare un nickname: la trovi nell'hub dell'Academy.</p>
-
-    <h2 id="classi">Le classi</h2>
-    <p>Nella sezione <strong>Classi</strong> gli studenti si uniscono a una classe con un <strong>codice d'invito</strong>; i docenti creano classi, pubblicano annunci e materiali, assegnano lezioni e chattano con gli studenti. È l'equivalente di un Google Classroom, ma con i contenuti interattivi di Cheruvo.</p>
-    <div class="step"><span class="n">1</span><div><strong>Studente:</strong> vai in Classi → Unisciti → inserisci il codice che ti ha dato il docente.</div></div>
-    <div class="step"><span class="n">2</span><div><strong>Docente:</strong> Classi → Crea classe → condividi il codice generato con gli studenti.</div></div>
-
-    <h2 id="libro">Lezioni dal libro (docenti)</h2>
-    <p>Una funzione per i docenti: carichi un capitolo del tuo libro di testo (PDF o foto delle pagine) e l'AI genera bozze di lezione nei quattro formati, pronte da rivedere e assegnare alla classe. Il file resta privato e viene eliminato dopo l'elaborazione; le lezioni riformulano i concetti, non copiano il testo.</p>
-    <div class="step"><span class="n">1</span><div>Apri <strong>Dal libro</strong> nel menu Academy e carica il PDF o le foto.</div></div>
-    <div class="step"><span class="n">2</span><div>Scegli i capitoli, quante lezioni e la difficoltà.</div></div>
-    <div class="step"><span class="n">3</span><div>Rivedi le bozze, modificale se serve e assegnale a una classe.</div></div>
-    <figure class="shot"><img src="assets/guide/10-libro.png" alt="Il flusso Lezioni dal libro" loading="lazy" onerror="this.style.display='none';this.nextElementSibling.style.display='flex'"><div class="shot-ph" style="display:none">📷 Flusso "Lezioni dal libro"<br><b>assets/guide/10-libro.png</b></div><figcaption>Da un capitolo del libro alle lezioni pronte.</figcaption></figure>
+    <p>La <strong>watchlist</strong> occupa la colonna di sinistra e mostra per ogni titolo il sentiment e quante notizie sono state analizzate. Per aggiungerne uno scrivi nel campo in fondo alla lista: compaiono i suggerimenti con simbolo e nome della società, e si salvano solo titoli realmente quotati. Al primo accesso si riempie da sola con i titoli col sentiment più alto del momento, così non parti da una schermata vuota. Nel piano gratuito puoi seguirne fino a 5; con Pro sono illimitati e alimentano gli alert e il digest settimanale via email.</p>
 
     <hr class="divider">
 
@@ -230,7 +191,7 @@
     <h3>Non trovo un titolo</h3>
     <p>Controlla il simbolo: per i titoli europei serve il suffisso del mercato (es. <strong>ENI.MI</strong> per Milano, <strong>SAP.DE</strong> per Francoforte, <strong>MC.PA</strong> per Parigi). Alcuni titoli molto piccoli potrebbero non avere abbastanza notizie.</p>
     <h3>Il sentiment è a zero o poche notizie</h3>
-    <p>Su titoli poco seguiti dalla stampa il sentiment può essere neutro semplicemente perché ci sono poche notizie. Usa il pulsante "Aggiorna news" nella barra laterale per forzare un aggiornamento.</p>
+    <p>Su titoli poco seguiti dalla stampa il sentiment può essere neutro semplicemente perché ci sono poche notizie. Le notizie si aggiornano da sole ogni dieci minuti sul titolo aperto, e più volte al giorno su tutti gli altri; l'icona circolare nella barra in alto forza un aggiornamento subito.</p>
     <h3>Ho pagato Pro ma non vedo le funzioni</h3>
     <p>Aggiorna la pagina: il passaggio a Pro si attiva in pochi secondi dopo il pagamento. Se non compare, esci e rientra dall'account.</p>
     <h3>Come disdico il Pro</h3>

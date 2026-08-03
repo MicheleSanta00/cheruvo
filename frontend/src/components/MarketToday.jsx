@@ -1,7 +1,7 @@
 /**
  * MarketToday.jsx — screener "Mercato oggi": classifica dei ticker per
  * sentiment recente (endpoint pubblico /market/today, cache lato server).
- * Overlay a schermo intero, come l'Academy. Click su un ticker → lo carica
+ * Overlay a tutta pagina. Click su un ticker → lo carica
  * nella dashboard.
  */
 import { useState, useEffect } from 'react'

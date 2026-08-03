@@ -12,7 +12,7 @@ JSON rotto) NON si tocca nulla — gli score esistenti restano.
 Mai sovrascrivere uno score buono con uno zero.
 
 Modello: env GROQ_SCORE_MODEL (default llama-3.3-70b-versatile, lo stesso
-già usato per AI Summary e Academy — garantito attivo sull'account).
+già usato per AI Summary — garantito attivo sull'account).
 """
 import os
 import re

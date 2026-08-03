@@ -36,9 +36,10 @@ from stripe_routes import router as stripe_router, init_subscriptions_table
 from quick_fetch import quick_fetch
 from summary import genera_summary, _fallback
 from onboarding import init_onboarding_table, send_welcome
-from academy import router as academy_router, init_academy_tables
-from classroom import router as classroom_router, init_classroom_tables
-from book import router as book_router, init_book_tables
+# Academy, Classroom e Book rimossi il 3 agosto 2026: erano 4.772 righe, il 27%
+# del progetto, e non avevano nulla a che vedere col sentiment finanziario.
+# Le tabelle restano nel database e le migrazioni in supabase/migrations: se un
+# giorno servissero, il codice si recupera dalla storia di git.
 from market import router as market_router
 from digest import router as digest_router, init_digest_tables
 from earnings import router as earnings_router, init_earnings_tables
@@ -81,9 +82,6 @@ async def lifespan(app: FastAPI):
     init_database()
     init_subscriptions_table()
     init_onboarding_table()
-    init_academy_tables()
-    init_classroom_tables()
-    init_book_tables()
     init_digest_tables()
     init_earnings_tables()
     get_pool()
@@ -119,9 +117,6 @@ class SecurityHeadersMiddleware(BaseHTTPMiddleware):
 app.add_middleware(SecurityHeadersMiddleware)
 app.add_middleware(GZipMiddleware, minimum_size=500)  # comprime risposte > 500 bytes
 app.include_router(stripe_router, prefix="/api")
-app.include_router(academy_router, prefix="/api")
-app.include_router(classroom_router, prefix="/api")
-app.include_router(book_router, prefix="/api")
 app.include_router(market_router, prefix="/api")
 app.include_router(digest_router, prefix="/api")
 app.include_router(earnings_router, prefix="/api")

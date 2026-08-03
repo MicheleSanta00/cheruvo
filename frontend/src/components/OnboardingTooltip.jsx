@@ -3,11 +3,16 @@ import Icon from './Icon.jsx'
 
 const STEPS = [
   {
-    target: 'sidebar-search',
+    // Era 'sidebar-search'. Col passaggio all'interfaccia a terminale la
+    // ricerca si è spostata dalla colonna di sinistra alla barra in alto, e
+    // questo primo passo puntava a un elemento che non esiste più: il fumetto
+    // restava incollato nell'angolo in alto a sinistra indicando il nulla.
+    // Era la primissima cosa che vedeva un utente nuovo.
+    target: 'header-search',
     icon: 'search',
     title: 'Cerca un\'azione',
-    desc: 'Scrivi il simbolo di qualsiasi azione — americana o europea. Es: NVDA, AAPL, ENI.MI, ENEL.MI',
-    position: 'right',
+    desc: 'Scrivi il simbolo di qualsiasi azione, americana o europea. Es: NVDA, AAPL, ENI.MI, ENEL.MI',
+    position: 'bottom',
   },
   {
     target: 'kpi-avg',
@@ -70,12 +75,22 @@ export default function OnboardingTooltip({ hasData }) {
   const updatePosition = () => {
     const current = STEPS[step]
     const el = document.getElementById(current.target)
-    if (!el) return
+    // Bersaglio sparito: il tour si chiude invece di restare appeso
+    // nell'angolo. Prima usciva senza fare niente, e il fumetto rimaneva
+    // fermo alle coordinate iniziali, cioè in alto a sinistra sopra il vuoto.
+    // Meglio nessun tour che un tour che indica il nulla.
+    if (!el) {
+      console.warn(`[onboarding] elemento "${current.target}" non trovato: tour interrotto`)
+      finish()
+      return
+    }
     const rect = el.getBoundingClientRect()
     const scrollY = window.scrollY
 
     if (current.position === 'right') {
       setPos({ top: rect.top + scrollY + rect.height / 2, left: rect.right + 16 })
+    } else if (current.position === 'bottom') {
+      setPos({ top: rect.bottom + scrollY + 12, left: rect.left + rect.width / 2 })
     } else {
       setPos({ top: rect.top + scrollY - 8, left: rect.left + rect.width / 2 })
     }

@@ -23,7 +23,6 @@ import MarketToday        from './components/MarketToday.jsx'
 import { useFinData } from './hooks/useFinData.js'
 import { generateReport } from './utils/generatePDF.js'
 import { identifyUser, resetUser, track } from './analytics.js'
-import Academy from './academy/Academy.jsx'
 import { TICKERS } from './data/tickers.js'
 
 const DEFAULT_TICKER = 'NVDA'
@@ -43,7 +42,6 @@ export default function App() {
   const [sidebarOpen, setSidebarOpen] = useState(false)
   const [loadedTicker, setLoadedTicker] = useState(null)
   const [showStats, setShowStats]     = useState(false)
-  const [showAcademy, setShowAcademy] = useState(false)
   const [showHeaderMenu, setShowHeaderMenu] = useState(false)
   const [showMarket, setShowMarket]   = useState(false)
 
@@ -74,17 +72,6 @@ export default function App() {
       setUser(session?.user ?? null)
       if (!session) resetUser()  // logout: resetta identità PostHog
     })
-  }, [])
-
-  // L'Academy non è più nell'interfaccia, ma resta raggiungibile dal
-  // sottodominio academy.* o con ?academy: così i link già in giro non si
-  // rompono e riattivarla è questione di rimettere un bottone.
-  // ?market non serve più: la schermata iniziale È il mercato.
-  useEffect(() => {
-    const params = new URLSearchParams(window.location.search)
-    if (window.location.hostname.startsWith('academy.') || params.get('academy') !== null) {
-      setShowAcademy(true)
-    }
   }, [])
 
   useEffect(() => {
@@ -190,7 +177,6 @@ export default function App() {
 
   if (authLoading) return null
   if (!user) return <Auth onLogin={setUser} />
-  if (showAcademy) return <Academy user={user} onExit={() => setShowAcademy(false)} />
   if (showMarket) return (
     <MarketToday
       onExit={() => setShowMarket(false)}
@@ -394,13 +380,14 @@ export default function App() {
             {/* "Mercato" rimosso: la schermata iniziale È il mercato, il bottone
                 mostrava la stessa cosa due volte. L'Academy è stata tolta
                 dall'interfaccia perché fuori fuoco rispetto al prodotto: il
-                codice resta in academy/, quindi si può riattivare quando serve. */}
+                codice è stato rimosso: si recupera dalla storia di git. */}
             <a href="https://cheruvo.com/guida.html" target="_blank" rel="noreferrer" className="hide-mobile" title={lang === 'it' ? 'Guida all\'uso' : 'User guide'} style={{
               display: 'inline-flex', alignItems: 'center', textDecoration: 'none',
               fontSize: 11, color: 'var(--white)', background: 'transparent',
               border: '1px solid var(--border)', borderRadius: 6, padding: '4px 10px',
               cursor: 'pointer', fontWeight: 500,
             }}><Icon name="book" size={13} /> {lang === 'it' ? 'Guida' : 'Guide'}</a>
+            <BottoneSchermoIntero lang={lang} />
             <button onClick={toggleLang} className="hide-mobile" style={{
               fontSize: 13, background: 'transparent', border: '1px solid var(--border)',
               borderRadius: 6, padding: '3px 7px', cursor: 'pointer', lineHeight: 1,
@@ -447,7 +434,7 @@ export default function App() {
                           </button>
                         </>
                       )}
-                      {/* Mercato e Academy tolti anche dal menu mobile, per coerenza */}
+                      {/* Mercato tolto anche dal menu mobile: la schermata iniziale È il mercato */}
                       <a href="https://cheruvo.com/guida.html" target="_blank" rel="noreferrer" onClick={close} style={item}>
                         <Icon name="book" size={14} /> {lang === 'it' ? 'Guida' : 'Guide'}
                       </a>
@@ -728,7 +715,8 @@ function HeaderSearch({ placeholder, days, period, onLoad, onTickerChange }) {
   }
 
   return (
-    <div style={{ position: 'relative', flex: 1, maxWidth: 380, minWidth: 0 }}>
+    /* id usato dal tour del primo accesso per sapere dove puntare */
+    <div id="header-search" style={{ position: 'relative', flex: 1, maxWidth: 380, minWidth: 0 }}>
       <input
         ref={campo}
         value={q}
@@ -774,6 +762,68 @@ function HeaderSearch({ placeholder, days, period, onLoad, onTickerChange }) {
         </div>
       )}
     </div>
+  )
+}
+
+// ── Schermo intero ────────────────────────────────────────────────────────
+// Usa l'API del browser, la stessa di F11. Lo stato non si tiene in memoria
+// ma si legge da document.fullscreenElement e si aggiorna sull'evento: se
+// l'utente esce con Esc o con F11 l'icona resta comunque coerente. Tenendo un
+// useState scollegato dall'evento, l'icona finirebbe per mentire.
+function BottoneSchermoIntero({ lang }) {
+  const [pieno, setPieno] = useState(false)
+  const [disponibile] = useState(
+    () => typeof document !== 'undefined' && !!document.documentElement.requestFullscreen
+  )
+
+  useEffect(() => {
+    const cambio = () => setPieno(!!document.fullscreenElement)
+    document.addEventListener('fullscreenchange', cambio)
+    return () => document.removeEventListener('fullscreenchange', cambio)
+  }, [])
+
+  // Safari su iPhone non espone l'API: meglio non mostrare un tasto che non fa nulla.
+  if (!disponibile) return null
+
+  const commuta = async () => {
+    try {
+      if (document.fullscreenElement) await document.exitFullscreen()
+      else await document.documentElement.requestFullscreen()
+    } catch (_) {
+      // Alcuni browser rifiutano se la richiesta non parte da un click:
+      // qui parte da un click, ma se rifiutano lasciamo perdere in silenzio.
+    }
+  }
+
+  const etichetta = pieno
+    ? (lang === 'it' ? 'Esci da schermo intero (Esc)' : 'Exit full screen (Esc)')
+    : (lang === 'it' ? 'Schermo intero' : 'Full screen')
+
+  return (
+    <button onClick={commuta} title={etichetta} aria-label={etichetta}
+      className="hide-mobile" style={{
+        display: 'inline-flex', alignItems: 'center', justifyContent: 'center',
+        background: 'transparent', border: '1px solid var(--border)',
+        borderRadius: 6, padding: '4px 8px', cursor: 'pointer',
+        color: 'var(--white)', lineHeight: 1,
+      }}>
+      <svg width="13" height="13" viewBox="0 0 16 16" fill="none"
+        stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round">
+        {pieno ? (
+          /* frecce che rientrano */
+          <>
+            <path d="M6.5 1.5v5h-5" /><path d="M9.5 14.5v-5h5" />
+            <path d="M14.5 6.5h-5v-5" /><path d="M1.5 9.5h5v5" />
+          </>
+        ) : (
+          /* frecce che escono verso i quattro angoli */
+          <>
+            <path d="M1.5 5.5v-4h4" /><path d="M14.5 10.5v4h-4" />
+            <path d="M10.5 1.5h4v4" /><path d="M5.5 14.5h-4v-4" />
+          </>
+        )}
+      </svg>
+    </button>
   )
 }
 

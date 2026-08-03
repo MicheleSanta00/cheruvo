@@ -21,6 +21,7 @@ CENSIMENTO: stampa cosa toglierebbe e non tocca niente.
     python backend/pulizia_licenze.py --elimina  # esegue davvero
 """
 import logging
+import os
 import sys
 
 from database import get_pool
@@ -80,6 +81,15 @@ def elimina() -> int:
 
 if __name__ == "__main__":
     logging.basicConfig(level=logging.INFO, format="%(message)s")
+
+    # database.py non carica il .env da solo (lo fa main.py all'avvio del
+    # server). Questo script si lancia a mano, quindi se lo carica da sé:
+    # altrimenti fallirebbe con un errore di connessione poco chiaro.
+    try:
+        from dotenv import load_dotenv
+        load_dotenv(os.path.join(os.path.dirname(os.path.abspath(__file__)), ".env"))
+    except ImportError:
+        pass
 
     pool = get_pool()
     conn = pool.getconn()
