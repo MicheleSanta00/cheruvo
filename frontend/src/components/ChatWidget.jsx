@@ -91,7 +91,7 @@ export default function ChatWidget({ ticker, sentimentScore, topNews }) {
 
           {/* Header */}
           <div style={{
-            padding: '14px 16px', borderBottom: '1px solid rgba(255,255,255,0.06)',
+            padding: '14px 16px', borderBottom: '1px solid rgba(var(--rgb-contrasto), 0.06)',
             display: 'flex', alignItems: 'center', gap: 10, flexShrink: 0,
             background: 'rgba(30,92,255,0.06)',
           }}>
@@ -120,9 +120,9 @@ export default function ChatWidget({ ticker, sentimentScore, topNews }) {
                   maxWidth: '85%',
                   padding: '10px 13px',
                   borderRadius: m.role === 'user' ? '14px 14px 4px 14px' : '14px 14px 14px 4px',
-                  background: m.role === 'user' ? 'var(--blue)' : 'rgba(255,255,255,0.06)',
+                  background: m.role === 'user' ? 'var(--blue)' : 'rgba(var(--rgb-contrasto), 0.06)',
                   color: m.role === 'user' ? 'white' : 'var(--off-white)',
-                  border: m.role === 'assistant' ? '1px solid rgba(255,255,255,0.06)' : 'none',
+                  border: m.role === 'assistant' ? '1px solid rgba(var(--rgb-contrasto), 0.06)' : 'none',
                 }}>
                   {m.text}
                 </div>
@@ -131,7 +131,7 @@ export default function ChatWidget({ ticker, sentimentScore, topNews }) {
 
             {/* Typing indicator */}
             {loading && (
-              <div style={{ display: 'flex', gap: 4, padding: '10px 13px', background: 'rgba(255,255,255,0.06)', borderRadius: '14px 14px 14px 4px', width: 'fit-content', border: '1px solid rgba(255,255,255,0.06)' }}>
+              <div style={{ display: 'flex', gap: 4, padding: '10px 13px', background: 'rgba(var(--rgb-contrasto), 0.06)', borderRadius: '14px 14px 14px 4px', width: 'fit-content', border: '1px solid rgba(var(--rgb-contrasto), 0.06)' }}>
                 {[0,1,2].map(i => (
                   <div key={i} style={{
                     width: 6, height: 6, borderRadius: '50%', background: 'var(--muted)',
@@ -167,7 +167,7 @@ export default function ChatWidget({ ticker, sentimentScore, topNews }) {
 
           {/* Input */}
           <div style={{
-            padding: '10px 12px', borderTop: '1px solid rgba(255,255,255,0.06)',
+            padding: '10px 12px', borderTop: '1px solid rgba(var(--rgb-contrasto), 0.06)',
             display: 'flex', gap: 8, flexShrink: 0,
             background: 'rgba(0,0,0,0.3)',
           }}>
@@ -180,8 +180,8 @@ export default function ChatWidget({ ticker, sentimentScore, topNews }) {
               placeholder="Scrivi una domanda..."
               disabled={loading}
               style={{
-                flex: 1, background: 'rgba(255,255,255,0.05)',
-                border: '1px solid rgba(255,255,255,0.1)',
+                flex: 1, background: 'rgba(var(--rgb-contrasto), 0.05)',
+                border: '1px solid rgba(var(--rgb-contrasto), 0.1)',
                 borderRadius: 10, padding: '9px 12px',
                 fontSize: 13, color: 'var(--white)',
                 fontFamily: 'var(--sans)',
@@ -193,7 +193,7 @@ export default function ChatWidget({ ticker, sentimentScore, topNews }) {
               onClick={() => send()}
               disabled={loading || !input.trim()}
               style={{
-                background: input.trim() ? 'var(--blue)' : 'rgba(255,255,255,0.06)',
+                background: input.trim() ? 'var(--blue)' : 'rgba(var(--rgb-contrasto), 0.06)',
                 color: 'white', border: 'none', borderRadius: 10,
                 padding: '0 14px', fontSize: 16, cursor: input.trim() ? 'pointer' : 'default',
                 transition: 'background .2s',
@@ -212,7 +212,7 @@ export default function ChatWidget({ ticker, sentimentScore, topNews }) {
           position: 'fixed', bottom: 24, right: 24, zIndex: 9999, pointerEvents: 'all',
           width: 56, height: 56, borderRadius: '50%',
           background: '#1e5cff',
-          border: '2px solid rgba(255,255,255,0.15)',
+          border: '2px solid rgba(var(--rgb-contrasto), 0.15)',
           cursor: 'pointer',
           display: 'flex', alignItems: 'center', justifyContent: 'center',
           boxShadow: '0 4px 24px rgba(30,92,255,0.6), 0 0 0 4px rgba(30,92,255,0.15)',

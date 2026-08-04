@@ -24,7 +24,7 @@ export default function KPIGrid({ stats }) {
     <div style={{
       display: 'flex', flexWrap: 'wrap',
       borderBottom: '1px solid var(--border)',
-      background: 'rgba(255,255,255,0.015)',
+      background: 'rgba(var(--rgb-contrasto), 0.015)',
     }}>
       {items.map((item, i) => (
         <div key={item.label} style={{

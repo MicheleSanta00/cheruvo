@@ -25,13 +25,106 @@ PERIOD_DAYS = {
     "5y":   1825,
 }
 
+# Periodi INTRADAY: un punto al minuto invece che al giorno.
+# Servono alla vista "Oggi", quella che si compone sotto gli occhi mentre la
+# borsa è aperta. Yahoo per questi vuole "range" invece di period1/period2.
+INTRADAY = {
+    "1d": "1m",     # oggi, minuto per minuto (circa 390 punti per una seduta USA)
+    "5d": "5m",     # ultima settimana, a passi di 5 minuti
+}
+
+
+def e_intraday(period: str) -> bool:
+    return period in INTRADAY
+
 
 def get_prices(ticker: str, period: str = "3mo") -> pd.DataFrame:
+    if e_intraday(period):
+        # Nessun ripiego su Alpha Vantage: il loro piano gratuito non dà
+        # l'intraday, quindi se Yahoo non risponde non c'è un piano B.
+        return _yahoo_intraday(ticker, period)
     df = _yahoo_chart(ticker, period)
     if not df.empty:
         return df
     logger.warning("Yahoo Chart fallito per %s, provo Alpha Vantage...", ticker)
     return _alpha_vantage_daily(ticker, period)
+
+
+def stato_mercato(ticker: str) -> dict:
+    """
+    Se la borsa di quel titolo è aperta adesso, e quando è avvenuto l'ultimo
+    scambio. Serve a due cose: non interrogare Yahoo di notte e nel fine
+    settimana, e scrivere accanto al prezzo l'ora vera invece di far credere
+    all'utente che sia il secondo esatto in cui sta guardando.
+    """
+    try:
+        r = requests.get(
+            f"https://query1.finance.yahoo.com/v8/finance/chart/{ticker}",
+            headers=HEADERS, params={"interval": "1d", "range": "1d"}, timeout=10,
+        )
+        meta = (r.json().get("chart", {}).get("result") or [{}])[0].get("meta", {})
+        regolare = (meta.get("currentTradingPeriod") or {}).get("regular") or {}
+        adesso = int(time.time())
+        return {
+            "aperto": bool(regolare.get("start", 0) <= adesso <= regolare.get("end", 0)),
+            "ultimo_scambio": meta.get("regularMarketTime"),
+            "prezzo": meta.get("regularMarketPrice"),
+            "chiusura_precedente": meta.get("chartPreviousClose") or meta.get("previousClose"),
+            "valuta": meta.get("currency"),
+            "borsa": meta.get("fullExchangeName"),
+        }
+    except Exception as e:
+        logger.warning("stato_mercato %s: %s", ticker, e)
+        return {"aperto": False, "ultimo_scambio": None, "prezzo": None,
+                "chiusura_precedente": None, "valuta": None, "borsa": None}
+
+
+def _yahoo_intraday(ticker: str, period: str) -> pd.DataFrame:
+    """Serie a passo di minuti. Indice datetime completo, non solo la data."""
+    intervallo = INTRADAY.get(period, "1m")
+    url = f"https://query1.finance.yahoo.com/v8/finance/chart/{ticker}"
+
+    for tentativo in range(3):
+        try:
+            r = requests.get(url, headers=HEADERS, timeout=15,
+                             params={"range": period, "interval": intervallo})
+            if r.status_code == 429:
+                time.sleep(2)
+                continue
+            r.raise_for_status()
+            risultato = (r.json().get("chart", {}).get("result") or [])
+            if not risultato:
+                return pd.DataFrame()
+
+            res = risultato[0]
+            momenti = res.get("timestamp", []) or []
+            q = (res.get("indicators", {}).get("quote") or [{}])[0]
+            chiusure = q.get("close", []) or []
+
+            righe = []
+            for i, ts in enumerate(momenti):
+                if i >= len(chiusure) or chiusure[i] is None:
+                    continue   # minuti senza scambi: si saltano, non si azzerano
+                righe.append({
+                    "date":   datetime.utcfromtimestamp(ts),
+                    "Open":   (q.get("open")   or [None])[i] if i < len(q.get("open", []))   else None,
+                    "High":   (q.get("high")   or [None])[i] if i < len(q.get("high", []))   else None,
+                    "Low":    (q.get("low")    or [None])[i] if i < len(q.get("low", []))    else None,
+                    "Close":  chiusure[i],
+                    "Volume": (q.get("volume") or [0])[i]    if i < len(q.get("volume", [])) else 0,
+                })
+
+            if not righe:
+                return pd.DataFrame()
+            df = pd.DataFrame(righe).set_index("date").sort_index()
+            logger.info("Yahoo intraday: %d punti (%s) per %s", len(df), intervallo, ticker)
+            return df
+
+        except Exception as e:
+            logger.warning("Yahoo intraday tentativo %d per %s: %s", tentativo + 1, ticker, e)
+            time.sleep(1)
+
+    return pd.DataFrame()
 
 
 def _yahoo_chart(ticker: str, period: str) -> pd.DataFrame:

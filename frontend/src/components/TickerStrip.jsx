@@ -34,7 +34,7 @@ export default function TickerStrip({ rows, onPick }) {
             border: 'none', borderRight: '1px solid var(--border)',
             color: 'var(--white)', cursor: 'pointer', fontSize: 11.5,
           }}
-          onMouseEnter={(e) => { e.currentTarget.style.background = 'rgba(255,255,255,0.04)' }}
+          onMouseEnter={(e) => { e.currentTarget.style.background = 'rgba(var(--rgb-contrasto), 0.04)' }}
           onMouseLeave={(e) => { e.currentTarget.style.background = 'transparent' }}
         >
           <span style={{ fontWeight: 700, letterSpacing: '0.02em' }}>{r.ticker}</span>

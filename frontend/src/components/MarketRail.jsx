@@ -52,7 +52,7 @@ export default function MarketRail({ rows, stats, attivo, onPick }) {
         border: 'none', borderBottom: '1px solid var(--border)', borderRadius: 0,
         color: 'var(--white)', cursor: 'pointer', textAlign: 'left', fontSize: 12.5,
       }}
-      onMouseEnter={(e) => { e.currentTarget.style.background = 'rgba(255,255,255,0.04)' }}
+      onMouseEnter={(e) => { e.currentTarget.style.background = 'rgba(var(--rgb-contrasto), 0.04)' }}
       onMouseLeave={(e) => { e.currentTarget.style.background = attivo === r.ticker ? 'rgba(30,92,255,0.10)' : 'transparent' }}
     >
       <span style={{ ...numStyle, fontWeight: 500, fontSize: 10, color: 'var(--muted)' }}>{i + 1}</span>

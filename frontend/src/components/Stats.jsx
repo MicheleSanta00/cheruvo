@@ -38,7 +38,7 @@ export default function Stats({ news }) {
       <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(280px, 1fr))', gap: 20 }}>
 
         {/* Source distribution */}
-        <div style={{ background: 'rgba(255,255,255,0.02)', border: '1px solid var(--border)', borderRadius: 12, padding: 20 }}>
+        <div style={{ background: 'rgba(var(--rgb-contrasto), 0.02)', border: '1px solid var(--border)', borderRadius: 12, padding: 20 }}>
           <div style={{ fontSize: 12, color: 'var(--muted)', letterSpacing: '0.08em', textTransform: 'uppercase', marginBottom: 16 }}>Source distribution</div>
           <ResponsiveContainer width="100%" height={240}>
             <PieChart>
@@ -60,7 +60,7 @@ export default function Stats({ news }) {
         </div>
 
         {/* Sentiment histogram */}
-        <div style={{ background: 'rgba(255,255,255,0.02)', border: '1px solid var(--border)', borderRadius: 12, padding: 20 }}>
+        <div style={{ background: 'rgba(var(--rgb-contrasto), 0.02)', border: '1px solid var(--border)', borderRadius: 12, padding: 20 }}>
           <div style={{ fontSize: 12, color: 'var(--muted)', letterSpacing: '0.08em', textTransform: 'uppercase', marginBottom: 16 }}>Sentiment distribution</div>
           <ResponsiveContainer width="100%" height={240}>
             <BarChart data={buckets} barSize={12}>

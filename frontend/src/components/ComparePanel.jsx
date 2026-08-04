@@ -17,7 +17,7 @@ function CompareTooltip({ active, payload, label }) {
   if (!active || !payload?.length) return null
   return (
     <div style={{
-      background: '#0f1117', border: '1px solid rgba(255,255,255,0.1)',
+      background: 'var(--near-black)', border: '1px solid rgba(var(--rgb-contrasto), 0.1)',
       borderRadius: 8, padding: '10px 14px', fontSize: 12,
       minWidth: 160,
     }}>
@@ -189,8 +189,8 @@ export default function ComparePanel({ primaryTicker, primarySentiment, isPro, o
                 onFocus={() => input.length >= 1 && setShowSuggestions(suggestions.length > 0)}
                 placeholder="+ Aggiungi ticker..."
                 style={{
-                  background: 'rgba(255,255,255,0.05)',
-                  border: '1px dashed rgba(255,255,255,0.2)',
+                  background: 'rgba(var(--rgb-contrasto), 0.05)',
+                  border: '1px dashed rgba(var(--rgb-contrasto), 0.2)',
                   color: 'var(--white)', borderRadius: 100,
                   padding: '4px 12px', fontSize: 12,
                   outline: 'none', width: 140,
@@ -213,7 +213,7 @@ export default function ComparePanel({ primaryTicker, primarySentiment, isPro, o
                 position: 'absolute', top: '110%', left: 0, zIndex: 100,
                 background: 'var(--dark)', border: '1px solid var(--border)',
                 borderRadius: 8, overflow: 'hidden', minWidth: 200,
-                boxShadow: '0 8px 24px rgba(0,0,0,0.4)',
+                boxShadow: 'var(--ombra)',
               }}>
                 {suggestions.map(tk => (
                   <div
@@ -224,7 +224,7 @@ export default function ComparePanel({ primaryTicker, primarySentiment, isPro, o
                       display: 'flex', justifyContent: 'space-between',
                       borderBottom: '1px solid var(--border)',
                     }}
-                    onMouseEnter={e => e.currentTarget.style.background = 'rgba(255,255,255,0.05)'}
+                    onMouseEnter={e => e.currentTarget.style.background = 'rgba(var(--rgb-contrasto), 0.05)'}
                     onMouseLeave={e => e.currentTarget.style.background = 'transparent'}
                   >
                     <span style={{ fontWeight: 500 }}>{tk.symbol}</span>
@@ -245,7 +245,7 @@ export default function ComparePanel({ primaryTicker, primarySentiment, isPro, o
       {mergedData.length > 0 ? (
         <ResponsiveContainer width="100%" height={220}>
           <LineChart data={mergedData} margin={{ top: 4, right: 16, left: 0, bottom: 4 }}>
-            <CartesianGrid strokeDasharray="3 3" stroke="rgba(255,255,255,0.05)" />
+            <CartesianGrid strokeDasharray="3 3" stroke="rgba(var(--rgb-contrasto), 0.05)" />
             <XAxis
               dataKey="date"
               tick={{ fill: '#64748b', fontSize: 10 }}
@@ -260,7 +260,7 @@ export default function ComparePanel({ primaryTicker, primarySentiment, isPro, o
               width={36}
             />
             <Tooltip content={<CompareTooltip />} />
-            <ReferenceLine y={0}    stroke="rgba(255,255,255,0.1)" />
+            <ReferenceLine y={0}    stroke="rgba(var(--rgb-contrasto), 0.1)" />
             <ReferenceLine y={0.1}  stroke="rgba(74,222,128,0.15)"  strokeDasharray="3 3" />
             <ReferenceLine y={-0.1} stroke="rgba(248,113,113,0.15)" strokeDasharray="3 3" />
 
@@ -296,7 +296,7 @@ export default function ComparePanel({ primaryTicker, primarySentiment, isPro, o
             const sentColor = v => v == null ? '#94a3b8' : v > 0.1 ? '#4ade80' : v < -0.1 ? '#f87171' : '#facc15'
             return (
               <div key={ticker} style={{
-                background: 'rgba(255,255,255,0.02)',
+                background: 'rgba(var(--rgb-contrasto), 0.02)',
                 border: `1px solid ${color}30`,
                 borderRadius: 8, padding: '10px 12px',
               }}>
@@ -345,7 +345,7 @@ function Header() {
 }
 
 const panelStyle = {
-  background: 'rgba(255,255,255,0.02)',
+  background: 'rgba(var(--rgb-contrasto), 0.02)',
   border: '1px solid var(--border)',
   borderRadius: 12, padding: '16px 20px',
 }

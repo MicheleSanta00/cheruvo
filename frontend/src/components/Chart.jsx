@@ -46,10 +46,10 @@ function CustomTooltip({ active, payload, label, compact }) {
 
   return (
     <div style={{
-      background: '#0f1117', border: '1px solid rgba(255,255,255,0.1)',
+      background: 'var(--near-black)', border: '1px solid rgba(var(--rgb-contrasto), 0.1)',
       borderRadius: 10, padding: compact ? '8px 10px' : '12px 16px', fontSize: compact ? 11 : 12,
       minWidth: compact ? 148 : 190, maxWidth: compact ? 185 : undefined,
-      boxShadow: '0 8px 24px rgba(0,0,0,0.4)',
+      boxShadow: 'var(--ombra)',
     }}>
       <div style={{ color: '#94a3b8', marginBottom: compact ? 6 : 10, fontWeight: 500 }}>{label}</div>
       {close != null && (
@@ -72,7 +72,7 @@ function CustomTooltip({ active, payload, label, compact }) {
         </div>
       )}
       {sentVal != null && (
-        <div style={{ borderTop: '1px solid rgba(255,255,255,0.07)', paddingTop: 8 }}>
+        <div style={{ borderTop: '1px solid rgba(var(--rgb-contrasto), 0.07)', paddingTop: 8 }}>
           <div style={{ color: '#475569', fontSize: 10, letterSpacing: '0.06em', marginBottom: 5 }}>SENTIMENT</div>
           <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
             <span style={{ color: sentCol, fontWeight: 700, fontSize: 15 }}>
@@ -283,6 +283,44 @@ const fmtDate = d => {
   return p.length >= 3 ? `${p[2]}/${p[1]}` : d
 }
 
+// Sull'intraday la data arriva come "2026-08-04 15:42": sull'asse serve
+// soltanto l'ora, altrimenti le etichette si accavallano.
+const fmtOra = d => {
+  if (!d) return ''
+  const p = String(d).split(' ')
+  return p.length > 1 ? p[1] : d
+}
+
+function TooltipOggi({ active, payload, label, chiusuraIeri }) {
+  if (!active || !payload?.length) return null
+  const d = payload[0].payload
+  const rispettoIeri = chiusuraIeri != null ? d.Close - chiusuraIeri : null
+  return (
+    <div style={{
+      background: 'var(--near-black)', border: '1px solid var(--border-br)',
+      borderRadius: 6, padding: '8px 11px', fontSize: 12,
+    }}>
+      <div style={{ fontFamily: 'var(--mono)', color: 'var(--muted)', fontSize: 10.5, marginBottom: 4 }}>
+        {label}
+      </div>
+      <div style={{ fontFamily: 'var(--mono)', fontWeight: 700, fontSize: 15, color: 'var(--white)' }}>
+        {d.Close?.toFixed(2)}
+      </div>
+      {rispettoIeri != null && (
+        <div style={{ fontFamily: 'var(--mono)', fontSize: 11, marginTop: 2,
+                      color: rispettoIeri >= 0 ? 'var(--green)' : 'var(--red)' }}>
+          {rispettoIeri >= 0 ? '+' : ''}{rispettoIeri.toFixed(2)} da ieri
+        </div>
+      )}
+      {d.Volume > 0 && (
+        <div style={{ fontSize: 10.5, color: 'var(--muted)', marginTop: 3 }}>
+          volume {Number(d.Volume).toLocaleString('it-IT')}
+        </div>
+      )}
+    </div>
+  )
+}
+
 // Interruttori del grafico: squadrati e in maiuscoletto come il resto della
 // plancia. Erano pillole arrotondate, l'unica cosa tonda in tutta la pagina.
 const stileInterruttore = {
@@ -291,11 +329,135 @@ const stileInterruttore = {
   fontFamily: 'var(--sans)',
 }
 
+// ── Vista "Oggi" ──────────────────────────────────────────────────────────
+// Il grafico della seduta in corso, che si allunga da solo mentre la borsa è
+// aperta. Il colore della linea segue la giornata: verde se il titolo sta
+// sopra la chiusura di ieri, rosso se sotto. È la convenzione di ogni
+// terminale finanziario e si legge senza dover pensare.
+function GraficoOggi({ prices, ticker, statoBorsa, isMobile }) {
+  if (!prices.length) return (
+    <div style={{ height: 220, display: 'flex', alignItems: 'center',
+                  justifyContent: 'center', color: 'var(--muted)', fontSize: 13 }}>
+      Nessuno scambio disponibile per la seduta di oggi.
+    </div>
+  )
+
+  const chiusuraIeri = statoBorsa?.chiusura_precedente ?? null
+  const ultimo = prices[prices.length - 1]?.Close ?? null
+  const suGiornata = chiusuraIeri != null && ultimo != null ? ultimo >= chiusuraIeri : true
+  const colore = suGiornata ? 'var(--green)' : 'var(--red)'
+
+  const chiusure = prices.map(p => p.Close).filter(v => v != null)
+  const riferimenti = chiusuraIeri != null ? [...chiusure, chiusuraIeri] : chiusure
+  const min = Math.min(...riferimenti)
+  const max = Math.max(...riferimenti)
+  const margine = (max - min) * 0.12 || 1
+
+  const variazione = chiusuraIeri != null && ultimo != null ? ultimo - chiusuraIeri : null
+  const variazionePct = variazione != null && chiusuraIeri ? (variazione / chiusuraIeri) * 100 : null
+
+  const oraScambio = statoBorsa?.ultimo_scambio
+    ? new Date(statoBorsa.ultimo_scambio * 1000).toLocaleTimeString('it-IT',
+        { hour: '2-digit', minute: '2-digit' })
+    : null
+  const aperto = statoBorsa?.aperto
+
+  return (
+    <div>
+      {/* Riga di intestazione: prezzo grande, variazione sulla giornata, e
+          SEMPRE l'ora dell'ultimo scambio. Quest'ultima non è un dettaglio:
+          i dati di Yahoo su diverse borse arrivano con una quindicina di
+          minuti di ritardo, e scrivere l'ora è l'unico modo onesto di non
+          far credere che sia il secondo esatto in cui stai guardando. */}
+      <div style={{ display: 'flex', alignItems: 'baseline', gap: 14,
+                    flexWrap: 'wrap', marginBottom: 14 }}>
+        <span style={{ fontFamily: 'var(--mono)', fontSize: 26, fontWeight: 700,
+                       fontVariantNumeric: 'tabular-nums', color: 'var(--white)' }}>
+          {ultimo?.toFixed(2)}
+        </span>
+        {variazione != null && (
+          <span style={{ fontFamily: 'var(--mono)', fontSize: 14, fontWeight: 700, color: colore }}>
+            {variazione >= 0 ? '+' : ''}{variazione.toFixed(2)}
+            {' '}({variazione >= 0 ? '+' : ''}{variazionePct.toFixed(2)}%)
+          </span>
+        )}
+        <span style={{ marginLeft: 'auto', display: 'flex', alignItems: 'center',
+                       gap: 7, fontSize: 11, color: 'var(--muted)' }}>
+          <span style={{
+            width: 6, height: 6, borderRadius: '50%',
+            background: aperto ? 'var(--green)' : 'var(--muted)',
+            boxShadow: aperto ? '0 0 7px var(--green)' : 'none',
+          }} />
+          {aperto ? 'Borsa aperta' : 'Borsa chiusa'}
+          {oraScambio && <span style={{ fontFamily: 'var(--mono)' }}>· ultimo scambio {oraScambio}</span>}
+        </span>
+      </div>
+
+      <div style={{ marginBottom: 6 }}>
+        <span style={{ fontSize: 10, color: 'var(--muted)', letterSpacing: '0.12em',
+                       textTransform: 'uppercase', fontWeight: 700 }}>
+          Seduta di oggi — {ticker} · {prices.length} minuti
+        </span>
+      </div>
+
+      <ResponsiveContainer width="100%" height={isMobile ? 250 : 300}>
+        <ComposedChart data={prices} margin={{ top: 4, right: isMobile ? 4 : 16, left: 0, bottom: 0 }}>
+          <defs>
+            <linearGradient id="oggiGrad" x1="0" y1="0" x2="0" y2="1">
+              <stop offset="0%"   stopColor={suGiornata ? '#34d399' : '#f87171'} stopOpacity={0.22}/>
+              <stop offset="100%" stopColor={suGiornata ? '#34d399' : '#f87171'} stopOpacity={0}/>
+            </linearGradient>
+          </defs>
+          <CartesianGrid strokeDasharray="3 4" stroke="rgba(var(--rgb-contrasto), 0.04)" vertical={false}/>
+          <XAxis dataKey="date" tickFormatter={fmtOra} interval="preserveStartEnd"
+            minTickGap={isMobile ? 50 : 80}
+            tick={{ fontSize: 10, fill: '#475569' }} axisLine={false} tickLine={false}/>
+          <YAxis orientation="right" domain={[min - margine, max + margine]}
+            tickFormatter={v => v.toFixed(2)}
+            tick={{ fontSize: 10, fill: '#475569' }} axisLine={false} tickLine={false}
+            width={isMobile ? 50 : 58}/>
+          <Tooltip content={<TooltipOggi chiusuraIeri={chiusuraIeri} />}/>
+
+          {/* La chiusura di ieri come riga di riferimento: senza, "sta salendo"
+              non ha un metro. È la linea che separa il verde dal rosso. */}
+          {chiusuraIeri != null && (
+            <ReferenceLine y={chiusuraIeri} stroke="rgba(var(--rgb-contrasto), 0.22)" strokeDasharray="4 4"
+              label={{ value: 'chiusura ieri', position: 'insideTopLeft',
+                       fill: '#475569', fontSize: 9.5 }}/>
+          )}
+
+          <Area type="monotone" dataKey="Close" stroke={suGiornata ? '#34d399' : '#f87171'}
+            strokeWidth={1.6} fill="url(#oggiGrad)" dot={false} isAnimationActive={false}
+            activeDot={{ r: 3, strokeWidth: 0, fill: suGiornata ? '#34d399' : '#f87171' }}/>
+        </ComposedChart>
+      </ResponsiveContainer>
+
+      {!aperto && (
+        <div style={{ fontSize: 11.5, color: 'var(--muted)', marginTop: 10, lineHeight: 1.5 }}>
+          La borsa è chiusa: questo è il disegno completo dell'ultima seduta.
+          Tornerà a muoversi da solo alla prossima apertura.
+        </div>
+      )}
+    </div>
+  )
+}
+
 // ── Componente principale ─────────────────────────────────────────────────
-export default function Chart({ prices, sentiment, ticker, stats }) {
+export default function Chart({ prices, sentiment, ticker, stats, intraday = false, statoBorsa = null }) {
   const [showCandles, setShowCandles] = useState(false)
   const [showMA, setShowMA]           = useState(true)
   const isMobile = useIsMobile()
+
+  // Vista "Oggi": un punto al minuto invece che al giorno.
+  //
+  // È un grafico DIVERSO, non lo stesso con più punti, e il motivo è che il
+  // sentiment qui non esiste: lo calcoliamo per giornata, quindi su una
+  // singola seduta è un numero solo e non c'è nessuna curva da sovrapporre.
+  // Sovrapporre una riga piatta sarebbe peggio che non metterla.
+  if (intraday) {
+    return <GraficoOggi prices={prices} ticker={ticker}
+                        statoBorsa={statoBorsa} isMobile={isMobile} />
+  }
 
   const data = useMemo(() => {
     const sentMap = {}
@@ -393,7 +555,7 @@ export default function Chart({ prices, sentiment, ticker, stats }) {
               <stop offset="100%" stopColor="#3b7bff" stopOpacity={0}/>
             </linearGradient>
           </defs>
-          <CartesianGrid strokeDasharray="3 4" stroke="rgba(255,255,255,0.04)" vertical={false}/>
+          <CartesianGrid strokeDasharray="3 4" stroke="rgba(var(--rgb-contrasto), 0.04)" vertical={false}/>
           {/* preserveStartEnd: l'ultimo giorno viene SEMPRE etichettato.
               Con il solo interval numerico l'asse si fermava a un tick prima
               della fine (es. "30/07" mentre il dato arrivava al 31/07) e
@@ -452,7 +614,7 @@ export default function Chart({ prices, sentiment, ticker, stats }) {
 
       <ResponsiveContainer width="100%" height={isMobile ? 150 : 120}>
         <ComposedChart data={display} margin={chartMargin}>
-          <CartesianGrid strokeDasharray="3 4" stroke="rgba(255,255,255,0.04)" vertical={false}/>
+          <CartesianGrid strokeDasharray="3 4" stroke="rgba(var(--rgb-contrasto), 0.04)" vertical={false}/>
           {/* preserveStartEnd: l'ultimo giorno viene SEMPRE etichettato.
               Con il solo interval numerico l'asse si fermava a un tick prima
               della fine (es. "30/07" mentre il dato arrivava al 31/07) e
@@ -462,7 +624,7 @@ export default function Chart({ prices, sentiment, ticker, stats }) {
           <YAxis yAxisId="sent" orientation="right" domain={[-1, 1]}
             ticks={[-1, -0.5, 0, 0.5, 1]} tickFormatter={v => v.toFixed(1)}
             tick={{ fontSize: 10, fill: '#475569' }} axisLine={false} tickLine={false} width={yW}/>
-          <ReferenceLine yAxisId="sent" y={0} stroke="rgba(255,255,255,0.12)" strokeDasharray="3 4"/>
+          <ReferenceLine yAxisId="sent" y={0} stroke="rgba(var(--rgb-contrasto), 0.12)" strokeDasharray="3 4"/>
           <ReferenceLine yAxisId="sent" y={0.1}  stroke="rgba(74,222,128,0.1)"  strokeDasharray="2 4"/>
           <ReferenceLine yAxisId="sent" y={-0.1} stroke="rgba(248,113,113,0.1)" strokeDasharray="2 4"/>
           <Tooltip content={<CustomTooltip compact={isMobile} />}/>

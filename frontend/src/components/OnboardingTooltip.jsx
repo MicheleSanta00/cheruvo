@@ -144,7 +144,7 @@ export default function OnboardingTooltip({ hasData }) {
       {/* Tooltip — ancorato all'elemento su desktop, centrato in basso su mobile */}
       <div style={mobile ? {
         position: 'fixed', left: 12, right: 12, bottom: 20, zIndex: 999,
-        background: '#0f1623', border: '1px solid rgba(30,92,255,0.4)', borderRadius: 16,
+        background: 'var(--near-black)', border: '1px solid rgba(30,92,255,0.4)', borderRadius: 16,
         padding: '18px 20px', boxShadow: '0 8px 40px rgba(0,0,0,0.6)', pointerEvents: 'all',
       } : {
         position: 'absolute',
@@ -153,7 +153,7 @@ export default function OnboardingTooltip({ hasData }) {
         zIndex: 999,
         transform: isRight ? 'translateY(-50%)' : 'translate(-50%, -100%)',
         maxWidth: 280,
-        background: '#0f1623',
+        background: 'var(--near-black)',
         border: '1px solid rgba(30,92,255,0.4)',
         borderRadius: 14,
         padding: '16px 18px',
@@ -185,7 +185,7 @@ export default function OnboardingTooltip({ hasData }) {
           {STEPS.map((_, i) => (
             <div key={i} style={{
               height: 3, flex: 1, borderRadius: 2,
-              background: i <= step ? 'var(--blue)' : 'rgba(255,255,255,0.1)',
+              background: i <= step ? 'var(--blue)' : 'rgba(var(--rgb-contrasto), 0.1)',
               transition: 'background .3s',
             }} />
           ))}

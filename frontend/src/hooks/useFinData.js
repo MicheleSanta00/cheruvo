@@ -6,6 +6,7 @@ export function useFinData() {
   const [news, setNews]               = useState([])
   const [stats, setStats]             = useState(null)
   const [prices, setPrices]           = useState([])
+  const [mercato, setMercato]         = useState(null)   // stato borsa (solo vista Oggi)
   const [sentiment, setSentiment]     = useState([])
   const [loading, setLoading]         = useState(false)
   const [fetching, setFetching]       = useState(false)
@@ -40,10 +41,15 @@ export function useFinData() {
       try {
         const pData = await apiFetch(`/prices/${ticker}?period=${period}`)
         setPrices(pData.prices || [])
+        // Sulla vista "Oggi" il backend allega anche lo stato della borsa:
+        // serve a sapere se continuare ad aggiornare e a scrivere l'ora vera
+        // dell'ultimo scambio accanto al prezzo.
+        setMercato(pData.mercato || null)
       } catch (e) {
         // Il periodo potrebbe essere PRO-only — non bloccare il resto
         if (!e.message.includes('PRO')) throw e
         setPrices([])
+        setMercato(null)
       }
 
       // Daily sentiment
@@ -73,5 +79,23 @@ export function useFinData() {
     }
   }, [])
 
-  return { tickerInfo, news, stats, prices, sentiment, loading, fetching, error, load, triggerFetch, setFetching }
+  // Ricarica SOLO i prezzi. Serve alla vista "Oggi", che si aggiorna ogni
+  // minuto: rifare tutto il giro (validate, news, statistiche, sentiment)
+  // sessanta volte all'ora sarebbe assurdo, perché quelle cose cambiano al
+  // massimo una volta ogni sei ore. E niente setLoading: lo spinner che
+  // lampeggia in faccia ogni minuto darebbe l'idea di un'app che arranca,
+  // mentre il punto è che si aggiorni senza farsi notare.
+  const refreshPrezzi = useCallback(async (ticker, period) => {
+    try {
+      const pData = await apiFetch(`/prices/${ticker}?period=${period}`)
+      setPrices(pData.prices || [])
+      setMercato(pData.mercato || null)
+      return pData.mercato || null
+    } catch (_) {
+      return null   // silenzioso: se un giro salta, riproverà il prossimo
+    }
+  }, [])
+
+  return { tickerInfo, news, stats, prices, mercato, sentiment, loading, fetching,
+           error, load, triggerFetch, setFetching, refreshPrezzi }
 }

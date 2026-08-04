@@ -85,7 +85,7 @@ export default function Profile({ user, isPro, onClose, onUpgrade }) {
             value={
               <span style={{
                 fontSize: 12, padding: '3px 10px', borderRadius: 6,
-                background: isPro ? 'rgba(74,222,128,0.1)' : 'rgba(255,255,255,0.05)',
+                background: isPro ? 'rgba(74,222,128,0.1)' : 'rgba(var(--rgb-contrasto), 0.05)',
                 border: `1px solid ${isPro ? 'rgba(74,222,128,0.3)' : 'var(--border)'}`,
                 color: isPro ? '#4ade80' : 'var(--muted)',
               }}>

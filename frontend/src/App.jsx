@@ -45,7 +45,8 @@ export default function App() {
   const [showHeaderMenu, setShowHeaderMenu] = useState(false)
   const [showMarket, setShowMarket]   = useState(false)
 
-  const { tickerInfo, news, stats, prices, sentiment, loading, fetching, error, load, triggerFetch, setFetching } = useFinData()
+  const { tickerInfo, news, stats, prices, mercato: statoBorsa, sentiment, loading,
+          fetching, error, load, triggerFetch, setFetching, refreshPrezzi } = useFinData()
 
   // Dati di mercato caricati UNA volta e condivisi da nastro, colonna destra,
   // dashboard e barra di stato: prima ogni pezzo se li sarebbe ripresi da solo.
@@ -170,6 +171,23 @@ export default function App() {
     }, 10 * 60 * 1000)
     return () => clearInterval(timer)
   }, [loadedTicker, days, period, load])
+
+  // Vista "Oggi": il grafico si compone da solo, un punto ogni minuto.
+  //
+  // Aggiorna SOLO a borsa aperta. Fuori orario e nel fine settimana il
+  // prezzo non si muove, quindi continuare a chiedere sarebbe traffico
+  // sprecato verso Yahoo per ridisegnare la stessa identica linea. Lo stato
+  // della borsa lo dice il backend, che lo legge dagli orari ufficiali di
+  // quel mercato: Milano chiude alle 17:30, New York alle 22 ora nostra.
+  useEffect(() => {
+    if (period !== '1d' || !loadedTicker) return
+    if (statoBorsa && statoBorsa.aperto === false) return
+
+    const timer = setInterval(() => {
+      refreshPrezzi(loadedTicker, '1d')
+    }, 60 * 1000)
+    return () => clearInterval(timer)
+  }, [period, loadedTicker, statoBorsa?.aperto, refreshPrezzi])
 
   const handleUpgrade = async () => {
     track('upgrade_clicked', { ticker: loadedTicker, from: 'app' })
@@ -328,7 +346,7 @@ export default function App() {
                   flexShrink: 0, padding: '2px 8px', borderRadius: 5,
                   fontFamily: 'var(--mono)',
                   color: stats.avg > 0.08 ? 'var(--green)' : stats.avg < -0.08 ? 'var(--red)' : 'var(--muted)',
-                  background: stats.avg > 0.08 ? 'rgba(52,211,153,0.10)' : stats.avg < -0.08 ? 'rgba(248,113,113,0.10)' : 'rgba(255,255,255,0.04)',
+                  background: stats.avg > 0.08 ? 'rgba(52,211,153,0.10)' : stats.avg < -0.08 ? 'rgba(248,113,113,0.10)' : 'rgba(var(--rgb-contrasto), 0.04)',
                   border: '1px solid var(--border-br)',
                 }}>
                   {stats.avg > 0 ? '+' : stats.avg < 0 ? '−' : ''}{Math.abs(stats.avg).toFixed(2)}
@@ -354,7 +372,7 @@ export default function App() {
                       padding: '3px 7px', borderRadius: 5,
                       border: '1px solid ' + (attivo ? 'rgba(30,92,255,0.5)' : 'var(--border)'),
                       background: attivo ? 'rgba(30,92,255,0.14)' : 'transparent',
-                      color: attivo ? 'var(--azure)' : bloccato ? 'rgba(255,255,255,0.22)' : 'var(--muted)',
+                      color: attivo ? 'var(--azure)' : bloccato ? 'rgba(var(--rgb-contrasto), 0.22)' : 'var(--muted)',
                       cursor: 'pointer',
                     }}
                   >{g}g</button>
@@ -390,7 +408,7 @@ export default function App() {
             {news.length > 0 && (
               <>
                 <button onClick={handlePDF} className="hide-mobile" style={{
-                  fontSize: 11, color: isPro ? 'var(--muted)' : 'rgba(255,255,255,0.2)',
+                  fontSize: 11, color: isPro ? 'var(--muted)' : 'rgba(var(--rgb-contrasto), 0.2)',
                   border: '1px solid var(--border)', borderRadius: 6,
                   padding: '4px 10px', background: 'transparent', cursor: 'pointer',
                   display: 'inline-flex', alignItems: 'center', gap: 5,
@@ -398,7 +416,7 @@ export default function App() {
                   <Icon name={isPro ? 'pdf' : 'lock'} size={12} /> PDF
                 </button>
                 <button onClick={handleExport} className="hide-mobile" style={{
-                  fontSize: 11, color: isPro ? 'var(--muted)' : 'rgba(255,255,255,0.2)',
+                  fontSize: 11, color: isPro ? 'var(--muted)' : 'rgba(var(--rgb-contrasto), 0.2)',
                   border: '1px solid var(--border)', borderRadius: 6,
                   display: 'inline-flex', alignItems: 'center', gap: 5,
                   padding: '4px 10px', background: 'transparent', cursor: 'pointer',
@@ -429,6 +447,7 @@ export default function App() {
               border: '1px solid var(--border)', borderRadius: 6, padding: '4px 10px',
               cursor: 'pointer', fontWeight: 500,
             }}><Icon name="book" size={13} /> {lang === 'it' ? 'Guida' : 'Guide'}</a>
+            <BottoneTema lang={lang} />
             <BottoneSchermoIntero lang={lang} />
             <button onClick={toggleLang} className="hide-mobile" style={{
               fontSize: 13, background: 'transparent', border: '1px solid var(--border)',
@@ -553,7 +572,7 @@ export default function App() {
                     style={{
                       width: '100%', display: 'flex', justifyContent: 'space-between',
                       alignItems: 'center', padding: '10px 14px',
-                      background: 'rgba(255,255,255,0.02)', border: '1px solid var(--border)',
+                      background: 'rgba(var(--rgb-contrasto), 0.02)', border: '1px solid var(--border)',
                       borderRadius: 8, cursor: 'pointer', fontSize: 12,
                       color: 'var(--muted)', marginBottom: showStats ? 12 : 0,
                     }}
@@ -611,7 +630,11 @@ export default function App() {
                         governa, non la colonna laterale. 6M e 1A restano Pro. */}
                     <div style={{ marginLeft: 'auto', display: 'flex', alignItems: 'center', gap: 10 }}>
                       <div style={{ display: 'flex', gap: 3 }}>
-                        {[['1mo','1M'], ['3mo','3M'], ['6mo','6M'], ['1y','1A']].map(([v, etichetta]) => {
+                        {/* "Oggi" è la vista al minuto: resta gratuita perché è
+                            l'unica cosa che si muove sotto gli occhi, e
+                            nasconderla dietro il Pro vorrebbe dire nascondere
+                            proprio il motivo per cui uno torna. */}
+                        {[['1d','OGGI'], ['1mo','1M'], ['3mo','3M'], ['6mo','6M'], ['1y','1A']].map(([v, etichetta]) => {
                           const bloccato = !isPro && (v === '6mo' || v === '1y')
                           const attivo = period === v
                           return (
@@ -624,7 +647,7 @@ export default function App() {
                                 padding: '2px 7px', borderRadius: 4,
                                 border: '1px solid ' + (attivo ? 'rgba(30,92,255,0.5)' : 'var(--border)'),
                                 background: attivo ? 'rgba(30,92,255,0.14)' : 'transparent',
-                                color: attivo ? 'var(--azure)' : bloccato ? 'rgba(255,255,255,0.22)' : 'var(--muted)',
+                                color: attivo ? 'var(--azure)' : bloccato ? 'rgba(var(--rgb-contrasto), 0.22)' : 'var(--muted)',
                                 cursor: 'pointer',
                               }}
                             >{etichetta}</button>
@@ -639,7 +662,8 @@ export default function App() {
                     </div>
                   </div>
                   <div id="chart-area" style={{ padding: '12px 14px 6px' }}>
-                    <Chart prices={prices} sentiment={sentiment} ticker={ticker} stats={stats} />
+                    <Chart prices={prices} sentiment={sentiment} ticker={ticker} stats={stats}
+                      intraday={period === '1d'} statoBorsa={statoBorsa} />
                   </div>
                 </div>
               )}
@@ -786,7 +810,7 @@ function HeaderSearch({ placeholder, days, period, onLoad, onTickerChange }) {
           position: 'absolute', top: 'calc(100% + 6px)', left: 0, right: 0,
           background: 'var(--dark)', border: '1px solid var(--border)',
           borderRadius: 8, zIndex: 100, overflow: 'hidden',
-          boxShadow: '0 8px 24px rgba(0,0,0,0.4)',
+          boxShadow: 'var(--ombra)',
         }}>
           {sugg.map(tk => (
             <div
@@ -804,6 +828,65 @@ function HeaderSearch({ placeholder, days, period, onLoad, onTickerChange }) {
         </div>
       )}
     </div>
+  )
+}
+
+// ── Tema chiaro / scuro ───────────────────────────────────────────────────
+// La scelta viene scritta su <html data-tema="...">, e da lì tutto il resto
+// segue le variabili CSS. Al primo accesso non decidiamo noi: seguiamo
+// l'impostazione del sistema operativo, perché chi tiene il computer in
+// chiaro non si aspetta di trovarsi una schermata nera in faccia.
+export function applicaTemaSalvato() {
+  try {
+    const salvato = localStorage.getItem('cheruvo_tema')
+    const preferenza = window.matchMedia?.('(prefers-color-scheme: light)').matches
+      ? 'chiaro' : 'scuro'
+    document.documentElement.setAttribute('data-tema', salvato || preferenza)
+  } catch (_) {
+    document.documentElement.setAttribute('data-tema', 'scuro')
+  }
+}
+
+function BottoneTema({ lang }) {
+  const [tema, setTema] = useState(
+    () => (typeof document !== 'undefined'
+      && document.documentElement.getAttribute('data-tema')) || 'scuro'
+  )
+
+  const commuta = () => {
+    const nuovo = tema === 'scuro' ? 'chiaro' : 'scuro'
+    setTema(nuovo)
+    document.documentElement.setAttribute('data-tema', nuovo)
+    try { localStorage.setItem('cheruvo_tema', nuovo) } catch (_) {}
+    track('tema_cambiato', { tema: nuovo })
+  }
+
+  const etichetta = tema === 'scuro'
+    ? (lang === 'it' ? 'Passa al tema chiaro' : 'Switch to light theme')
+    : (lang === 'it' ? 'Passa al tema scuro' : 'Switch to dark theme')
+
+  return (
+    <button onClick={commuta} title={etichetta} aria-label={etichetta}
+      className="hide-mobile" style={{
+        display: 'inline-flex', alignItems: 'center', justifyContent: 'center',
+        background: 'transparent', border: '1px solid var(--border)',
+        borderRadius: 6, padding: '4px 8px', cursor: 'pointer',
+        color: 'var(--white)', lineHeight: 1,
+      }}>
+      <svg width="13" height="13" viewBox="0 0 16 16" fill="none"
+        stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
+        {tema === 'scuro' ? (
+          /* luna: sei nel tema scuro */
+          <path d="M13.5 9.5A5.6 5.6 0 0 1 6.5 2.5a5.8 5.8 0 1 0 7 7Z" />
+        ) : (
+          /* sole: sei nel tema chiaro */
+          <>
+            <circle cx="8" cy="8" r="3" />
+            <path d="M8 1v1.5M8 13.5V15M1 8h1.5M13.5 8H15M3 3l1 1M12 12l1 1M13 3l-1 1M4 12l-1 1" />
+          </>
+        )}
+      </svg>
+    </button>
   )
 }
 
@@ -936,12 +1019,12 @@ function Pannello({ titolo, extra, children }) {
   return (
     <div style={{
       border: '1px solid var(--border-br)', borderRadius: 10,
-      background: 'rgba(255,255,255,0.015)', overflow: 'hidden',
+      background: 'rgba(var(--rgb-contrasto), 0.015)', overflow: 'hidden',
     }}>
       <div style={{
         display: 'flex', alignItems: 'center', justifyContent: 'space-between',
         padding: '8px 12px', borderBottom: '1px solid var(--border-br)',
-        background: 'rgba(255,255,255,0.02)',
+        background: 'rgba(var(--rgb-contrasto), 0.02)',
       }}>
         <span style={{ fontSize: 10.5, letterSpacing: '0.12em', textTransform: 'uppercase', color: 'var(--muted)', fontWeight: 700 }}>
           {titolo}
@@ -977,7 +1060,7 @@ function EmptyState({ t, onLoad, days, period, mercato, mktStats, risveglio }) {
         border: 'none', borderRadius: 0, cursor: 'pointer', textAlign: 'left',
         color: 'var(--white)', fontSize: 13,
       }}
-      onMouseEnter={(e) => { e.currentTarget.style.background = 'rgba(255,255,255,0.04)' }}
+      onMouseEnter={(e) => { e.currentTarget.style.background = 'rgba(var(--rgb-contrasto), 0.04)' }}
       onMouseLeave={(e) => { e.currentTarget.style.background = 'transparent' }}
     >
       <span style={{ ...numStyle, fontWeight: 500, fontSize: 10.5, color: 'var(--muted)' }}>{i + 1}</span>
@@ -1015,7 +1098,7 @@ function EmptyState({ t, onLoad, days, period, mercato, mktStats, risveglio }) {
       <div style={{
         display: 'flex', flexWrap: 'wrap', border: '1px solid var(--border-br)',
         borderRadius: 10, overflow: 'hidden', marginBottom: 16,
-        background: 'rgba(255,255,255,0.015)',
+        background: 'rgba(var(--rgb-contrasto), 0.015)',
       }}>
         <Metrica etichetta={t.empty.kTickers} valore={stats?.tickers} />
         <Metrica etichetta={t.empty.kNews} valore={stats?.news_total?.toLocaleString(lang === 'it' ? 'it-IT' : 'en-US')} />
@@ -1071,7 +1154,7 @@ function EmptyState({ t, onLoad, days, period, mercato, mktStats, risveglio }) {
               style={{
                 padding: '6px 11px', borderRadius: 7, fontSize: 12.5,
                 border: '1px solid var(--border-br)',
-                background: 'rgba(255,255,255,0.03)',
+                background: 'rgba(var(--rgb-contrasto), 0.03)',
                 color: 'var(--white)', cursor: 'pointer',
                 display: 'flex', alignItems: 'center', gap: 6,
                 transition: 'border-color 0.15s, background 0.15s',
@@ -1082,7 +1165,7 @@ function EmptyState({ t, onLoad, days, period, mercato, mktStats, risveglio }) {
               }}
               onMouseLeave={e => {
                 e.currentTarget.style.borderColor = 'var(--border-br)'
-                e.currentTarget.style.background = 'rgba(255,255,255,0.03)'
+                e.currentTarget.style.background = 'rgba(var(--rgb-contrasto), 0.03)'
               }}
             >
               <span>{tk.flag}</span>

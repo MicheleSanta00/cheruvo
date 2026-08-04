@@ -159,7 +159,7 @@ export default function SummaryCard({ ticker, isPro, onUpgrade }) {
 
 function card() {
   return {
-    background: 'rgba(255,255,255,0.03)',
+    background: 'rgba(var(--rgb-contrasto), 0.03)',
     border: '1px solid var(--border)',
     borderRadius: 10, padding: '14px 16px',
   }
@@ -168,7 +168,7 @@ function card() {
 function sk(w, h, mt = 0) {
   return {
     width: w, height: h, borderRadius: 4, display: 'block', marginTop: mt,
-    background: 'linear-gradient(90deg,rgba(255,255,255,0.05) 25%,rgba(255,255,255,0.1) 50%,rgba(255,255,255,0.05) 75%)',
+    background: 'linear-gradient(90deg,rgba(var(--rgb-contrasto), 0.05) 25%,rgba(var(--rgb-contrasto), 0.1) 50%,rgba(var(--rgb-contrasto), 0.05) 75%)',
     backgroundSize: '200% 100%', animation: 'shimmer 1.5s infinite',
   }
 }

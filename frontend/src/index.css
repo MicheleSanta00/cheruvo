@@ -1,19 +1,34 @@
+/* ─────────────────────────────────────────────────────────────────────────
+   TEMI
+   I nomi delle variabili sono nati sul tema scuro e descrivono un COLORE
+   (--black, --white) invece di un RUOLO. Sul tema chiaro quei nomi diventano
+   quindi bugiardi: --black vale quasi bianco e --white quasi nero.
+   È voluto: rinominarle tutte avrebbe voluto dire toccare centinaia di righe
+   in venti file, con il rischio di dimenticarne una e scoprirlo in
+   produzione. Leggile come "sfondo" e "testo" e tutto torna.
+
+   --rgb-contrasto è la chiave di volta: tutte le velature del progetto erano
+   scritte come rgba(255,255,255,X), cioè "bianco trasparente", che sul chiaro
+   sparisce. Ora sono rgba(var(--rgb-contrasto), X) e si ribaltano da sole.
+   ───────────────────────────────────────────────────────────────────────── */
 :root {
-  --black:       #06070a;
-  --near-black:  #0d0f14;
-  --dark:        #12151c;
+  --rgb-contrasto: 255,255,255;   /* velature chiare su fondo scuro */
+  --black:       #06070a;         /* sfondo principale */
+  --near-black:  #0d0f14;         /* pannelli */
+  --dark:        #12151c;         /* campi e righe alternate */
   --dark2:       #181c26;
   --blue:        #1e5cff;
   --blue-mid:    #3b7bff;
   --azure:       #60a5fa;
   --azure-light: #bfdbfe;
-  --white:       #ffffff;
-  --off-white:   #f4f6fb;
-  --muted:       #8a94a6;
-  --border:      rgba(255,255,255,0.07);
-  --border-br:   rgba(255,255,255,0.12);
+  --white:       #ffffff;         /* testo principale */
+  --off-white:   #f4f6fb;         /* testo secondario */
+  --muted:       #8a94a6;         /* etichette */
+  --border:      rgba(var(--rgb-contrasto), 0.07);
+  --border-br:   rgba(var(--rgb-contrasto), 0.12);
   --green:       #34d399;
   --red:         #f87171;
+  --ombra:       0 8px 24px rgba(0,0,0,0.4);
   --serif:       'DM Serif Display', Georgia, serif;
   --sans:        'DM Sans', system-ui, sans-serif;
   /* Monospaziato per TUTTI i valori numerici: prezzi, score, contatori.
@@ -22,6 +37,30 @@
   --mono: ui-monospace, 'SF Mono', 'JetBrains Mono', 'Cascadia Mono',
           'Roboto Mono', Menlo, Consolas, monospace;
 }
+
+/* Tema chiaro. Non è il tema scuro invertito: il verde e il rosso sono stati
+   scuriti, perché le tinte che risaltano su fondo nero su fondo bianco
+   diventano illeggibili. Il blu resta lo stesso, funziona su entrambi. */
+[data-tema="chiaro"] {
+  --rgb-contrasto: 15,23,42;      /* velature scure su fondo chiaro */
+  --black:       #f7f8fa;         /* sfondo principale */
+  --near-black:  #ffffff;         /* pannelli */
+  --dark:        #eef1f6;         /* campi e righe alternate */
+  --dark2:       #e4e8ef;
+  --azure:       #1e5cff;         /* l'azzurro chiaro sparirebbe sul bianco */
+  --azure-light: #1d4ed8;
+  --white:       #0f172a;         /* testo principale */
+  --off-white:   #1e293b;         /* testo secondario */
+  --muted:       #64748b;         /* etichette */
+  --border:      rgba(15,23,42,0.10);
+  --border-br:   rgba(15,23,42,0.16);
+  --green:       #059669;
+  --red:         #dc2626;
+  --ombra:       0 8px 24px rgba(15,23,42,0.10);
+}
+
+/* Il cambio non deve essere uno sbattere di luci in faccia */
+html, body { transition: background-color .18s ease, color .18s ease; }
 
 *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
 
@@ -54,10 +93,10 @@ button:active { transform: scale(0.95); }
 /* Bottone primario con gradiente e bagliore (stesso effetto del CTA in landing) */
 .btn-glow {
   background: linear-gradient(180deg, #3b7bff, var(--blue)) !important;
-  box-shadow: inset 0 1px 0 rgba(255,255,255,.22), 0 5px 14px rgba(30,92,255,.32);
+  box-shadow: inset 0 1px 0 rgba(var(--rgb-contrasto), .22), 0 5px 14px rgba(30,92,255,.32);
   transition: box-shadow .2s ease, transform .15s ease;
 }
-.btn-glow:hover { transform: translateY(-1px); box-shadow: inset 0 1px 0 rgba(255,255,255,.28), 0 8px 20px rgba(30,92,255,.45); }
+.btn-glow:hover { transform: translateY(-1px); box-shadow: inset 0 1px 0 rgba(var(--rgb-contrasto), .28), 0 8px 20px rgba(30,92,255,.45); }
 .btn-glow:active { transform: scale(0.96); }
 .btn-glow:disabled { box-shadow: none; transform: none; }
 a      { color: inherit; text-decoration: none; }
@@ -208,9 +247,9 @@ input  { font-family: var(--sans); }
 .orb { position: relative; width: 84px; height: 84px; margin: 0 auto; }
 .orb .core { position: absolute; inset: 0; border-radius: 50%;
   background: radial-gradient(circle at 34% 30%, #9df5d8, #34d399 42%, #1e5cff 100%);
-  box-shadow: 0 0 50px 6px rgba(52,211,153,.4), inset 0 -8px 20px rgba(30,92,255,.4), inset 0 6px 16px rgba(255,255,255,.35);
+  box-shadow: 0 0 50px 6px rgba(52,211,153,.4), inset 0 -8px 20px rgba(30,92,255,.4), inset 0 6px 16px rgba(var(--rgb-contrasto), .35);
   animation: orbShift 10s ease-in-out infinite; }
-.orb .ring { position: absolute; inset: -12px; border-radius: 50%; border: 1px solid rgba(255,255,255,.14); animation: orbPulse 3.2s ease-out infinite; }
+.orb .ring { position: absolute; inset: -12px; border-radius: 50%; border: 1px solid rgba(var(--rgb-contrasto), .14); animation: orbPulse 3.2s ease-out infinite; }
 .orb .ring.r2 { animation-delay: 1.6s; }
 @keyframes orbShift {
   0%,100% { filter: hue-rotate(0deg); }
@@ -261,6 +300,6 @@ input  { font-family: var(--sans); }
 
 /* Watchlist: la X di rimozione compare solo al passaggio del mouse, così le
    righe restano pulite come in un terminale */
-.wl-row:hover { background: rgba(255,255,255,0.04) !important; }
+.wl-row:hover { background: rgba(var(--rgb-contrasto), 0.04) !important; }
 .wl-row:hover .wl-del { opacity: .55 !important; }
 .wl-del:hover { opacity: 1 !important; }

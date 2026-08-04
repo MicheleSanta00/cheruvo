@@ -95,7 +95,7 @@ export default function TopNews({ news, isPro, onUpgrade }) {
               const s = Number(n.sentiment)
               return (
                 <tr key={i}
-                  onMouseEnter={(e) => { e.currentTarget.style.background = 'rgba(255,255,255,0.03)' }}
+                  onMouseEnter={(e) => { e.currentTarget.style.background = 'rgba(var(--rgb-contrasto), 0.03)' }}
                   onMouseLeave={(e) => { e.currentTarget.style.background = 'transparent' }}
                 >
                   <td style={{ ...td, ...numStyle, fontWeight: 500, color: 'var(--muted)', whiteSpace: 'nowrap' }}>
@@ -107,7 +107,7 @@ export default function TopNews({ news, isPro, onUpgrade }) {
                       {n.title}
                     </a>
                     {/* intensità del giudizio, senza aggiungere un altro numero */}
-                    <div style={{ height: 3, borderRadius: 2, background: 'rgba(255,255,255,0.06)', marginTop: 4, overflow: 'hidden' }}>
+                    <div style={{ height: 3, borderRadius: 2, background: 'rgba(var(--rgb-contrasto), 0.06)', marginTop: 4, overflow: 'hidden' }}>
                       <div style={{
                         height: '100%', width: `${Math.min(100, Math.abs(s) * 100)}%`,
                         background: colore(s),

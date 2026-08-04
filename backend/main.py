@@ -31,7 +31,7 @@ import pandas as pd
 import logging
 
 from database import SuperNewsAnalyzer, init_database, get_pool
-from prices import get_prices, validate_ticker
+from prices import get_prices, validate_ticker, e_intraday, stato_mercato
 from stripe_routes import router as stripe_router, init_subscriptions_table
 from quick_fetch import quick_fetch
 from summary import genera_summary, _fallback
@@ -201,25 +201,47 @@ def get_news(ticker: str, request: Request, days: int = 30,
 @limiter.limit("20/minute")
 def prices_endpoint(ticker: str, request: Request, period: str = "3mo",
                     user: dict = Depends(get_current_user)):
-    # Enforce periodi disponibili in base al tier
+    # Enforce periodi disponibili in base al tier.
+    # "1d" (la vista Oggi) resta gratuita di proposito: è quello che fa
+    # sembrare il prodotto vivo appena lo apri, e metterlo dietro il paywall
+    # significherebbe nascondere l'unica cosa che si muove.
     tier = get_user_tier(user["sub"])
-    FREE_PERIODS = {"1mo", "3mo"}
+    FREE_PERIODS = {"1d", "1mo", "3mo"}
     if tier != "pro" and period not in FREE_PERIODS:
         raise HTTPException(
             status_code=403,
             detail=f"Il periodo '{period}' richiede un abbonamento PRO"
         )
+
+    intraday = e_intraday(period)
+    # La cache normale dura 5 minuti: troppo per un grafico che deve muoversi
+    # sotto gli occhi. Sull'intraday scende a 45 secondi, che è comunque
+    # abbastanza da non tempestare Yahoo se più utenti guardano lo stesso titolo.
+    ttl = 45 if intraday else CACHE_TTL
+
     cache_key = f"prices:{ticker}:{period}"
-    cached = cache_get(cache_key)
+    cached = cache_get(cache_key, ttl=ttl)
     if cached:
         return cached
+
     df = get_prices(ticker.upper(), period)
     if df.empty:
         raise HTTPException(status_code=404, detail="Dati prezzi non disponibili")
-    df.index = df.index.strftime("%Y-%m-%d")
+
+    # Sull'intraday serve anche l'ora, non solo la data: è tutta la differenza
+    # fra un punto al giorno e un punto al minuto.
+    df.index = df.index.strftime("%Y-%m-%d %H:%M" if intraday else "%Y-%m-%d")
     records = df.reset_index().rename(columns={"index": "date"}).to_dict(orient="records")
+
     result = {"prices": records}
-    cache_set(cache_key, result)
+    if intraday:
+        # Lo stato del mercato viaggia insieme ai prezzi: il frontend deve
+        # sapere se la borsa è aperta (per decidere se continuare a
+        # ricaricare) e quando è avvenuto l'ultimo scambio (per scriverlo
+        # accanto al prezzo invece di far credere che sia adesso).
+        result["mercato"] = stato_mercato(ticker.upper())
+
+    cache_set(cache_key, result, ttl=ttl)
     return result
 
 

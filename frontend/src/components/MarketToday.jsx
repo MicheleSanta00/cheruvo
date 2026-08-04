@@ -66,7 +66,7 @@ export default function MarketToday({ onExit, onPick, onUpgrade }) {
       )}
       <span style={{
         fontSize: 12.5, fontWeight: 700, color: scoreColor(r.sentiment),
-        background: 'rgba(255,255,255,0.04)', border: `1px solid ${scoreColor(r.sentiment)}33`,
+        background: 'rgba(var(--rgb-contrasto), 0.04)', border: `1px solid ${scoreColor(r.sentiment)}33`,
         borderRadius: 99, padding: '3px 10px', width: 64, textAlign: 'center',
       }}>{fmtScore(r.sentiment)}</span>
     </button>
@@ -141,7 +141,7 @@ export default function MarketToday({ onExit, onPick, onUpgrade }) {
                           )}
                           <span style={{
                             fontSize: 12.5, fontWeight: 700, color: scoreColor(r.sentiment),
-                            background: 'rgba(255,255,255,0.04)', border: `1px solid ${scoreColor(r.sentiment)}33`,
+                            background: 'rgba(var(--rgb-contrasto), 0.04)', border: `1px solid ${scoreColor(r.sentiment)}33`,
                             borderRadius: 99, padding: '3px 10px', width: 64, textAlign: 'center',
                           }}>{fmtScore(r.sentiment)}</span>
                         </>
@@ -149,7 +149,7 @@ export default function MarketToday({ onExit, onPick, onUpgrade }) {
                     ) : (
                       <span style={{
                         fontSize: 12.5, fontWeight: 700, color: 'var(--muted)', filter: 'blur(4px)',
-                        background: 'rgba(255,255,255,0.04)', border: '1px solid var(--border)',
+                        background: 'rgba(var(--rgb-contrasto), 0.04)', border: '1px solid var(--border)',
                         borderRadius: 99, padding: '3px 10px', width: 64, textAlign: 'center', userSelect: 'none',
                       }}>+0.00</span>
                     )}

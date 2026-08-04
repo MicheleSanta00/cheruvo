@@ -36,7 +36,7 @@ function ScatterTooltip({ active, payload }) {
   if (!d) return null
   return (
     <div style={{
-      background: '#0f1117', border: '1px solid rgba(255,255,255,0.1)',
+      background: 'var(--near-black)', border: '1px solid rgba(var(--rgb-contrasto), 0.1)',
       borderRadius: 8, padding: '10px 14px', fontSize: 12,
     }}>
       <div style={{ color: '#94a3b8', marginBottom: 6 }}>{d.date}</div>
@@ -151,7 +151,7 @@ export default function CorrelationPanel({ prices, sentiment, isPro, onUpgrade }
       {/* Correlazione in evidenza */}
       <div style={{ display: 'flex', alignItems: 'center', gap: 14, marginBottom: 20, flexWrap: 'wrap' }}>
         <div style={{
-          background: 'rgba(255,255,255,0.03)', border: `1px solid ${corrColor(corr)}40`,
+          background: 'rgba(var(--rgb-contrasto), 0.03)', border: `1px solid ${corrColor(corr)}40`,
           borderRadius: 12, padding: '12px 18px', minWidth: 140,
         }}>
           <div style={{ fontSize: 10, color: '#64748b', letterSpacing: '0.06em', textTransform: 'uppercase', marginBottom: 4 }}>
@@ -179,7 +179,7 @@ export default function CorrelationPanel({ prices, sentiment, isPro, onUpgrade }
         <div style={{ filter: isPro ? 'none' : 'blur(5px)', pointerEvents: isPro ? 'auto' : 'none' }}>
           <ResponsiveContainer width="100%" height={260}>
             <ComposedChart margin={{ top: 10, right: 20, left: 0, bottom: 10 }}>
-              <CartesianGrid strokeDasharray="3 3" stroke="rgba(255,255,255,0.05)" />
+              <CartesianGrid strokeDasharray="3 3" stroke="rgba(var(--rgb-contrasto), 0.05)" />
               <XAxis
                 dataKey="x"
                 type="number"
@@ -199,8 +199,8 @@ export default function CorrelationPanel({ prices, sentiment, isPro, onUpgrade }
               <Tooltip content={<ScatterTooltip />} />
 
               {/* Linee di riferimento */}
-              <ReferenceLine x={0}    stroke="rgba(255,255,255,0.12)" strokeWidth={1} />
-              <ReferenceLine y={0}    stroke="rgba(255,255,255,0.12)" strokeWidth={1} />
+              <ReferenceLine x={0}    stroke="rgba(var(--rgb-contrasto), 0.12)" strokeWidth={1} />
+              <ReferenceLine y={0}    stroke="rgba(var(--rgb-contrasto), 0.12)" strokeWidth={1} />
               <ReferenceLine x={0.1}  stroke="rgba(74,222,128,0.15)"  strokeDasharray="4 3" />
               <ReferenceLine x={-0.1} stroke="rgba(248,113,113,0.15)" strokeDasharray="4 3" />
 
@@ -308,15 +308,15 @@ function Header() {
 function StatBlock({ label, value, valueColor = '#f1f5f9', sub, locked }) {
   return (
     <div style={{
-      background: 'rgba(255,255,255,0.02)',
-      border: '1px solid rgba(255,255,255,0.07)',
+      background: 'rgba(var(--rgb-contrasto), 0.02)',
+      border: '1px solid rgba(var(--rgb-contrasto), 0.07)',
       borderRadius: 10, padding: '10px 12px',
     }}>
       <div style={{ fontSize: 10, color: '#64748b', letterSpacing: '0.06em', textTransform: 'uppercase', marginBottom: 4 }}>
         {label}
       </div>
       <div style={{ fontSize: 15, fontWeight: 600, color: locked ? 'transparent' : valueColor,
-        textShadow: locked ? '0 0 8px rgba(255,255,255,0.3)' : 'none',
+        textShadow: locked ? '0 0 8px rgba(var(--rgb-contrasto), 0.3)' : 'none',
         filter: locked ? 'blur(4px)' : 'none',
       }}>
         {value}
@@ -327,7 +327,7 @@ function StatBlock({ label, value, valueColor = '#f1f5f9', sub, locked }) {
 }
 
 const panelStyle = {
-  background: 'rgba(255,255,255,0.02)',
+  background: 'rgba(var(--rgb-contrasto), 0.02)',
   border: '1px solid var(--border)',
   borderRadius: 12, padding: '16px 20px',
 }
