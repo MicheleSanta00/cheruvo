@@ -122,7 +122,19 @@ TERMINE_QUERY = {
     "ENI.MI": "Eni", "ENEL.MI": "Enel", "ISP.MI": "Intesa",
     "UCG.MI": "UniCredit", "STM.MI": "STMicroelectronics", "RACE.MI": "Ferrari",
     "LVMH.PA": "LVMH", "SAP.DE": "SAP", "ASML.AS": "ASML", "SHEL.L": "Shell",
+    # Criptovalute. Misurato il 4 agosto 2026: la query "Bitcoin" su un solo
+    # giorno rende 8 articoli di mercato veri su 15, contro 1 su 20 di "Eni".
+    # È la stessa GDELT con la stessa licenza: cambia solo che la stampa
+    # specializzata (CoinDesk e simili) è indicizzata bene, quella finanziaria
+    # italiana no.
+    "BTC-USD": "Bitcoin", "ETH-USD": "Ethereum", "SOL-USD": "Solana",
+    "XRP-USD": "XRP", "ADA-USD": "Cardano", "DOGE-USD": "Dogecoin",
 }
+
+
+def e_crypto(ticker: str) -> bool:
+    """Le crypto su Yahoo hanno il suffisso -USD (BTC-USD, ETH-USD)."""
+    return (ticker or "").upper().endswith("-USD")
 
 # Suffissi societari: inutili come parole chiave e fonte di falsi positivi
 _SUFFISSI = {"inc", "corp", "corporation", "spa", "plc", "nv", "sa", "ag",

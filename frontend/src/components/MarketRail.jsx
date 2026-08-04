@@ -1,4 +1,5 @@
 import { useLang } from '../LangContext.jsx'
+import LogoCrypto, { eCrypto } from './LogoCrypto.jsx'
 
 /**
  * Colonna destra con le classifiche di mercato, sempre visibile.
@@ -56,7 +57,10 @@ export default function MarketRail({ rows, stats, attivo, onPick }) {
       onMouseLeave={(e) => { e.currentTarget.style.background = attivo === r.ticker ? 'rgba(30,92,255,0.10)' : 'transparent' }}
     >
       <span style={{ ...numStyle, fontWeight: 500, fontSize: 10, color: 'var(--muted)' }}>{i + 1}</span>
-      <span style={{ fontWeight: 700 }}>{r.ticker}</span>
+      <span style={{ fontWeight: 700, display: 'inline-flex', alignItems: 'center', gap: 5 }}>
+        {eCrypto(r.ticker) && <LogoCrypto ticker={r.ticker} size={14} />}
+        {eCrypto(r.ticker) ? r.ticker.replace('-USD', '') : r.ticker}
+      </span>
       <span style={{ fontSize: 10, color: 'var(--muted)' }}>{r.news}n</span>
       <span style={{ ...numStyle, fontSize: 12, color: colore(r.sentiment) }}>{fmt(r.sentiment)}</span>
     </button>

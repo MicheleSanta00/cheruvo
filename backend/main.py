@@ -311,6 +311,19 @@ def list_tickers(request: Request, user: dict = Depends(get_current_user)):
 def health():
     return {"status": "ok", **cache_stats()}
 
+
+@app.get("/ping")
+def ping():
+    """
+    Endpoint per il servizio che tiene sveglio Render, e nient'altro.
+
+    Esiste separato da /health perché /health interroga Redis due volte per
+    riportare le statistiche della cache. Su un controllo ogni cinque minuti
+    fanno quasi seicento chiamate al giorno spese per rispondere a un robot
+    che vuole solo sapere se il server è acceso. Questo non tocca niente.
+    """
+    return {"ok": True}
+
 # ── AI Summary ─────────────────────────────────────────────────────────────
 
 

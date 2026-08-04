@@ -36,6 +36,11 @@ DEFAULT_TICKERS = [
     'ENI.MI', 'ENEL.MI', 'ISP.MI', 'UCG.MI', 'STM.MI', 'RACE.MI',
     # Europa
     'LVMH.PA', 'SAP.DE', 'ASML.AS', 'SHEL.L',
+    # Criptovalute. Aggiunte il 4 agosto 2026 dopo aver misurato che su GDELT
+    # rendono circa otto volte più dei titoli italiani, sulla stessa licenza.
+    # Vantaggio in più: scambiano 24 ore su 24, quindi il grafico della seduta
+    # non resta immobile la sera e nel fine settimana come per le borse.
+    'BTC-USD', 'ETH-USD', 'SOL-USD', 'XRP-USD',
 ]
 
 # Quanti ticker processare per run.

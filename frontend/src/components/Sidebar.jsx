@@ -4,6 +4,7 @@ import { TICKERS } from '../data/tickers.js'
 import { useLang } from '../LangContext.jsx'
 import apiFetch from '../apiFetch.js'
 import Icon from './Icon.jsx'
+import LogoCrypto, { eCrypto } from './LogoCrypto.jsx'
 
 const PERIODS_FREE = [{ v: '1mo', l: '1M' }, { v: '3mo', l: '3M' }]
 const PERIODS_PRO  = [{ v: '1mo', l: '1M' }, { v: '3mo', l: '3M' }, { v: '6mo', l: '6M' }, { v: '1y', l: '1A' }]
@@ -306,7 +307,16 @@ export default function Sidebar({ ticker, days, period, hasTicker, onLoad, onFet
                   color: attivo ? 'var(--azure)' : 'var(--white)',
                 }}
               >
-                <span style={{ fontSize: 13, fontWeight: 700, display: 'block', letterSpacing: '.01em' }}>{tk}</span>
+                {/* Il simbolo compare SOLO sulle crypto. Sui titoli azionari
+                    servirebbe un servizio esterno di loghi, con i suoi
+                    obblighi di attribuzione e il rischio che chiuda: qui il
+                    disco è disegnato in casa e non dipende da nessuno. */}
+                <span style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+                  {eCrypto(tk) && <LogoCrypto ticker={tk} size={16} />}
+                  <span style={{ fontSize: 13, fontWeight: 700, letterSpacing: '.01em' }}>
+                    {eCrypto(tk) ? tk.replace('-USD', '') : tk}
+                  </span>
+                </span>
                 <span style={{
                   fontSize: 10.5, color: 'var(--muted)', display: 'block', lineHeight: 1.35,
                   whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis',

@@ -314,4 +314,17 @@ export const TICKERS = [
   { symbol: 'NOKIA.HE',  name: 'Nokia Oyj',                  exchange: 'HEL'    },
   { symbol: 'DNB.OL',    name: 'DNB Bank ASA',               exchange: 'OSL'    },
   { symbol: 'EQNR.OL',   name: 'Equinor ASA',               exchange: 'OSL'    },
+
+  // ── Criptovalute ────────────────────────────────────────────────────────
+  // Stesso endpoint Yahoo dei titoli azionari, quindi nessuna fonte nuova e
+  // nessuna licenza nuova. Scambiano sempre: la vista "Oggi" su queste è viva
+  // anche di notte e nel fine settimana.
+  { symbol: 'BTC-USD',   name: 'Bitcoin',                   exchange: 'CRYPTO' },
+  { symbol: 'ETH-USD',   name: 'Ethereum',                  exchange: 'CRYPTO' },
+  { symbol: 'SOL-USD',   name: 'Solana',                    exchange: 'CRYPTO' },
+  { symbol: 'XRP-USD',   name: 'XRP',                       exchange: 'CRYPTO' },
+  { symbol: 'ADA-USD',   name: 'Cardano',                   exchange: 'CRYPTO' },
+  { symbol: 'DOGE-USD',  name: 'Dogecoin',                  exchange: 'CRYPTO' },
+  { symbol: 'AVAX-USD',  name: 'Avalanche',                 exchange: 'CRYPTO' },
+  { symbol: 'LINK-USD',  name: 'Chainlink',                 exchange: 'CRYPTO' },
 ]

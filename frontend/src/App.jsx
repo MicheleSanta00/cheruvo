@@ -24,6 +24,7 @@ import { useFinData } from './hooks/useFinData.js'
 import { generateReport } from './utils/generatePDF.js'
 import { identifyUser, resetUser, track } from './analytics.js'
 import { TICKERS } from './data/tickers.js'
+import LogoCrypto, { eCrypto } from './components/LogoCrypto.jsx'
 
 const DEFAULT_TICKER = 'NVDA'
 const DEFAULT_DAYS   = 30
@@ -827,7 +828,8 @@ function HeaderSearch({ placeholder, days, period, onLoad, onTickerChange }) {
                 display: 'flex', gap: 8, alignItems: 'baseline',
               }}
             >
-              <b>{tk.symbol}</b>
+              {eCrypto(tk.symbol) && <LogoCrypto ticker={tk.symbol} size={15} />}
+              <b>{eCrypto(tk.symbol) ? tk.symbol.replace('-USD', '') : tk.symbol}</b>
               <span style={{ color: 'var(--muted)', fontSize: 12, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{tk.name}</span>
             </div>
           ))}
@@ -1072,7 +1074,10 @@ function EmptyState({ t, onLoad, days, period, mercato, mktStats, risveglio }) {
       onMouseLeave={(e) => { e.currentTarget.style.background = 'transparent' }}
     >
       <span style={{ ...numStyle, fontWeight: 500, fontSize: 10.5, color: 'var(--muted)' }}>{i + 1}</span>
-      <span style={{ fontWeight: 700 }}>{r.ticker}</span>
+      <span style={{ fontWeight: 700, display: 'inline-flex', alignItems: 'center', gap: 5 }}>
+        {eCrypto(r.ticker) && <LogoCrypto ticker={r.ticker} size={14} />}
+        {eCrypto(r.ticker) ? r.ticker.replace('-USD', '') : r.ticker}
+      </span>
       <span style={{ fontSize: 10.5, color: 'var(--muted)' }}>{r.news} {t.empty.newsShort}</span>
       <span style={{ ...numStyle, color: segno(r.sentiment) }}>{fmt(r.sentiment)}</span>
     </button>

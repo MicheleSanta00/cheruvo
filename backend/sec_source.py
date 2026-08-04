@@ -90,8 +90,10 @@ def fetch_sec(ticker: str, giorni: int = 30, massimo: int = 10) -> list[dict]:
     per i ticker non USA o quando la SEC non risponde.
     """
     t = (ticker or "").upper().strip()
-    # I ticker con il punto sono borse europee (ENI.MI, SAP.DE): non c'entrano
-    if "." in t:
+    # I ticker con il punto sono borse europee (ENI.MI, SAP.DE): non c'entrano.
+    # Quelli con -USD sono criptovalute: non depositano nulla alla SEC, e senza
+    # questo controllo sprecheremmo una ricerca nell'elenco per ognuna.
+    if "." in t or t.endswith("-USD"):
         return []
 
     cik = _carica_elenco().get(t)
