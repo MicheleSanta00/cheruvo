@@ -24,7 +24,10 @@ import { useFinData } from './hooks/useFinData.js'
 import { generateReport } from './utils/generatePDF.js'
 import { identifyUser, resetUser, track } from './analytics.js'
 import { TICKERS } from './data/tickers.js'
-import LogoCrypto, { eCrypto } from './components/LogoCrypto.jsx'
+import LogoCrypto, { eCrypto, nelMercato, leggiMercato, salvaMercato, PREDEFINITO }
+  from './components/LogoCrypto.jsx'
+import PauraAvidita from './components/PauraAvidita.jsx'
+import SezioneAzioni from './components/SezioneAzioni.jsx'
 
 const DEFAULT_TICKER = 'NVDA'
 const DEFAULT_DAYS   = 30
@@ -35,7 +38,7 @@ export default function App() {
 
   const [user, setUser]               = useState(null)
   const [authLoading, setAuthLoading] = useState(true)
-  const [ticker, setTicker]           = useState(DEFAULT_TICKER)
+  const [ticker, setTicker]           = useState(() => PREDEFINITO[leggiMercato()] || DEFAULT_TICKER)
   const [days, setDays]               = useState(DEFAULT_DAYS)
   const [period, setPeriod]           = useState(DEFAULT_PERIOD)
   const [isPro, setIsPro]             = useState(false)
@@ -45,6 +48,17 @@ export default function App() {
   const [showStats, setShowStats]     = useState(false)
   const [showHeaderMenu, setShowHeaderMenu] = useState(false)
   const [showMarket, setShowMarket]   = useState(false)
+  // Mercato attivo: azioni o crypto. Filtra tutto quello che è un elenco.
+  const [mercatoAttivo, setMercatoAttivo] = useState(leggiMercato)
+  // Scappatoia per te: con ?azioni=1 nell'indirizzo la sezione titoli si
+  // apre lo stesso, così puoi continuare a provarla mentre è chiusa al
+  // pubblico. Nessuno ci arriva per caso.
+  const azioniSbloccate = typeof window !== 'undefined' &&
+    new URLSearchParams(window.location.search).get('azioni') !== null
+
+  // Le classifiche, il nastro e la colonna destra mostrano SOLO il mercato
+  // attivo: un elenco che mescola Bitcoin ed Eni non si legge.
+  const righeFiltrate = (righe) => (righe || []).filter(r => nelMercato(r.ticker, mercatoAttivo))
 
   const { tickerInfo, news, stats, prices, mercato: statoBorsa, sentiment, loading,
           fetching, error, load, triggerFetch, setFetching, refreshPrezzi } = useFinData()
@@ -190,6 +204,22 @@ export default function App() {
     return () => clearInterval(timer)
   }, [period, loadedTicker, statoBorsa?.aperto, refreshPrezzi])
 
+
+  // Cambio mercato: azioni <-> crypto.
+  //
+  // Apre subito il titolo predefinito dell'altro mercato invece di lasciare a
+  // schermo quello di prima, che non apparterrebbe più alla sezione scelta e
+  // sarebbe la cosa più confusa possibile: header su Bitcoin, elenco di azioni.
+  const cambiaMercato = (m) => {
+    if (m === mercatoAttivo) return
+    setMercatoAttivo(m)
+    salvaMercato(m)
+    track('mercato_cambiato', { mercato: m })
+    const tk = PREDEFINITO[m]
+    setTicker(tk)
+    handleLoad(tk, days, period)
+  }
+
   const handleUpgrade = async () => {
     track('upgrade_clicked', { ticker: loadedTicker, from: 'app' })
     const data = await apiFetch('/checkout', {
@@ -280,6 +310,7 @@ export default function App() {
             quella aperta, non quella che stai digitando nella ricerca */}
         <Sidebar
           ticker={loadedTicker || ticker} days={days} period={period}
+          mercatoAttivo={mercatoAttivo} onMercatoChange={cambiaMercato}
           hasTicker={!!loadedTicker}
           loading={loading} fetching={fetching} isPro={isPro}
           onTickerChange={setTicker} onDaysChange={setDays} onPeriodChange={setPeriod}
@@ -308,6 +339,7 @@ export default function App() {
               titolo, e per cercarne un altro dovevi tornare alla colonna. */}
           <HeaderSearch
             placeholder={t.header.enterTicker}
+            mercatoAttivo={mercatoAttivo}
             days={days} period={period}
             onLoad={handleLoad} onTickerChange={setTicker}
           />
@@ -522,20 +554,25 @@ export default function App() {
         </header>
 
         {/* Nastro ticker: il primo segno che l'applicazione è viva */}
-        <TickerStrip rows={mercato?.rows} onPick={(tk) => { setTicker(tk); handleLoad(tk, days, period) }} />
+        <TickerStrip rows={righeFiltrate(mercato?.rows)} onPick={(tk) => { setTicker(tk); handleLoad(tk, days, period) }} />
 
         {/* Corpo + colonna di mercato sempre visibile a destra */}
         <div style={{ flex: 1, display: 'flex', minHeight: 0, overflow: 'hidden' }}>
         <div style={{ flex: 1, display: 'flex', flexDirection: 'column', minWidth: 0, overflow: 'hidden' }}>
 
         {/* ── Content area ── */}
+        {mercatoAttivo === 'azioni' && !azioniSbloccate ? (
+          <SezioneAzioni lang={lang} onVaiACrypto={() => cambiaMercato('crypto')} />
+        ) : (
+        <>
         {!hasData && !error ? (
           /* Empty / loading state — full width */
           <div style={{ flex: 1, overflowY: 'auto', padding: '20px 20px' }}>
             {error && <ErrorBanner msg={error} />}
             {!loading && !error && (
               <EmptyState t={t} onLoad={handleLoad} days={days} period={period}
-                mercato={mercato} mktStats={mktStats} risveglio={risveglio} />
+                mercato={mercato && { ...mercato, rows: righeFiltrate(mercato.rows) }}
+                mktStats={mktStats} risveglio={risveglio} mercatoAttivo={mercatoAttivo} />
             )}
             {loading && <LoadingState />}
           </div>
@@ -548,6 +585,15 @@ export default function App() {
               stava dentro la colonna da 380px, dove sembrava un widget fra i
               tanti invece che l'identità numerica del titolo. */}
           {stats && <div id="kpi-avg"><KPIGrid stats={stats} /></div>}
+
+          {/* Solo sulle crypto: l'indice riguarda quel mercato, su un
+              titolo azionario sarebbe un numero fuori posto. Riceve anche il
+              NOSTRO sentiment, così può mostrare la distanza fra i due. */}
+          {eCrypto(loadedTicker) && (
+            <div style={{ padding: "12px 20px 0" }}>
+              <PauraAvidita sentimentNostro={stats?.avg ?? null} lang={lang} />
+            </div>
+          )}
 
           {/* Una colonna sola, come in un terminale: prima il grafico, poi il
               flusso notizie, e sotto il commento AI e gli approfondimenti.
@@ -721,6 +767,8 @@ export default function App() {
           </div>
           </div>
         )}
+        </>
+        )}
 
         </div>
         {/* La colonna destra compare solo quando sei dentro un titolo. Nella
@@ -729,7 +777,7 @@ export default function App() {
             classifica due volte, affiancata a sé stessa. */}
         {hasData && (
           <MarketRail
-            rows={mercato?.rows} stats={mktStats} attivo={loadedTicker}
+            rows={righeFiltrate(mercato?.rows)} stats={mktStats} attivo={loadedTicker}
             onPick={(tk) => { setTicker(tk); handleLoad(tk, days, period) }}
           />
         )}
@@ -744,7 +792,7 @@ export default function App() {
 // ── Sub-components ────────────────────────────────────────────────────────────
 
 // ── Ricerca ticker nell'header (con suggerimenti, come la sidebar) ─────────
-function HeaderSearch({ placeholder, days, period, onLoad, onTickerChange }) {
+function HeaderSearch({ placeholder, days, period, onLoad, onTickerChange, mercatoAttivo }) {
   const [q, setQ] = useState('')
   const [sugg, setSugg] = useState([])
   const [open, setOpen] = useState(false)
@@ -769,7 +817,8 @@ function HeaderSearch({ placeholder, days, period, onLoad, onTickerChange }) {
     setQ(v)
     if (v.length >= 1) {
       const f = TICKERS.filter(tk =>
-        tk.symbol.startsWith(v) || tk.name.toUpperCase().includes(v)
+        (tk.symbol.startsWith(v) || tk.name.toUpperCase().includes(v)) &&
+        nelMercato(tk.symbol, mercatoAttivo)
       ).slice(0, 6)
       setSugg(f)
       setOpen(f.length > 0)

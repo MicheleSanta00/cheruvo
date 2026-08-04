@@ -33,6 +33,43 @@ export function eCrypto(ticker) {
 }
 
 /**
+ * Il mercato scelto: 'azioni' oppure 'crypto'.
+ *
+ * Non sono due prodotti separati con due codebase, sono la STESSA app con un
+ * filtro: watchlist, classifiche, nastro e suggerimenti mostrano solo quello
+ * che appartiene al mercato attivo. Costa una variabile invece di un secondo
+ * progetto da mantenere, e il giorno che uno dei due va davvero forte si
+ * separa sul serio senza aver buttato lavoro.
+ *
+ * Perché comunque separarli: mischiare Bitcoin e Eni nella stessa lista rende
+ * illeggibile entrambe le cose. E se un giorno si vende un abbonamento crypto,
+ * chi arriva deve trovare un prodotto crypto, non un elenco misto.
+ */
+export const MERCATI = ['azioni', 'crypto']
+
+export function leggiMercato() {
+  try {
+    const s = localStorage.getItem('cheruvo_mercato')
+    // Si parte da CRYPTO: è la sezione che funziona. Aprire di default su
+    // "azioni" vorrebbe dire accogliere ogni visitatore con la schermata di
+    // una sezione chiusa, che è il modo peggiore di presentarsi.
+    return MERCATI.includes(s) ? s : 'crypto'
+  } catch (_) { return 'crypto' }
+}
+
+export function salvaMercato(m) {
+  try { localStorage.setItem('cheruvo_mercato', m) } catch (_) {}
+}
+
+/** Un ticker appartiene al mercato attivo? */
+export function nelMercato(ticker, mercato) {
+  return mercato === 'crypto' ? eCrypto(ticker) : !eCrypto(ticker)
+}
+
+/** Il titolo da aprire quando si passa da un mercato all'altro. */
+export const PREDEFINITO = { azioni: 'NVDA', crypto: 'BTC-USD' }
+
+/**
  * Prezzo con la precisione giusta per il suo ordine di grandezza.
  *
  * Serviva perché il grafico usava toFixed(2) ovunque. Su Bitcoin a 64.366,85

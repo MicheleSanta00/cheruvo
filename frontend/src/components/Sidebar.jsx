@@ -4,7 +4,7 @@ import { TICKERS } from '../data/tickers.js'
 import { useLang } from '../LangContext.jsx'
 import apiFetch from '../apiFetch.js'
 import Icon from './Icon.jsx'
-import LogoCrypto, { eCrypto } from './LogoCrypto.jsx'
+import LogoCrypto, { eCrypto, nelMercato } from './LogoCrypto.jsx'
 
 const PERIODS_FREE = [{ v: '1mo', l: '1M' }, { v: '3mo', l: '3M' }]
 const PERIODS_PRO  = [{ v: '1mo', l: '1M' }, { v: '3mo', l: '3M' }, { v: '6mo', l: '6M' }, { v: '1y', l: '1A' }]
@@ -30,7 +30,7 @@ const MAX_WATCHLIST_FREE = 5
 const MAX_DAYS_FREE = 30
 const MAX_DAYS_PRO = 90
 
-export default function Sidebar({ ticker, days, period, hasTicker, onLoad, onFetch, loading, fetching, onTickerChange, onDaysChange, onPeriodChange, isPro, onUpgrade }) {
+export default function Sidebar({ ticker, days, period, hasTicker, onLoad, onFetch, loading, fetching, onTickerChange, onDaysChange, onPeriodChange, isPro, onUpgrade, mercatoAttivo = 'azioni', onMercatoChange }) {
   const { t } = useLang()
   // Campo "aggiungi": parte vuoto. Prima ereditava il ticker aperto e
   // compariva una riga fantasma con dentro NVDA.
@@ -95,6 +95,10 @@ export default function Sidebar({ ticker, days, period, hasTicker, onLoad, onFet
     return () => { vivo = false }
   }, [righeMercato, watchlist])
 
+  // I titoli della watchlist che appartengono al mercato attivo: sono
+  // quelli che si vedono, quindi sono quelli che vanno contati.
+  const visibili = watchlist.filter(tk => nelMercato(tk, mercatoAttivo))
+
   const PERIODS = isPro ? PERIODS_PRO : PERIODS_FREE
   const maxDays = isPro ? MAX_DAYS_PRO : MAX_DAYS_FREE
 
@@ -107,7 +111,7 @@ export default function Sidebar({ ticker, days, period, hasTicker, onLoad, onFet
     if (val.length >= 1) {
       const filtered = TICKERS.filter(tk =>
         (tk.symbol.startsWith(val) || tk.name.toUpperCase().includes(val)) &&
-        !watchlist.includes(tk.symbol)
+        !watchlist.includes(tk.symbol) && nelMercato(tk.symbol, mercatoAttivo)
       ).slice(0, 5)
       setSuggestions(filtered)
       setShowSuggestions(filtered.length > 0)
@@ -146,7 +150,7 @@ export default function Sidebar({ ticker, days, period, hasTicker, onLoad, onFet
     seminato.current = true
 
     const migliori = [...righeMercato]
-      .filter((r) => r.sentiment > 0)
+      .filter((r) => r.sentiment > 0 && nelMercato(r.ticker, mercatoAttivo))
       .sort((a, b) => b.sentiment - a.sentiment)
       .slice(0, PRECARICATI)
       .map((r) => r.ticker)
@@ -266,6 +270,25 @@ export default function Sidebar({ ticker, days, period, hasTicker, onLoad, onFet
       </div>
 
 
+      {/* Sezione: azioni o crypto. Sta qui, sopra ogni altra cosa, perché
+          è la domanda a cui l'utente deve poter rispondere per primo:
+          "che cosa sto guardando". */}
+      <div style={{ display: 'flex', borderBottom: '1px solid var(--border)' }}>
+        {[['azioni', 'Azioni'], ['crypto', 'Crypto']].map(([v, etichetta]) => {
+          const attivo = mercatoAttivo === v
+          return (
+            <button key={v} onClick={() => onMercatoChange?.(v)} style={{
+              flex: 1, padding: '9px 0', fontSize: 11, fontWeight: 700,
+              letterSpacing: '.1em', textTransform: 'uppercase',
+              background: attivo ? 'var(--near-black)' : 'transparent',
+              color: attivo ? 'var(--azure)' : 'var(--muted)',
+              borderBottom: attivo ? '2px solid var(--blue)' : '2px solid transparent',
+              cursor: 'pointer',
+            }}>{etichetta}</button>
+          )
+        })}
+      </div>
+
       {/* Watchlist: intestazione a barra e righe a tutta larghezza con
           divisori da un pixel, esattamente come i pannelli del terminale. */}
       <div style={{ display: 'flex', flexDirection: 'column' }}>
@@ -278,17 +301,17 @@ export default function Sidebar({ ticker, days, period, hasTicker, onLoad, onFet
             {t.sidebar.watchlist}
           </span>
           <span style={{ fontFamily: 'var(--mono)', fontSize: 10, color: 'var(--muted)', fontWeight: 700 }}>
-            {isPro ? watchlist.length : `${watchlist.length}/${MAX_WATCHLIST_FREE}`}
+            {isPro ? visibili.length : `${visibili.length}/${MAX_WATCHLIST_FREE}`}
           </span>
         </div>
 
-        {watchlist.length === 0 && (
+        {visibili.length === 0 && (
           <div style={{ padding: '14px 12px', fontSize: 12, color: 'var(--muted)', lineHeight: 1.6 }}>
             {t.sidebar.watchlistEmpty}
           </div>
         )}
 
-        {watchlist.map(tk => {
+        {watchlist.filter(tk => nelMercato(tk, mercatoAttivo)).map(tk => {
           const s = sentimenti[tk]
           const attivo = ticker === tk
           return (
