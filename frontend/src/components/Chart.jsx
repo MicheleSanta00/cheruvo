@@ -2,7 +2,7 @@ import { useState, useMemo, useEffect, useRef } from 'react'
 import {
   ComposedChart, Area, Bar, Line,
   XAxis, YAxis, CartesianGrid, Tooltip,
-  ResponsiveContainer, ReferenceLine, Cell,
+  ResponsiveContainer, ReferenceLine, ReferenceArea, Cell,
 } from 'recharts'
 import Icon from './Icon.jsx'
 import { formattaPrezzo } from './LogoCrypto.jsx'
@@ -284,6 +284,25 @@ const fmtDate = d => {
   return p.length >= 3 ? `${p[2]}/${p[1]}` : d
 }
 
+// La targhetta del prezzo attuale, incollata al bordo destro dell'asse.
+// Recharts non ha niente di simile: si disegna a mano dentro l'SVG usando le
+// coordinate che passa alla label della ReferenceLine.
+function EtichettaPrezzo({ viewBox, valore, colore }) {
+  if (!viewBox) return null
+  const { y, width, x } = viewBox
+  const testo = formattaPrezzo(valore)
+  const larghezza = Math.max(46, testo.length * 7.2 + 12)
+  return (
+    <g>
+      <rect x={x + width - larghezza + 2} y={y - 9} width={larghezza} height={18}
+            rx={3} fill={colore} />
+      <text x={x + width - larghezza / 2 + 2} y={y + 4} textAnchor="middle"
+            fontSize={11} fontWeight={700} fill="#06070a"
+            fontFamily="var(--mono)">{testo}</text>
+    </g>
+  )
+}
+
 // Sull'intraday la data arriva come "2026-08-04 15:42": sull'asse serve
 // soltanto l'ora, altrimenti le etichette si accavallano.
 const fmtOra = d => {
@@ -448,12 +467,69 @@ function GraficoOggiCorpo({ prices, ticker, statoBorsa, isMobile, espanso,
   const ultimo = prices[prices.length - 1]?.Close ?? null
   const suGiornata = chiusuraIeri != null && ultimo != null ? ultimo >= chiusuraIeri : true
   const colore = suGiornata ? 'var(--green)' : 'var(--red)'
+  const coloreHex = suGiornata ? '#34d399' : '#f87171'
 
-  const chiusure = prices.map(p => p.Close).filter(v => v != null)
-  const riferimenti = chiusuraIeri != null ? [...chiusure, chiusuraIeri] : chiusure
+  // ── Zoom: si trascina sul grafico per scegliere l'intervallo ────────────
+  // Il taglio avviene sui dati mostrati, non sull'asse: così l'asse dei prezzi
+  // si ricalcola sulla porzione scelta e un movimento di pochi centesimi
+  // dentro una giornata piatta diventa finalmente leggibile. Zoomando senza
+  // ricalcolare la scala si otterrebbe la stessa riga dritta, più larga.
+  const [da, setDa] = useState(null)
+  const [a, setA] = useState(null)
+  const [trascinando, setTrascinando] = useState(null)
+
+  const visibili = (da != null && a != null)
+    ? prices.slice(Math.min(da, a), Math.max(da, a) + 1)
+    : prices
+  const zoomAttivo = visibili.length !== prices.length
+
+  const chiusure = visibili.map(p => p.Close).filter(v => v != null)
+  // La chiusura di ieri entra nella scala solo quando si vede tutta la
+  // giornata: dentro uno zoom stretto schiaccerebbe tutto il resto.
+  const riferimenti = (!zoomAttivo && chiusuraIeri != null) ? [...chiusure, chiusuraIeri] : chiusure
   const min = Math.min(...riferimenti)
   const max = Math.max(...riferimenti)
   const margine = (max - min) * 0.12 || 1
+
+  // Massimo e minimo della porzione visibile: sono i due livelli che si
+  // guardano per primi su qualsiasi grafico.
+  const massimoVis = Math.max(...visibili.map(p => p.High ?? p.Close).filter(v => v != null))
+  const minimoVis  = Math.min(...visibili.map(p => p.Low  ?? p.Close).filter(v => v != null))
+
+  // Media mobile sui punti visibili: smussa il rumore del minuto per minuto.
+  const [mostraMedia, setMostraMedia] = useState(false)
+  const periodoMedia = Math.max(5, Math.round(visibili.length / 12))
+  const conMedia = mostraMedia
+    ? (() => {
+        const m = movingAverage(visibili, 'Close', periodoMedia)
+        return visibili.map((d, i) => ({ ...d, media: m[i] }))
+      })()
+    : visibili
+
+  const dati = candele ? raggruppaInCandele(conMedia, isMobile ? 45 : 90) : conMedia
+  const CandelaOggi = useMemo(() => makeCandleShape(min - margine, max + margine),
+                              [min, max, margine])
+
+  const iniziaTrascino = (e) => {
+    if (!e?.activeTooltipIndex && e?.activeTooltipIndex !== 0) return
+    setTrascinando({ inizio: e.activeTooltipIndex, fine: e.activeTooltipIndex })
+  }
+  const muoviTrascino = (e) => {
+    if (!trascinando) return
+    if (e?.activeTooltipIndex == null) return
+    setTrascinando((t) => ({ ...t, fine: e.activeTooltipIndex }))
+  }
+  const finisciTrascino = () => {
+    if (!trascinando) return
+    const { inizio, fine } = trascinando
+    setTrascinando(null)
+    // Trascinamenti brevissimi sono click andati storti, non richieste di zoom
+    if (Math.abs(fine - inizio) < 3) return
+    const base = (da != null) ? Math.min(da, a) : 0
+    setDa(base + Math.min(inizio, fine))
+    setA(base + Math.max(inizio, fine))
+  }
+  const azzeraZoom = () => { setDa(null); setA(null); setTrascinando(null) }
 
   const variazione = chiusuraIeri != null && ultimo != null ? ultimo - chiusuraIeri : null
   const variazionePct = variazione != null && chiusuraIeri ? (variazione / chiusuraIeri) * 100 : null
@@ -501,7 +577,7 @@ function GraficoOggiCorpo({ prices, ticker, statoBorsa, isMobile, espanso,
       <div style={{ marginBottom: 6, display: 'flex', alignItems: 'center', gap: 10 }}>
         <span style={{ fontSize: 10, color: 'var(--muted)', letterSpacing: '0.12em',
                        textTransform: 'uppercase', fontWeight: 700 }}>
-          Seduta di oggi — {ticker} · {prices.length} minuti
+          Seduta di oggi — {ticker} · {zoomAttivo ? `${visibili.length} di ${prices.length}` : prices.length} minuti
         </span>
         {appenaAggiornato && (
           <span style={{ fontSize: 9.5, color: 'var(--green)', fontWeight: 700,
@@ -510,6 +586,21 @@ function GraficoOggiCorpo({ prices, ticker, statoBorsa, isMobile, espanso,
           </span>
         )}
         <div style={{ marginLeft: 'auto', display: 'flex', gap: 4 }}>
+          {zoomAttivo && (
+            <button onClick={azzeraZoom} title="Torna a tutta la seduta" style={{
+              fontSize: 9.5, letterSpacing: '.1em', textTransform: 'uppercase',
+              fontWeight: 700, padding: '4px 9px', borderRadius: 3,
+              border: '1px solid rgba(96,165,250,0.45)', background: 'rgba(96,165,250,0.14)',
+              color: 'var(--azure)', cursor: 'pointer',
+            }}>← tutto</button>
+          )}
+          <button onClick={() => setMostraMedia(v => !v)} title="Media mobile" style={{
+            fontSize: 9.5, letterSpacing: '.1em', textTransform: 'uppercase',
+            fontWeight: 700, padding: '4px 9px', borderRadius: 3,
+            border: '1px solid ' + (mostraMedia ? 'rgba(250,204,21,0.4)' : 'var(--border-br)'),
+            background: mostraMedia ? 'rgba(250,204,21,0.12)' : 'transparent',
+            color: mostraMedia ? 'var(--giallo)' : 'var(--muted)', cursor: 'pointer',
+          }}>media</button>
           {[['linea', false], ['candele', true]].map(([etichetta, v]) => (
             <button key={etichetta} onClick={() => onCandele(v)} style={{
               fontSize: 9.5, letterSpacing: '.1em', textTransform: 'uppercase',
@@ -540,39 +631,85 @@ function GraficoOggiCorpo({ prices, ticker, statoBorsa, isMobile, espanso,
         </button>
       </div>
 
-      <ResponsiveContainer width="100%" height={espanso ? (isMobile ? 380 : 560) : (isMobile ? 250 : 300)}>
-        <ComposedChart data={prices} margin={{ top: 4, right: isMobile ? 4 : 16, left: 0, bottom: 0 }}>
-          <defs>
-            <linearGradient id="oggiGrad" x1="0" y1="0" x2="0" y2="1">
-              <stop offset="0%"   stopColor={suGiornata ? '#34d399' : '#f87171'} stopOpacity={0.22}/>
-              <stop offset="100%" stopColor={suGiornata ? '#34d399' : '#f87171'} stopOpacity={0}/>
-            </linearGradient>
-          </defs>
-          <CartesianGrid strokeDasharray="3 4" stroke="rgba(var(--rgb-contrasto), 0.04)" vertical={false}/>
-          <XAxis dataKey="date" tickFormatter={fmtOra} interval="preserveStartEnd"
-            minTickGap={isMobile ? 50 : 80}
-            tick={{ fontSize: 10, fill: '#475569' }} axisLine={false} tickLine={false}/>
-          <YAxis orientation="right" domain={[min - margine, max + margine]}
-            tickFormatter={v => formattaPrezzo(v)}
-            tick={{ fontSize: 10, fill: '#475569' }} axisLine={false} tickLine={false}
-            width={isMobile ? 50 : 58}/>
-          <Tooltip content={<TooltipOggi chiusuraIeri={chiusuraIeri}
-                     tipoRiferimento={statoBorsa?.tipo_riferimento} />}/>
+      <div style={{ position: 'relative', userSelect: 'none' }}>
+        <ResponsiveContainer width="100%" height={espanso ? (isMobile ? 380 : 560) : (isMobile ? 250 : 300)}>
+          <ComposedChart data={dati} margin={{ top: 4, right: isMobile ? 4 : 16, left: 0, bottom: 0 }}
+            onMouseDown={iniziaTrascino} onMouseMove={muoviTrascino}
+            onMouseUp={finisciTrascino} onMouseLeave={() => setTrascinando(null)}>
+            <defs>
+              <linearGradient id="oggiGrad" x1="0" y1="0" x2="0" y2="1">
+                <stop offset="0%"   stopColor={coloreHex} stopOpacity={0.22}/>
+                <stop offset="100%" stopColor={coloreHex} stopOpacity={0}/>
+              </linearGradient>
+            </defs>
+            <CartesianGrid strokeDasharray="3 4" stroke="rgba(var(--rgb-contrasto), 0.04)" vertical={false}/>
+            <XAxis dataKey="date" tickFormatter={fmtOra} interval="preserveStartEnd"
+              minTickGap={isMobile ? 50 : 80}
+              tick={{ fontSize: 10, fill: '#475569' }} axisLine={false} tickLine={false}/>
+            <YAxis orientation="right" domain={[min - margine, max + margine]}
+              tickFormatter={v => formattaPrezzo(v)}
+              tick={{ fontSize: 10, fill: '#475569' }} axisLine={false} tickLine={false}
+              width={isMobile ? 56 : 66}/>
+            {/* Mirino verticale: segue il cursore e dice a che minuto sei */}
+            <Tooltip cursor={{ stroke: 'rgba(var(--rgb-contrasto), 0.28)', strokeWidth: 1, strokeDasharray: '3 3' }}
+              content={<TooltipOggi chiusuraIeri={chiusuraIeri}
+                       tipoRiferimento={statoBorsa?.tipo_riferimento} />}/>
 
-          {/* La chiusura di ieri come riga di riferimento: senza, "sta salendo"
-              non ha un metro. È la linea che separa il verde dal rosso. */}
-          {chiusuraIeri != null && (
-            <ReferenceLine y={chiusuraIeri} stroke="rgba(var(--rgb-contrasto), 0.22)" strokeDasharray="4 4"
-              label={{ value: statoBorsa?.tipo_riferimento === '24h' ? '24 ore fa' : 'chiusura ieri',
-                       position: 'insideTopLeft',
-                       fill: '#475569', fontSize: 9.5 }}/>
-          )}
+            {/* La chiusura di ieri come riga di riferimento: senza, "sta salendo"
+                non ha un metro. È la linea che separa il verde dal rosso. */}
+            {chiusuraIeri != null && !zoomAttivo && (
+              <ReferenceLine y={chiusuraIeri} stroke="rgba(var(--rgb-contrasto), 0.22)" strokeDasharray="4 4"
+                label={{ value: statoBorsa?.tipo_riferimento === '24h' ? '24 ore fa' : 'chiusura ieri',
+                         position: 'insideTopLeft',
+                         fill: '#475569', fontSize: 9.5 }}/>
+            )}
 
-          <Area type="monotone" dataKey="Close" stroke={suGiornata ? '#34d399' : '#f87171'}
-            strokeWidth={1.6} fill="url(#oggiGrad)" dot={false} isAnimationActive={false}
-            activeDot={{ r: 3, strokeWidth: 0, fill: suGiornata ? '#34d399' : '#f87171' }}/>
-        </ComposedChart>
-      </ResponsiveContainer>
+            {/* Massimo e minimo della porzione a schermo */}
+            <ReferenceLine y={massimoVis} stroke="rgba(52,211,153,0.28)" strokeDasharray="2 4"
+              label={{ value: `max ${formattaPrezzo(massimoVis)}`, position: 'insideTopRight',
+                       fill: '#34d399', fontSize: 9.5 }}/>
+            <ReferenceLine y={minimoVis} stroke="rgba(248,113,113,0.28)" strokeDasharray="2 4"
+              label={{ value: `min ${formattaPrezzo(minimoVis)}`, position: 'insideBottomRight',
+                       fill: '#f87171', fontSize: 9.5 }}/>
+
+            {/* IL PREZZO ORA, sempre a schermo sul bordo destro.
+                È la cosa che chiedevi: prima per leggere l'ultimo valore
+                bisognava inseguire col cursore l'ultimo punto del grafico. */}
+            {ultimo != null && (
+              <ReferenceLine y={ultimo} stroke={coloreHex} strokeWidth={1} strokeDasharray="1 3"
+                label={<EtichettaPrezzo valore={ultimo} colore={coloreHex} />}/>
+            )}
+
+            {candele ? (
+              <Bar dataKey="Close" shape={CandelaOggi} isAnimationActive={false} />
+            ) : (
+              <Area type="monotone" dataKey="Close" stroke={coloreHex}
+                strokeWidth={1.6} fill="url(#oggiGrad)" dot={false} isAnimationActive={false}
+                activeDot={{ r: 3.5, strokeWidth: 0, fill: coloreHex }}/>
+            )}
+
+            {mostraMedia && (
+              <Line type="monotone" dataKey="media" stroke="var(--giallo)" strokeWidth={1.4}
+                dot={false} isAnimationActive={false} connectNulls />
+            )}
+
+            {/* La fascia che si disegna mentre trascini per scegliere lo zoom */}
+            {trascinando && Math.abs(trascinando.fine - trascinando.inizio) >= 1 && (
+              <ReferenceArea
+                x1={dati[Math.min(trascinando.inizio, trascinando.fine)]?.date}
+                x2={dati[Math.max(trascinando.inizio, trascinando.fine)]?.date}
+                fill="var(--azure)" fillOpacity={0.12}
+                stroke="var(--azure)" strokeOpacity={0.4} />
+            )}
+          </ComposedChart>
+        </ResponsiveContainer>
+      </div>
+
+      <div style={{ fontSize: 10.5, color: 'var(--muted)', marginTop: 8 }}>
+        {zoomAttivo
+          ? `Ingrandito su ${visibili.length} minuti. Premi "tutto" per tornare alla seduta intera.`
+          : 'Trascina sul grafico per ingrandire un intervallo.'}
+      </div>
 
       {!aperto && !statoBorsa?.sempre_aperto && (
         <div style={{ fontSize: 11.5, color: 'var(--muted)', marginTop: 10, lineHeight: 1.5 }}>
