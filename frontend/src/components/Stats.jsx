@@ -69,7 +69,7 @@ export default function Stats({ news }) {
               <Tooltip content={<CustomTooltip />} />
               <Bar dataKey="count" radius={[3,3,0,0]}>
                 {buckets.map((b, i) => (
-                  <Cell key={i} fill={parseFloat(b.range) < 0 ? 'var(--red)' : parseFloat(b.range) < 0.1 ? '#facc15' : 'var(--green)'} opacity={0.75}/>
+                  <Cell key={i} fill={parseFloat(b.range) < 0 ? 'var(--red)' : parseFloat(b.range) < 0.1 ? 'var(--giallo)' : 'var(--green)'} opacity={0.75}/>
                 ))}
               </Bar>
             </BarChart>

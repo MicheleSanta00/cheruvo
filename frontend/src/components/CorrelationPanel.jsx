@@ -42,7 +42,7 @@ function ScatterTooltip({ active, payload }) {
       <div style={{ color: '#94a3b8', marginBottom: 6 }}>{d.date}</div>
       <div style={{ display: 'grid', gridTemplateColumns: '120px 1fr', gap: '3px 0' }}>
         <span style={{ color: '#64748b' }}>Sentiment</span>
-        <span style={{ color: d.x >= 0.1 ? '#4ade80' : d.x <= -0.1 ? '#f87171' : '#facc15', fontWeight: 600 }}>
+        <span style={{ color: d.x >= 0.1 ? '#4ade80' : d.x <= -0.1 ? '#f87171' : 'var(--giallo)', fontWeight: 600 }}>
           {d.x > 0 ? '+' : ''}{d.x.toFixed(3)}
         </span>
         <span style={{ color: '#64748b' }}>Rendimento D+1</span>
@@ -58,7 +58,7 @@ function ScatterTooltip({ active, payload }) {
 function ColorDot(props) {
   const { cx, cy, payload } = props
   if (cx == null || cy == null) return null
-  const color = payload.x > 0.1 ? '#4ade80' : payload.x < -0.1 ? '#f87171' : '#facc15'
+  const color = payload.x > 0.1 ? '#4ade80' : payload.x < -0.1 ? '#f87171' : 'var(--giallo)'
   return <circle cx={cx} cy={cy} r={4} fill={color} fillOpacity={0.75} stroke={color} strokeOpacity={0.3} strokeWidth={1} />
 }
 
@@ -124,7 +124,7 @@ export default function CorrelationPanel({ prices, sentiment, isPro, onUpgrade }
 
   // Colori e label correlazione
   const corrColor = c => c == null ? '#94a3b8'
-    : c > 0.3 ? '#4ade80' : c < -0.3 ? '#f87171' : '#facc15'
+    : c > 0.3 ? '#4ade80' : c < -0.3 ? '#f87171' : 'var(--giallo)'
   const corrLabel = c => {
     if (c == null) return 'N/D'
     if (c > 0.6)  return 'Forte positiva'

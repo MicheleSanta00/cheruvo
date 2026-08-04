@@ -275,8 +275,10 @@ export default function App() {
       {/* Sidebar */}
       <div style={{ position: 'relative', zIndex: 50 }}
         className={`sidebar-wrapper ${sidebarOpen ? 'sidebar-open' : ''}`}>
+        {/* ticker={loadedTicker || ticker}: la riga evidenziata dev'essere
+            quella aperta, non quella che stai digitando nella ricerca */}
         <Sidebar
-          ticker={ticker} days={days} period={period}
+          ticker={loadedTicker || ticker} days={days} period={period}
           hasTicker={!!loadedTicker}
           loading={loading} fetching={fetching} isPro={isPro}
           onTickerChange={setTicker} onDaysChange={setDays} onPeriodChange={setPeriod}
@@ -662,7 +664,11 @@ export default function App() {
                     </div>
                   </div>
                   <div id="chart-area" style={{ padding: '12px 14px 6px' }}>
-                    <Chart prices={prices} sentiment={sentiment} ticker={ticker} stats={stats}
+                    {/* loadedTicker, non ticker: il primo è il titolo che sta
+                        DAVVERO a schermo, il secondo è quello che stai
+                        scrivendo nella ricerca. Usando ticker, l'etichetta del
+                        grafico annunciava NVDA mentre i dati erano di AMZN. */}
+                    <Chart prices={prices} sentiment={sentiment} ticker={loadedTicker || ticker} stats={stats}
                       intraday={period === '1d'} statoBorsa={statoBorsa} />
                   </div>
                 </div>
@@ -838,10 +844,12 @@ function HeaderSearch({ placeholder, days, period, onLoad, onTickerChange }) {
 // chiaro non si aspetta di trovarsi una schermata nera in faccia.
 export function applicaTemaSalvato() {
   try {
+    // Si parte SEMPRE dallo scuro, anche se il sistema operativo è in chiaro.
+    // Cheruvo è nato come plancia da terminale finanziario e quello è il suo
+    // aspetto: il chiaro è un'alternativa che si sceglie, non il punto di
+    // partenza. Una volta scelto, la preferenza resta.
     const salvato = localStorage.getItem('cheruvo_tema')
-    const preferenza = window.matchMedia?.('(prefers-color-scheme: light)').matches
-      ? 'chiaro' : 'scuro'
-    document.documentElement.setAttribute('data-tema', salvato || preferenza)
+    document.documentElement.setAttribute('data-tema', salvato || 'scuro')
   } catch (_) {
     document.documentElement.setAttribute('data-tema', 'scuro')
   }

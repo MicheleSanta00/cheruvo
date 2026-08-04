@@ -293,7 +293,7 @@ export default function ComparePanel({ primaryTicker, primarySentiment, isPro, o
             const avg  = vals.length ? vals.reduce((a, b) => a + b, 0) / vals.length : null
             const last = vals.length ? vals[vals.length - 1] : null
             const color = PALETTE[i]
-            const sentColor = v => v == null ? '#94a3b8' : v > 0.1 ? '#4ade80' : v < -0.1 ? '#f87171' : '#facc15'
+            const sentColor = v => v == null ? '#94a3b8' : v > 0.1 ? '#4ade80' : v < -0.1 ? '#f87171' : 'var(--giallo)'
             return (
               <div key={ticker} style={{
                 background: 'rgba(var(--rgb-contrasto), 0.02)',

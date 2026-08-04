@@ -69,7 +69,16 @@ export default function Auth({ onLogin }) {
 
         {/* Logo */}
         <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 28 }}>
-          <img src="/logo-v2.png" alt="Cheruvo" style={{ width: 32, height: 32, filter: 'brightness(1) drop-shadow(0 0 8px rgba(var(--rgb-contrasto), 0.9)) drop-shadow(0 0 16px rgba(var(--rgb-contrasto), 0.4))' }} />
+          {/* Stesso cerchio scuro della barra laterale: il bagliore bianco
+              che c'era prima sul tema chiaro diventava una macchia grigia
+              attorno a un logo già poco visibile. */}
+          <span style={{
+            display: 'inline-flex', alignItems: 'center', justifyContent: 'center',
+            width: 44, height: 44, borderRadius: '50%', background: '#06070a',
+            boxShadow: '0 0 18px rgba(30,92,255,0.35)',
+          }}>
+            <img src="/logo-v2.png" alt="Cheruvo" style={{ width: 27, height: 27, objectFit: 'contain' }} />
+          </span>
           <span style={{ fontSize: 15, fontWeight: 500 }}>Cheruvo</span>
         </div>
 

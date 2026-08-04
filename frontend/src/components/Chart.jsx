@@ -32,7 +32,7 @@ function CustomTooltip({ active, payload, label, compact }) {
 
   const sentVal = sent ?? ma
   const sentCol = sentVal == null ? '#94a3b8'
-    : sentVal > 0.1 ? '#4ade80' : sentVal < -0.1 ? '#f87171' : '#facc15'
+    : sentVal > 0.1 ? '#4ade80' : sentVal < -0.1 ? '#f87171' : 'var(--giallo)'
   const sentLbl = sentVal == null ? '—'
     : sentVal > 0.1 ? 'Bullish' : sentVal < -0.1 ? 'Bearish' : 'Neutro'
 
@@ -178,12 +178,12 @@ function DataPanel({ prices, sentiment, stats, correlation }) {
   const minSent = stats?.min ?? null
 
   const sentColor = v => v == null ? '#94a3b8'
-    : v > 0.1 ? '#4ade80' : v < -0.1 ? '#f87171' : '#facc15'
+    : v > 0.1 ? '#4ade80' : v < -0.1 ? '#f87171' : 'var(--giallo)'
   const sentLabel = v => v == null ? '—'
     : v > 0.1 ? 'Bullish' : v < -0.1 ? 'Bearish' : 'Neutro'
 
   const corrColor = c => c == null ? '#94a3b8'
-    : c > 0.3 ? '#4ade80' : c < -0.3 ? '#f87171' : '#facc15'
+    : c > 0.3 ? '#4ade80' : c < -0.3 ? '#f87171' : 'var(--giallo)'
   const corrLabel = c => c == null ? 'N/D'
     : c > 0.5 ? 'Forte positiva' : c > 0.3 ? 'Moderata positiva'
     : c < -0.5 ? 'Forte negativa' : c < -0.3 ? 'Moderata negativa'
@@ -267,7 +267,7 @@ function DataPanel({ prices, sentiment, stats, correlation }) {
             <Block label="Giorni bearish" value={`${bearishDays} gg`} valueColor="#f87171"
               sub={<span style={{ color: '#64748b' }}>{((bearishDays / total) * 100).toFixed(0)}% del periodo</span>}
             />
-            <Block label="Giorni neutri" value={`${neutralDays} gg`} valueColor="#facc15"
+            <Block label="Giorni neutri" value={`${neutralDays} gg`} valueColor='var(--giallo)'
               sub={<span style={{ color: '#64748b' }}>{((neutralDays / total) * 100).toFixed(0)}% del periodo</span>}
             />
           </div>
@@ -535,7 +535,7 @@ export default function Chart({ prices, sentiment, ticker, stats, intraday = fal
           ...stileInterruttore, cursor: 'pointer',
           background: showMA ? 'rgba(250,204,21,0.12)' : 'transparent',
           borderColor: showMA ? 'rgba(250,204,21,0.4)' : 'var(--border-br)',
-          color: showMA ? '#facc15' : 'var(--muted)',
+          color: showMA ? 'var(--giallo)' : 'var(--muted)',
         }}>MA7 Sentiment</button>
       </div>
 
@@ -605,8 +605,8 @@ export default function Chart({ prices, sentiment, ticker, stats, intraday = fal
           SENTIMENT GIORNALIERO
         </span>
         {showMA && (
-          <span style={{ fontSize: 10, color: '#facc15', display: 'flex', alignItems: 'center', gap: 4 }}>
-            <span style={{ width: 16, height: 2, background: '#facc15', display: 'inline-block', borderRadius: 1 }}/>
+          <span style={{ fontSize: 10, color: 'var(--giallo)', display: 'flex', alignItems: 'center', gap: 4 }}>
+            <span style={{ width: 16, height: 2, background: 'var(--giallo)', display: 'inline-block', borderRadius: 1 }}/>
             Media mobile 7 giorni
           </span>
         )}
@@ -635,7 +635,7 @@ export default function Chart({ prices, sentiment, ticker, stats, intraday = fal
                 fill={d.sentiment == null ? '#334155'
                   : d.sentiment > 0.1 ? '#4ade80'
                   : d.sentiment < -0.1 ? '#f87171'
-                  : '#facc15'}
+                  : 'var(--giallo)'}
               />
             ))}
           </Bar>
@@ -643,9 +643,9 @@ export default function Chart({ prices, sentiment, ticker, stats, intraday = fal
           {/* MA7 come linea sovrapposta */}
           {showMA && (
             <Line yAxisId="sent" dataKey="sentMA"
-              stroke="#facc15" strokeWidth={1.5}
+              stroke='var(--giallo)' strokeWidth={1.5}
               dot={false} strokeDasharray="0"
-              activeDot={{ r: 3, fill: '#facc15', strokeWidth: 0 }}
+              activeDot={{ r: 3, fill: 'var(--giallo)', strokeWidth: 0 }}
             />
           )}
 

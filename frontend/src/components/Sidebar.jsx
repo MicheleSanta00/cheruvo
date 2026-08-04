@@ -249,7 +249,18 @@ export default function Sidebar({ ticker, days, period, hasTicker, onLoad, onFet
         display: 'flex', alignItems: 'center', gap: 9, height: 52, flexShrink: 0,
         padding: '0 14px', borderBottom: '1px solid var(--border)',
       }}>
-        <img src="/logo-v2.png" alt="Cheruvo" style={{ width: 24, height: 24, objectFit: 'contain' }} />
+        {/* Il logo è disegnato in chiaro, pensato per il fondo nero: sul tema
+            chiaro spariva quasi del tutto. Il cerchio è FISSO scuro, non una
+            variabile: sul tema scuro coincide con lo sfondo e resta invisibile,
+            sul chiaro diventa un disco nero che restituisce al logo il fondo
+            per cui era stato disegnato. Una riga, e vale per entrambi. */}
+        <span style={{
+          display: 'inline-flex', alignItems: 'center', justifyContent: 'center',
+          width: 30, height: 30, borderRadius: '50%',
+          background: '#06070a', flexShrink: 0,
+        }}>
+          <img src="/logo-v2.png" alt="Cheruvo" style={{ width: 19, height: 19, objectFit: 'contain' }} />
+        </span>
         <span style={{ fontSize: 15, fontWeight: 700, letterSpacing: '-0.01em' }}>Cheruvo</span>
       </div>
 

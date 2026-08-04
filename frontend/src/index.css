@@ -28,6 +28,7 @@
   --border-br:   rgba(var(--rgb-contrasto), 0.12);
   --green:       #34d399;
   --red:         #f87171;
+  --giallo:      #facc15;   /* neutro / media mobile */
   --ombra:       0 8px 24px rgba(0,0,0,0.4);
   --serif:       'DM Serif Display', Georgia, serif;
   --sans:        'DM Sans', system-ui, sans-serif;
@@ -56,6 +57,7 @@
   --border-br:   rgba(15,23,42,0.16);
   --green:       #059669;
   --red:         #dc2626;
+  --giallo:      #b45309;   /* il giallo acceso su bianco sparisce */
   --ombra:       0 8px 24px rgba(15,23,42,0.10);
 }
 
