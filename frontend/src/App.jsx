@@ -144,8 +144,8 @@ export default function App() {
       .catch(() => setIsPro(false))
   }, [user])
 
-  const handleLoad = async (tk, d, p, autoFetch = true) => {
-    const res = await load(tk, d, p)
+  const handleLoad = async (tk, d, p, autoFetch = true, silenzioso = false) => {
+    const res = await load(tk, d, p, silenzioso)
     setLoadedTicker(tk)
     setSidebarOpen(false)
     track('ticker_searched', { ticker: tk, days: d, period: p })
@@ -161,7 +161,7 @@ export default function App() {
       try {
         for (const wait of [3000, 4000]) {
           await new Promise((r) => setTimeout(r, wait))
-          const retry = await load(tk, d, p)
+          const retry = await load(tk, d, p, true)
           if (retry && retry.newsCount > 0) break
         }
       } finally {
@@ -173,7 +173,7 @@ export default function App() {
   const handleFetch = async (tk) => {
     track('news_refreshed', { ticker: tk })
     await triggerFetch(tk)
-    setTimeout(() => handleLoad(tk, days, period, false), 3000)
+    setTimeout(() => handleLoad(tk, days, period, false, true), 3000)
   }
 
   // Aggiornamento automatico: il titolo aperto ricarica le notizie da solo
@@ -182,7 +182,8 @@ export default function App() {
   useEffect(() => {
     if (!loadedTicker) return
     const timer = setInterval(() => {
-      load(loadedTicker, days, period)
+      // true = in silenzio: i dati a schermo restano finché non arrivano i nuovi
+      load(loadedTicker, days, period, true)
     }, 10 * 60 * 1000)
     return () => clearInterval(timer)
   }, [loadedTicker, days, period, load])

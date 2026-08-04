@@ -3,9 +3,9 @@ import apiFetch from '../apiFetch.js'
 import Icon from './Icon.jsx'
 
 const COLORI = {
-  bullish: { accent: '#34d399', bg: 'rgba(52,211,153,0.08)', border: 'rgba(52,211,153,0.2)', badge: '#34d399', icon: 'bullish' },
-  bearish: { accent: '#f87171', bg: 'rgba(248,113,113,0.08)', border: 'rgba(248,113,113,0.2)', badge: '#f87171', icon: 'bearish' },
-  neutro:  { accent: '#8a94a6', bg: 'rgba(138,148,166,0.06)', border: 'rgba(138,148,166,0.15)', badge: '#8a94a6', icon: 'neutral' },
+  bullish: { accent: '#34d399', bg: 'var(--tinta-pos)', border: 'rgba(52,211,153,0.2)', badge: '#34d399', icon: 'bullish' },
+  bearish: { accent: '#f87171', bg: 'var(--tinta-neg)', border: 'rgba(248,113,113,0.2)', badge: '#f87171', icon: 'bearish' },
+  neutro:  { accent: '#8a94a6', bg: 'var(--tinta-neu)', border: 'rgba(138,148,166,0.15)', badge: '#8a94a6', icon: 'neutral' },
 }
 
 export default function SummaryCard({ ticker, isPro, onUpgrade }) {
@@ -86,7 +86,7 @@ export default function SummaryCard({ ticker, isPro, onUpgrade }) {
 
         <span style={{
           fontSize: 10, fontWeight: 700, letterSpacing: '0.06em',
-          color: c.badge, background: 'rgba(0,0,0,0.2)',
+          color: c.badge, background: 'rgba(var(--rgb-contrasto), 0.09)',
           padding: '3px 9px', borderRadius: 100,
           border: `1px solid ${c.border}`,
           textTransform: 'uppercase', display: 'inline-flex', alignItems: 'center', gap: 5,
@@ -122,7 +122,7 @@ export default function SummaryCard({ ticker, isPro, onUpgrade }) {
         {!isPro && (
           <div style={{
             position: 'absolute', bottom: 0, left: 0, right: 0,
-            background: `linear-gradient(to bottom, transparent, ${c.bg} 75%)`,
+            background: `linear-gradient(to bottom, transparent, var(--near-black) 85%)`,
             paddingTop: 28, textAlign: 'center',
           }}>
             <button onClick={onUpgrade} style={{
@@ -143,7 +143,7 @@ export default function SummaryCard({ ticker, isPro, onUpgrade }) {
           {data.temi.map((tema, i) => (
             <span key={i} style={{
               fontSize: 11, fontWeight: 500, color: c.badge,
-              background: 'rgba(0,0,0,0.2)', padding: '3px 10px',
+              background: 'rgba(var(--rgb-contrasto), 0.09)', padding: '3px 10px',
               borderRadius: 100, border: `1px solid ${c.border}`,
             }}>{tema}</span>
           ))}

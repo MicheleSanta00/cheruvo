@@ -1,4 +1,4 @@
-import { useState, useMemo, useEffect } from 'react'
+import { useState, useMemo, useEffect, useRef } from 'react'
 import {
   ComposedChart, Area, Bar, Line,
   XAxis, YAxis, CartesianGrid, Tooltip,
@@ -338,7 +338,105 @@ const stileInterruttore = {
 // aperta. Il colore della linea segue la giornata: verde se il titolo sta
 // sopra la chiusura di ieri, rosso se sotto. È la convenzione di ogni
 // terminale finanziario e si legge senza dover pensare.
+/**
+ * Raggruppa i minuti in candele più larghe.
+ *
+ * Una seduta americana sono 390 punti: disegnati come candele su un grafico
+ * largo mille pixel verrebbero spessi due pixel e mezzo, cioè illeggibili.
+ * Raggruppandoli in blocchi si ottengono candele vere, con corpo e ombre.
+ * L'apertura è quella del primo minuto del blocco, la chiusura quella
+ * dell'ultimo, massimo e minimo gli estremi, il volume la somma: è
+ * esattamente come si costruisce una candela da timeframe più alto.
+ */
+function raggruppaInCandele(prices, quante = 80) {
+  if (!prices.length) return []
+  const passo = Math.max(1, Math.ceil(prices.length / quante))
+  if (passo === 1) return prices
+
+  const fuori = []
+  for (let i = 0; i < prices.length; i += passo) {
+    const blocco = prices.slice(i, i + passo).filter(p => p.Close != null)
+    if (!blocco.length) continue
+    const alti  = blocco.map(p => p.High  ?? p.Close)
+    const bassi = blocco.map(p => p.Low   ?? p.Close)
+    fuori.push({
+      date:   blocco[0].date,
+      Open:   blocco[0].Open ?? blocco[0].Close,
+      Close:  blocco[blocco.length - 1].Close,
+      High:   Math.max(...alti),
+      Low:    Math.min(...bassi),
+      Volume: blocco.reduce((s, p) => s + (p.Volume || 0), 0),
+      // Quanti minuti stanno dentro questa candela: serve al tooltip, perché
+      // "candela delle 15:42" senza sapere che dura 5 minuti confonde.
+      minuti: blocco.length,
+    })
+  }
+  return fuori
+}
+
 function GraficoOggi({ prices, ticker, statoBorsa, isMobile }) {
+  const [espanso, setEspanso] = useState(false)
+  const [candele, setCandele] = useState(false)
+  // Lampeggia quando arriva un punto nuovo: è il modo per vedere che il
+  // grafico è vivo. Senza, un aggiornamento che aggiunge un pixel sul bordo
+  // destro è indistinguibile da un'immagine ferma.
+  const [appenaAggiornato, setAppenaAggiornato] = useState(false)
+  const quantiPrima = useRef(prices.length)
+
+  useEffect(() => {
+    if (prices.length > quantiPrima.current) {
+      setAppenaAggiornato(true)
+      const t = setTimeout(() => setAppenaAggiornato(false), 1400)
+      quantiPrima.current = prices.length
+      return () => clearTimeout(t)
+    }
+    quantiPrima.current = prices.length
+  }, [prices.length])
+
+  // Esc chiude la vista ingrandita: è il gesto che tutti si aspettano.
+  useEffect(() => {
+    if (!espanso) return
+    const tasto = (e) => { if (e.key === 'Escape') setEspanso(false) }
+    window.addEventListener('keydown', tasto)
+    return () => window.removeEventListener('keydown', tasto)
+  }, [espanso])
+
+  const corpo = (
+    <GraficoOggiCorpo prices={prices} ticker={ticker} statoBorsa={statoBorsa}
+      isMobile={isMobile} espanso={espanso} appenaAggiornato={appenaAggiornato}
+      candele={candele} onCandele={setCandele}
+      onEspandi={() => setEspanso(true)} onChiudi={() => setEspanso(false)} />
+  )
+
+  if (!espanso) return corpo
+
+  return (
+    <>
+      {/* Il grafico normale resta al suo posto sotto, così chiudendo non
+          "salta" niente: la pagina è rimasta identica. */}
+      <div style={{ opacity: 0.25, pointerEvents: 'none' }}>{corpo}</div>
+      <div
+        onClick={(e) => { if (e.target === e.currentTarget) setEspanso(false) }}
+        style={{
+          position: 'fixed', inset: 0, zIndex: 200,
+          background: 'var(--black)', display: 'flex',
+          alignItems: 'center', justifyContent: 'center', padding: isMobile ? 10 : 28,
+        }}>
+        <div style={{
+          width: '100%', maxWidth: 1500, maxHeight: '100%', overflowY: 'auto',
+          border: '1px solid var(--border-br)', borderRadius: 10,
+          background: 'var(--near-black)', padding: isMobile ? 14 : 22,
+        }}>
+          {corpo}
+        </div>
+      </div>
+    </>
+  )
+}
+
+function GraficoOggiCorpo({ prices, ticker, statoBorsa, isMobile, espanso,
+                            appenaAggiornato, candele, onCandele,
+                            onEspandi, onChiudi }) {
   if (!prices.length) return (
     <div style={{ height: 220, display: 'flex', alignItems: 'center',
                   justifyContent: 'center', color: 'var(--muted)', fontSize: 13 }}>
@@ -388,9 +486,11 @@ function GraficoOggi({ prices, ticker, statoBorsa, isMobile }) {
         <span style={{ marginLeft: 'auto', display: 'flex', alignItems: 'center',
                        gap: 7, fontSize: 11, color: 'var(--muted)' }}>
           <span style={{
-            width: 6, height: 6, borderRadius: '50%',
+            width: appenaAggiornato ? 9 : 6, height: appenaAggiornato ? 9 : 6,
+            borderRadius: '50%',
             background: aperto ? 'var(--green)' : 'var(--muted)',
-            boxShadow: aperto ? '0 0 7px var(--green)' : 'none',
+            boxShadow: aperto ? (appenaAggiornato ? '0 0 14px var(--green)' : '0 0 7px var(--green)') : 'none',
+            transition: 'all .3s ease',
           }} />
           {statoBorsa?.sempre_aperto ? 'Scambi 24/7'
             : aperto ? 'Borsa aperta' : 'Borsa chiusa'}
@@ -398,14 +498,49 @@ function GraficoOggi({ prices, ticker, statoBorsa, isMobile }) {
         </span>
       </div>
 
-      <div style={{ marginBottom: 6 }}>
+      <div style={{ marginBottom: 6, display: 'flex', alignItems: 'center', gap: 10 }}>
         <span style={{ fontSize: 10, color: 'var(--muted)', letterSpacing: '0.12em',
                        textTransform: 'uppercase', fontWeight: 700 }}>
           Seduta di oggi — {ticker} · {prices.length} minuti
         </span>
+        {appenaAggiornato && (
+          <span style={{ fontSize: 9.5, color: 'var(--green)', fontWeight: 700,
+                         letterSpacing: '.1em', textTransform: 'uppercase' }}>
+            + nuovo dato
+          </span>
+        )}
+        <div style={{ marginLeft: 'auto', display: 'flex', gap: 4 }}>
+          {[['linea', false], ['candele', true]].map(([etichetta, v]) => (
+            <button key={etichetta} onClick={() => onCandele(v)} style={{
+              fontSize: 9.5, letterSpacing: '.1em', textTransform: 'uppercase',
+              fontWeight: 700, padding: '4px 9px', borderRadius: 3,
+              border: '1px solid ' + (candele === v ? 'rgba(96,165,250,0.45)' : 'var(--border-br)'),
+              background: candele === v ? 'rgba(96,165,250,0.14)' : 'transparent',
+              color: candele === v ? 'var(--azure)' : 'var(--muted)', cursor: 'pointer',
+            }}>{etichetta}</button>
+          ))}
+        </div>
+        <button
+          onClick={espanso ? onChiudi : onEspandi}
+          title={espanso ? 'Riduci (Esc)' : 'Ingrandisci il grafico'}
+          style={{
+            display: 'inline-flex', alignItems: 'center', gap: 6,
+            fontSize: 10, letterSpacing: '.1em', textTransform: 'uppercase',
+            fontWeight: 700, padding: '4px 9px', borderRadius: 3,
+            border: '1px solid var(--border-br)', background: 'transparent',
+            color: espanso ? 'var(--azure)' : 'var(--muted)', cursor: 'pointer',
+          }}>
+          <svg width="11" height="11" viewBox="0 0 16 16" fill="none" stroke="currentColor"
+               strokeWidth="1.7" strokeLinecap="round" strokeLinejoin="round">
+            {espanso
+              ? <><path d="M6.5 1.5v5h-5"/><path d="M9.5 14.5v-5h5"/></>
+              : <><path d="M1.5 5.5v-4h4"/><path d="M14.5 10.5v4h-4"/></>}
+          </svg>
+          {espanso ? 'Riduci' : 'Ingrandisci'}
+        </button>
       </div>
 
-      <ResponsiveContainer width="100%" height={isMobile ? 250 : 300}>
+      <ResponsiveContainer width="100%" height={espanso ? (isMobile ? 380 : 560) : (isMobile ? 250 : 300)}>
         <ComposedChart data={prices} margin={{ top: 4, right: isMobile ? 4 : 16, left: 0, bottom: 0 }}>
           <defs>
             <linearGradient id="oggiGrad" x1="0" y1="0" x2="0" y2="1">

@@ -14,8 +14,18 @@ export function useFinData() {
   const BASE = import.meta.env.VITE_API_BASE 
   || 'https://financial-sentiment-analysis-20px.onrender.com/api'
 
-  const load = useCallback(async (ticker, days = 30, period = '3mo') => {
-    setLoading(true)
+  /**
+   * silenzioso = aggiorna i dati SENZA far comparire la schermata di attesa.
+   *
+   * Serve agli aggiornamenti automatici. Prima ogni giro di dieci minuti
+   * cancellava la pagina e mostrava "Caricamento", per poi rimettere quasi
+   * sempre gli stessi identici numeri: un lampo di nulla ogni dieci minuti,
+   * che è il modo più efficace di far sembrare instabile un'app che sta
+   * funzionando benissimo. I dati vecchi restano a schermo finché non
+   * arrivano i nuovi, e il cambio avviene senza che nessuno se ne accorga.
+   */
+  const load = useCallback(async (ticker, days = 30, period = '3mo', silenzioso = false) => {
+    if (!silenzioso) setLoading(true)
     setError(null)
     let newsCount = 0
     let failed = null
@@ -60,7 +70,7 @@ export function useFinData() {
       failed = e.message
       setError(e.message)
     } finally {
-      setLoading(false)
+      if (!silenzioso) setLoading(false)
     }
     // Chi chiama usa newsCount per capire se l'archivio era vuoto e, in quel
     // caso, far partire il fetch al volo invece di mostrare una pagina vuota.
