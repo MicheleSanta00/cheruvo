@@ -38,6 +38,11 @@ def e_intraday(period: str) -> bool:
     return period in INTRADAY
 
 
+def e_crypto(ticker: str) -> bool:
+    """Le crypto su Yahoo hanno il suffisso -USD (BTC-USD, ETH-USD)."""
+    return (ticker or "").upper().endswith("-USD")
+
+
 def get_prices(ticker: str, period: str = "3mo") -> pd.DataFrame:
     if e_intraday(period):
         # Nessun ripiego su Alpha Vantage: il loro piano gratuito non dà
@@ -65,18 +70,71 @@ def stato_mercato(ticker: str) -> dict:
         meta = (r.json().get("chart", {}).get("result") or [{}])[0].get("meta", {})
         regolare = (meta.get("currentTradingPeriod") or {}).get("regular") or {}
         adesso = int(time.time())
+        crypto = e_crypto(ticker)
+
+        riferimento = meta.get("chartPreviousClose") or meta.get("previousClose")
+        tipo_riferimento = "chiusura_precedente"
+
+        # Sulle crypto la "chiusura di ieri" non esiste: il mercato non chiude
+        # mai, e quel numero è semplicemente il prezzo a mezzanotte UTC. Alle
+        # otto di sera sarebbe un confronto su venti ore spacciato per un
+        # giorno. Chi segue le crypto ragiona in variazione a 24 ore vere, e
+        # quella la calcoliamo su una finestra mobile.
+        if crypto:
+            vero = _prezzo_24h_fa(ticker)
+            if vero is not None:
+                riferimento = vero
+                tipo_riferimento = "24h"
+
         return {
-            "aperto": bool(regolare.get("start", 0) <= adesso <= regolare.get("end", 0)),
+            # Le crypto scambiano sempre: nessun orario da controllare.
+            "aperto": True if crypto else
+                      bool(regolare.get("start", 0) <= adesso <= regolare.get("end", 0)),
+            "sempre_aperto": crypto,
             "ultimo_scambio": meta.get("regularMarketTime"),
             "prezzo": meta.get("regularMarketPrice"),
-            "chiusura_precedente": meta.get("chartPreviousClose") or meta.get("previousClose"),
+            "chiusura_precedente": riferimento,
+            "tipo_riferimento": tipo_riferimento,
             "valuta": meta.get("currency"),
             "borsa": meta.get("fullExchangeName"),
         }
     except Exception as e:
         logger.warning("stato_mercato %s: %s", ticker, e)
-        return {"aperto": False, "ultimo_scambio": None, "prezzo": None,
-                "chiusura_precedente": None, "valuta": None, "borsa": None}
+        return {"aperto": False, "sempre_aperto": False, "ultimo_scambio": None,
+                "prezzo": None, "chiusura_precedente": None,
+                "tipo_riferimento": None, "valuta": None, "borsa": None}
+
+
+def _prezzo_24h_fa(ticker: str) -> float | None:
+    """
+    Prezzo di 24 ore fa esatte, preso dalla serie oraria degli ultimi 2 giorni.
+    Ritorna None se non si riesce: chi chiama ripiega sulla chiusura Yahoo.
+    """
+    try:
+        r = requests.get(
+            f"https://query1.finance.yahoo.com/v8/finance/chart/{ticker}",
+            headers=HEADERS, params={"interval": "1h", "range": "2d"}, timeout=12,
+        )
+        res = (r.json().get("chart", {}).get("result") or [{}])[0]
+        momenti = res.get("timestamp") or []
+        chiusure = (res.get("indicators", {}).get("quote") or [{}])[0].get("close") or []
+        if not momenti or not chiusure:
+            return None
+
+        bersaglio = time.time() - 86400
+        migliore, distanza = None, None
+        for i, ts in enumerate(momenti):
+            if i >= len(chiusure) or chiusure[i] is None:
+                continue
+            d = abs(ts - bersaglio)
+            if distanza is None or d < distanza:
+                migliore, distanza = chiusure[i], d
+        # Se il punto più vicino dista più di tre ore dal bersaglio la serie ha
+        # buchi grossi e il confronto sarebbe fuorviante: meglio non darlo.
+        return migliore if distanza is not None and distanza <= 3 * 3600 else None
+    except Exception as e:
+        logger.warning("prezzo 24h fa per %s: %s", ticker, e)
+        return None
 
 
 def _yahoo_intraday(ticker: str, period: str) -> pd.DataFrame:

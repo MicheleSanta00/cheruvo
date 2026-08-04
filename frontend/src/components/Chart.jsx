@@ -5,6 +5,7 @@ import {
   ResponsiveContainer, ReferenceLine, Cell,
 } from 'recharts'
 import Icon from './Icon.jsx'
+import { formattaPrezzo } from './LogoCrypto.jsx'
 
 // ── Rileva schermi piccoli (per proporzioni grafico e tooltip) ────────────
 function useIsMobile() {
@@ -291,10 +292,13 @@ const fmtOra = d => {
   return p.length > 1 ? p[1] : d
 }
 
-function TooltipOggi({ active, payload, label, chiusuraIeri }) {
+function TooltipOggi({ active, payload, label, chiusuraIeri, tipoRiferimento }) {
   if (!active || !payload?.length) return null
   const d = payload[0].payload
   const rispettoIeri = chiusuraIeri != null ? d.Close - chiusuraIeri : null
+  // Sulle crypto il confronto è su 24 ore vere, sulle azioni sulla chiusura
+  // precedente: sono due cose diverse e l'etichetta deve dirlo.
+  const etichettaRif = tipoRiferimento === '24h' ? 'in 24h' : 'da ieri'
   return (
     <div style={{
       background: 'var(--near-black)', border: '1px solid var(--border-br)',
@@ -304,12 +308,12 @@ function TooltipOggi({ active, payload, label, chiusuraIeri }) {
         {label}
       </div>
       <div style={{ fontFamily: 'var(--mono)', fontWeight: 700, fontSize: 15, color: 'var(--white)' }}>
-        {d.Close?.toFixed(2)}
+        {formattaPrezzo(d.Close)}
       </div>
       {rispettoIeri != null && (
         <div style={{ fontFamily: 'var(--mono)', fontSize: 11, marginTop: 2,
                       color: rispettoIeri >= 0 ? 'var(--green)' : 'var(--red)' }}>
-          {rispettoIeri >= 0 ? '+' : ''}{rispettoIeri.toFixed(2)} da ieri
+          {rispettoIeri >= 0 ? '+' : ''}{formattaPrezzo(rispettoIeri)} {etichettaRif}
         </div>
       )}
       {d.Volume > 0 && (
@@ -373,11 +377,11 @@ function GraficoOggi({ prices, ticker, statoBorsa, isMobile }) {
                     flexWrap: 'wrap', marginBottom: 14 }}>
         <span style={{ fontFamily: 'var(--mono)', fontSize: 26, fontWeight: 700,
                        fontVariantNumeric: 'tabular-nums', color: 'var(--white)' }}>
-          {ultimo?.toFixed(2)}
+          {formattaPrezzo(ultimo)}
         </span>
         {variazione != null && (
           <span style={{ fontFamily: 'var(--mono)', fontSize: 14, fontWeight: 700, color: colore }}>
-            {variazione >= 0 ? '+' : ''}{variazione.toFixed(2)}
+            {variazione >= 0 ? '+' : ''}{formattaPrezzo(variazione)}
             {' '}({variazione >= 0 ? '+' : ''}{variazionePct.toFixed(2)}%)
           </span>
         )}
@@ -388,7 +392,8 @@ function GraficoOggi({ prices, ticker, statoBorsa, isMobile }) {
             background: aperto ? 'var(--green)' : 'var(--muted)',
             boxShadow: aperto ? '0 0 7px var(--green)' : 'none',
           }} />
-          {aperto ? 'Borsa aperta' : 'Borsa chiusa'}
+          {statoBorsa?.sempre_aperto ? 'Scambi 24/7'
+            : aperto ? 'Borsa aperta' : 'Borsa chiusa'}
           {oraScambio && <span style={{ fontFamily: 'var(--mono)' }}>· ultimo scambio {oraScambio}</span>}
         </span>
       </div>
@@ -413,16 +418,18 @@ function GraficoOggi({ prices, ticker, statoBorsa, isMobile }) {
             minTickGap={isMobile ? 50 : 80}
             tick={{ fontSize: 10, fill: '#475569' }} axisLine={false} tickLine={false}/>
           <YAxis orientation="right" domain={[min - margine, max + margine]}
-            tickFormatter={v => v.toFixed(2)}
+            tickFormatter={v => formattaPrezzo(v)}
             tick={{ fontSize: 10, fill: '#475569' }} axisLine={false} tickLine={false}
             width={isMobile ? 50 : 58}/>
-          <Tooltip content={<TooltipOggi chiusuraIeri={chiusuraIeri} />}/>
+          <Tooltip content={<TooltipOggi chiusuraIeri={chiusuraIeri}
+                     tipoRiferimento={statoBorsa?.tipo_riferimento} />}/>
 
           {/* La chiusura di ieri come riga di riferimento: senza, "sta salendo"
               non ha un metro. È la linea che separa il verde dal rosso. */}
           {chiusuraIeri != null && (
             <ReferenceLine y={chiusuraIeri} stroke="rgba(var(--rgb-contrasto), 0.22)" strokeDasharray="4 4"
-              label={{ value: 'chiusura ieri', position: 'insideTopLeft',
+              label={{ value: statoBorsa?.tipo_riferimento === '24h' ? '24 ore fa' : 'chiusura ieri',
+                       position: 'insideTopLeft',
                        fill: '#475569', fontSize: 9.5 }}/>
           )}
 
@@ -432,7 +439,7 @@ function GraficoOggi({ prices, ticker, statoBorsa, isMobile }) {
         </ComposedChart>
       </ResponsiveContainer>
 
-      {!aperto && (
+      {!aperto && !statoBorsa?.sempre_aperto && (
         <div style={{ fontSize: 11.5, color: 'var(--muted)', marginTop: 10, lineHeight: 1.5 }}>
           La borsa è chiusa: questo è il disegno completo dell'ultima seduta.
           Tornerà a muoversi da solo alla prossima apertura.

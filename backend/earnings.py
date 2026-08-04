@@ -82,6 +82,9 @@ def _next_earnings_date(ticker: str):
 
 def refresh_earnings(tickers: list[str]) -> int:
     """Aggiorna le date earnings per i ticker con dato più vecchio di 24h."""
+    # Le criptovalute non depositano bilanci: filtrarle qui evita una chiamata
+    # a yfinance per ognuna e righe vuote nel calendario.
+    tickers = [t for t in tickers if not str(t).upper().endswith("-USD")]
     if not tickers:
         return 0
     conn = _conn()

@@ -32,6 +32,7 @@ import logging
 
 from database import SuperNewsAnalyzer, init_database, get_pool
 from prices import get_prices, validate_ticker, e_intraday, stato_mercato
+from paura_avidita import router as fng_router
 from stripe_routes import router as stripe_router, init_subscriptions_table
 from quick_fetch import quick_fetch
 from summary import genera_summary, _fallback
@@ -310,6 +311,9 @@ def list_tickers(request: Request, user: dict = Depends(get_current_user)):
 @app.get("/health")
 def health():
     return {"status": "ok", **cache_stats()}
+
+
+app.include_router(fng_router, prefix="/api")
 
 
 @app.get("/ping")
