@@ -61,7 +61,7 @@ def tickers_da_riempire(mercati: str) -> list[str]:
     return tutti
 
 
-def sonda_finestre() -> bool:
+def sonda_finestre(tentativi: int = 5, attesa: float = 60.0) -> bool:
     """
     Verifica che GDELT rispetti davvero startdatetime/enddatetime.
 
@@ -73,18 +73,42 @@ def sonda_finestre() -> bool:
 
     Quindi non basta guardare se torna roba: si controlla che le date degli
     articoli cadano DENTRO l'intervallo chiesto.
+
+    Perché insiste per minuti invece di arrendersi subito. Nella prima
+    versione la sonda faceva due tentativi in trenta secondi, e il 5 agosto
+    2026 ha ammazzato un lavoro da un'ora perché GDELT era momentaneamente
+    stizzito: il giro precedente, lanciato pochi minuti prima, aveva
+    consumato la pazienza dell'indirizzo IP. La punizione di GDELT non
+    finisce quando smetti di chiamare, dura ancora per un po'.
+
+    Una sonda che decide in trenta secondi se vale la pena lavorare un'ora è
+    sproporzionata: costa molto meno aspettare cinque minuti che rinunciare.
     """
     fine = datetime.now(timezone.utc) - timedelta(days=30)
     inizio = fine - timedelta(days=3)
     logger.info("Sonda: chiedo a GDELT gli articoli fra %s e %s",
                 inizio.strftime("%d/%m"), fine.strftime("%d/%m"))
 
-    articoli = _interroga("Bitcoin sourcelang:english", 30, "1d",
-                          finestra=(inizio, fine))
+    articoli = []
+    for n in range(tentativi):
+        articoli = _interroga("Bitcoin sourcelang:english", 30, "1d",
+                              finestra=(inizio, fine))
+        if articoli:
+            break
+        if n < tentativi - 1:
+            logger.warning("Sonda: GDELT non risponde (tentativo %d di %d). "
+                           "Aspetto %.0f secondi e riprovo: di solito è una "
+                           "strozzatura passeggera, non un guasto.",
+                           n + 1, tentativi, attesa)
+            time.sleep(attesa)
+
     if not articoli:
-        logger.error("Sonda fallita: GDELT non ha risposto nulla. Può essere "
-                     "il rate limit (riprova fra qualche minuto) oppure "
-                     "l'API storica non è disponibile.")
+        logger.error("Sonda fallita: GDELT non ha risposto per %.0f minuti di "
+                     "fila. L'indirizzo IP è sotto punizione, quasi sempre "
+                     "perché un giro precedente ha chiamato troppo. Aspetta "
+                     "una mezz'ora prima di rilanciare: non serve cambiare "
+                     "niente nel codice.",
+                     tentativi * attesa / 60)
         return False
 
     # seendate arriva come YYYYMMDDTHHMMSSZ
@@ -114,22 +138,23 @@ def calma_il_ritmo(pausa: float) -> None:
     """
     Rallenta di proposito le chiamate a GDELT, prima ancora di cominciare.
 
-    Sembra controintuitivo ma va PIÙ VELOCE. Misurato sul primo giro vero del
-    5 agosto 2026: partendo dai 5 secondi del fetch quotidiano, GDELT ha
-    risposto 429 quasi subito, la pausa adattiva è salita al suo tetto di 20
-    secondi e da lì non è più scesa, perché `_rallenta` sa solo alzare. Il
-    risultato era il peggiore dei due mondi: venti secondi di attesa e un 429
-    lo stesso. La terza finestra ha consumato un minuto e mezzo per ottenere
-    zero articoli.
+    Attenzione a non attribuire a questa funzione più di quello che fa. La
+    prima versione di questo commento sosteneva che partire calmi rendesse il
+    lavoro più veloce, e i due giri del 5 agosto 2026 hanno detto il
+    contrario: il primo, partito da 5 secondi, ha superato la sonda; il
+    secondo, partito da 10, l'ha fallita al primo colpo. Se la teoria fosse
+    stata giusta sarebbe successo l'opposto.
 
-    La seconda finestra, quando per caso è ripartita pulita, ha chiuso in 22
-    secondi con una sola chiamata: interrogazione raggruppata, 250 articoli,
-    tutte e venti le monete filtrate da quelli.
+    Quello che conta davvero non è il ritmo ma la MEMORIA della punizione. Il
+    secondo giro è partito pochi minuti dopo il primo, dallo stesso indirizzo,
+    che nel frattempo aveva consumato la pazienza di GDELT con qualche
+    centinaio di chiamate. La punizione non finisce quando smetti: resta
+    addosso all'indirizzo ancora per un pezzo.
 
-    La differenza fra 22 secondi e un minuto e mezzo è tutta qui: chi bussa
-    piano viene servito, chi bussa forte viene messo in castigo. Sul fetch
-    quotidiano restiamo a 5 secondi perché le chiamate sono poche e sparse;
-    qui, che ne facciamo centinaia di fila, si parte già calmi.
+    Quindi la pausa alta serve, ma per un motivo più modesto: consuma la
+    pazienza più lentamente, e fa durare più a lungo la finestra di lavoro
+    prima che il rubinetto si chiuda. Non la riapre. Se il rubinetto è già
+    chiuso l'unica cosa che funziona è aspettare, e questo lo fa la sonda.
     """
     import gdelt_source as g
     g.PAUSA_MINIMA = pausa
@@ -138,8 +163,13 @@ def calma_il_ritmo(pausa: float) -> None:
     # deve rinunciare in fretta. Qui di tempo ce n'è, quindi conviene poter
     # arretrare davvero invece di insistere contro un muro.
     g.PAUSA_MASSIMA = max(g.PAUSA_MASSIMA, pausa * 4)
-    logger.info("Ritmo: una chiamata ogni %.0fs (tetto %.0fs)",
-                pausa, g.PAUSA_MASSIMA)
+    # Stessa storia per l'attesa dopo un 429: 8 secondi bastavano al cron, che
+    # preferisce saltare un ticker piuttosto che perdere il giro. Qui saltare
+    # significa lasciare un buco nello storico, quindi conviene aspettare.
+    g.ATTESA_MASSIMA_RIPROVA = max(g.ATTESA_MASSIMA_RIPROVA, pausa * 3)
+    logger.info("Ritmo: una chiamata ogni %.0fs (tetto %.0fs, attesa dopo un "
+                "rifiuto fino a %.0fs)",
+                pausa, g.PAUSA_MASSIMA, g.ATTESA_MASSIMA_RIPROVA)
 
 
 def backfill(giorni: int, ampiezza: int, mercati: str, limite_minuti: int) -> int:
@@ -152,6 +182,7 @@ def backfill(giorni: int, ampiezza: int, mercati: str, limite_minuti: int) -> in
     adesso = datetime.now(timezone.utc)
     totale = 0
     finestre_fatte = 0
+    vuote = 0            # finestre consecutive senza un solo articolo
     n_finestre = max(1, giorni // ampiezza)
 
     # Si parte dal passato recente e si va indietro: se il tempo finisce, quello
@@ -172,9 +203,11 @@ def backfill(giorni: int, ampiezza: int, mercati: str, limite_minuti: int) -> in
         logger.info("── finestra %d/%d: %s → %s ──", i + 1, n_finestre,
                     inizio.strftime("%d/%m"), fine.strftime("%d/%m"))
         nella_finestra = 0
+        trovati = 0
         for ticker in tickers:
             try:
                 news = fetch_gdelt(ticker, finestra=(inizio, fine))
+                trovati += len(news)
                 if news:
                     salvate = save_news(ticker, news)
                     nella_finestra += salvate
@@ -185,8 +218,21 @@ def backfill(giorni: int, ampiezza: int, mercati: str, limite_minuti: int) -> in
 
         totale += nella_finestra
         finestre_fatte += 1
-        logger.info("   finestra chiusa: %d nuove (totale %d)",
-                    nella_finestra, totale)
+        logger.info("   finestra chiusa: %d articoli, %d nuove (totale %d)",
+                    trovati, nella_finestra, totale)
+
+        # Zero NUOVE è normale: significa che quella finestra era già stata
+        # ricostruita e i doppioni sono stati scartati. Zero ARTICOLI no:
+        # vuol dire che GDELT ha smesso di rispondere. Se succede per tre
+        # finestre di fila non ha senso continuare a bussare per un'ora: si
+        # consumano minuti di Actions per riportare a casa niente.
+        vuote = vuote + 1 if trovati == 0 else 0
+        if vuote >= 3:
+            logger.warning("Tre finestre di fila senza un solo articolo: GDELT "
+                           "ha chiuso il rubinetto. Mi fermo qui invece di "
+                           "consumare i minuti rimasti. Riprova fra mezz'ora, "
+                           "riparte da dove serve.")
+            break
 
     durata = (time.time() - avvio) / 60
     logger.info("─" * 55)

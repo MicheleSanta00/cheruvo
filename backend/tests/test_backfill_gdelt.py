@@ -169,8 +169,66 @@ def test_la_sonda_passa_se_le_date_sono_giuste():
 
 
 def test_la_sonda_boccia_il_silenzio():
-    """Nessuna risposta (rate limit) non è un via libera."""
+    """
+    Nessuna risposta (rate limit) non è un via libera.
+
+    I tempi vanno passati corti di proposito: con i valori veri la sonda
+    aspetta cinque minuti prima di arrendersi, che è giusto in produzione e
+    insopportabile in una suite di test.
+    """
     import backfill_gdelt as bf
 
-    with patch.object(bf, "_interroga", return_value=[]):
-        assert bf.sonda_finestre() is False
+    with patch.object(bf, "_interroga", return_value=[]), \
+         patch.object(bf.time, "sleep"):
+        assert bf.sonda_finestre(tentativi=2, attesa=0.01) is False
+
+
+# ── La sonda deve avere pazienza ──────────────────────────────────────────
+def test_la_sonda_riprova_prima_di_arrendersi():
+    """
+    Il 5 agosto 2026 la sonda ha ucciso un lavoro da un'ora dopo mezzo minuto,
+    perché GDELT era momentaneamente stizzito dal giro precedente. Decidere in
+    trenta secondi se vale la pena lavorare un'ora è sproporzionato.
+    """
+    import backfill_gdelt as bf
+
+    dentro = (datetime.now(timezone.utc) - timedelta(days=31)).strftime("%Y%m%dT120000Z")
+    buono = [{"title": "Notizia vecchia", "language": "English",
+              "domain": "coindesk.com", "url": "http://x/1", "seendate": dentro}]
+
+    # Rifiutata due volte, poi passa: la sonda deve arrivarci.
+    with patch.object(bf, "_interroga", side_effect=[[], [], buono]) as mock, \
+         patch.object(bf.time, "sleep"):
+        assert bf.sonda_finestre(tentativi=5, attesa=0.01) is True
+    assert mock.call_count == 3
+
+
+def test_la_sonda_non_insiste_all_infinito():
+    """Ma dopo i tentativi previsti si ferma, senza restare appesa."""
+    import backfill_gdelt as bf
+
+    with patch.object(bf, "_interroga", return_value=[]) as mock, \
+         patch.object(bf.time, "sleep"):
+        assert bf.sonda_finestre(tentativi=3, attesa=0.01) is False
+    assert mock.call_count == 3
+
+
+def test_il_ritmo_alza_anche_l_attesa_dopo_un_rifiuto():
+    """
+    Il tetto di 8 secondi sull'attesa dopo un 429 era tarato sul cron, che
+    preferisce saltare un ticker piuttosto che perdere il giro. Nella
+    ricostruzione saltare lascia un buco nello storico.
+    """
+    import gdelt_source as g
+    import backfill_gdelt as bf
+
+    minima, corrente = g.PAUSA_MINIMA, g._pausa_corrente
+    massima, attesa = g.PAUSA_MASSIMA, g.ATTESA_MASSIMA_RIPROVA
+    try:
+        bf.calma_il_ritmo(10.0)
+        assert g._pausa_corrente == 10.0
+        assert g.PAUSA_MASSIMA >= 40.0
+        assert g.ATTESA_MASSIMA_RIPROVA >= 30.0
+    finally:
+        g.PAUSA_MINIMA, g._pausa_corrente = minima, corrente
+        g.PAUSA_MASSIMA, g.ATTESA_MASSIMA_RIPROVA = massima, attesa
