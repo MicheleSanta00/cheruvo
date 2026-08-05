@@ -191,8 +191,14 @@ def rescore_non_av_news(ticker: str, batch_size: int = 10,
             SELECT id, title, summary
             FROM news
             WHERE ticker = %s
+              -- Il filtro sul NOME della fonte non bastava: Alpha Vantage
+              -- salva le sue righe col nome della testata (Benzinga,
+              -- MarketBeat), quindi questa riga da sola ne intercettava
+              -- pochissime e Groq ri-classificava punteggi che Alpha Vantage
+              -- aveva già calcolato meglio, sul suo stesso ticker. Il filtro
+              -- che conta è quello su score_source, qui sotto.
               AND source != 'Alpha Vantage'
-              AND COALESCE(score_source, 'vader') <> 'llm2'
+              AND COALESCE(score_source, 'vader') NOT IN ('llm2', 'av')
               AND published_date >= NOW() - INTERVAL '7 days'
             ORDER BY published_date DESC
             LIMIT %s

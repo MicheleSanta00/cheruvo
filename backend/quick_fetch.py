@@ -110,7 +110,20 @@ def fetch_alpha_vantage(ticker: str) -> list:
             sentiment = _av_sentiment(item, ticker)
 
             news_list.append({
+                # ATTENZIONE: qui finisce il NOME DELLA TESTATA (Benzinga,
+                # MarketBeat, Investing.com), non "Alpha Vantage". È corretto
+                # per mostrarlo all'utente, ma rende il campo `source`
+                # inservibile per sapere da quale FORNITORE arriva la riga:
+                # "Benzinga" può essere arrivata da Alpha Vantage (che abbiamo
+                # licenza di usare) o da NewsAPI (che vieta la produzione).
+                #
+                # Il 5 agosto 2026 questa ambiguità è costata cara: il
+                # censimento delle licenze ha dovuto marcare come "non
+                # dimostrabili" 32.675 righe su 33.126, comprese quelle di
+                # Alpha Vantage che erano perfettamente lecite. Per questo la
+                # provenienza ora viaggia in un campo suo.
                 "source": item.get("source", "Alpha Vantage"),
+                "score_source": "av",
                 "title": title,
                 "summary": summary[:250],
                 "published_date": format_date(item.get("time_published")),
@@ -278,7 +291,14 @@ def save_news(ticker: str, news_list: list) -> int:
             tk = n["title"].lower().strip()
             sk = n["source"].lower().strip()
             if (tk, sk) not in existing:
-                source_kind = "av" if n["source"] == "Alpha Vantage" else n.get("score_source", "vader")
+                # Prima qui c'era: "av" se n["source"] == "Alpha Vantage".
+                # Non scattava quasi mai, perché fetch_alpha_vantage scrive in
+                # `source` il nome della testata e quella stringa esatta esce
+                # solo quando Alpha Vantage non dichiara la fonte. Risultato:
+                # le righe AV venivano marcate 'vader', Groq le ri-classificava
+                # buttando via il punteggio buono, e mesi dopo era impossibile
+                # dimostrare che fossero lecite. Ora la fonte lo dichiara.
+                source_kind = n.get("score_source", "vader")
                 new_entries.append((
                     ticker, n["source"], n["title"],
                     n.get("summary", ""), n["published_date"],

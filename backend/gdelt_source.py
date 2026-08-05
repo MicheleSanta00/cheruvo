@@ -21,6 +21,7 @@ Note dai test dal vivo (importanti, non rimuovere):
 import logging
 import re
 import time
+from datetime import datetime, timezone
 
 import requests
 
@@ -64,24 +65,40 @@ def _rallenta():
     logger.warning("GDELT ha risposto 429: pausa portata a %.0fs", _pausa_corrente)
 
 
-def _interroga(q: str, max_items: int, timespan: str, tentativi: int = 2) -> list[dict]:
+def _fmt_finestra(d: datetime) -> str:
+    """GDELT vuole le date come YYYYMMDDHHMMSS, sempre in UTC."""
+    return d.astimezone(timezone.utc).strftime("%Y%m%d%H%M%S")
+
+
+def _interroga(q: str, max_items: int, timespan: str, tentativi: int = 2,
+               finestra: tuple[datetime, datetime] | None = None) -> list[dict]:
     """
     Una interrogazione a GDELT. Non solleva MAI: se va male ritorna [].
     Sul 429 aspetta e riprova, perché quel codice non significa "non ci sono
     notizie" ma "hai bussato troppo presto", e trattarlo come un errore
     definitivo faceva perdere il giro a quel ticker fino a sei ore dopo.
+
+    `finestra` serve alla ricostruzione dello storico: al posto di "le ultime
+    N ore" chiede un intervallo preciso fra due date. GDELT accetta i due
+    modi ma non insieme, quindi o l'uno o l'altro.
     """
     for tentativo in range(tentativi):
         try:
             _rispetta_rate_limit()
-            resp = requests.get(GDELT_URL, params={
+            parametri = {
                 "query": q,                   # UN token, MAI tra virgolette
                 "mode": "artlist",
                 "format": "json",
                 "maxrecords": max_items,
-                "timespan": timespan,
                 "sort": "datedesc",
-            }, timeout=15, headers={"User-Agent": _UA})
+            }
+            if finestra:
+                parametri["startdatetime"] = _fmt_finestra(finestra[0])
+                parametri["enddatetime"] = _fmt_finestra(finestra[1])
+            else:
+                parametri["timespan"] = timespan
+            resp = requests.get(GDELT_URL, params=parametri,
+                                timeout=15, headers={"User-Agent": _UA})
 
             if resp.status_code == 429:
                 _rallenta()
@@ -263,7 +280,7 @@ def _da_articolo(a: dict) -> dict:
 # interrogazione dedicata, perché lì funziona già e ognuno merita per intero
 # i 250 posti disponibili: NVDA da solo ne riempirebbe più di AMZN e MU messi
 # insieme, e accorpandoli i più piccoli sparirebbero.
-_cache_mercato: dict[str, tuple[float, list[dict]]] = {}
+_cache_mercato: dict[tuple, tuple[float, list[dict]]] = {}
 CACHE_MERCATO_S = 1800     # 30 minuti: il cron gira ogni 6 ore, il web molto più spesso
 _or_supportato: bool | None = None   # None = non ancora scoperto
 
@@ -282,7 +299,8 @@ def _ticker_del_mercato(lingua: str) -> list[str]:
             if "." in tk and _LINGUA_BORSA.get(tk.split(".")[-1]) == lingua]
 
 
-def _articoli_del_mercato(lingua: str, max_items: int, timespan: str) -> list[dict]:
+def _articoli_del_mercato(lingua: str, max_items: int, timespan: str,
+                          finestra: tuple[datetime, datetime] | None = None) -> list[dict]:
     """
     Articoli grezzi per tutte le società di un mercato, con una interrogazione
     sola (o due: lingua locale e inglese). Il risultato resta in cache per
@@ -291,8 +309,13 @@ def _articoli_del_mercato(lingua: str, max_items: int, timespan: str) -> list[di
     """
     global _or_supportato
     adesso = time.time()
-    if lingua in _cache_mercato:
-        quando, articoli = _cache_mercato[lingua]
+    # La chiave comprende la finestra temporale, non solo il mercato. Senza,
+    # la ricostruzione dello storico riempirebbe tutte le settimane con gli
+    # articoli della prima: stessa lingua, stessa chiave, cache servita.
+    chiave = (lingua, (_fmt_finestra(finestra[0]), _fmt_finestra(finestra[1]))
+              if finestra else timespan)
+    if chiave in _cache_mercato:
+        quando, articoli = _cache_mercato[chiave]
         if adesso - quando < CACHE_MERCATO_S:
             return articoli
 
@@ -309,7 +332,7 @@ def _articoli_del_mercato(lingua: str, max_items: int, timespan: str) -> list[di
                             f"{gruppo} sourcelang:english"])
     articoli = []
     for q in interrogazioni:
-        articoli.extend(_interroga(q, max_items, timespan))
+        articoli.extend(_interroga(q, max_items, timespan, finestra=finestra))
 
     # Non ho potuto verificare da fuori se GDELT accetta l'OR fra parentesi:
     # ero io stesso finito sotto rate limit mentre lo provavo. Invece di
@@ -321,7 +344,7 @@ def _articoli_del_mercato(lingua: str, max_items: int, timespan: str) -> list[di
             logger.warning("GDELT mercato %s: la query raggruppata non ha reso "
                            "nulla. Torno al metodo per singolo titolo.", lingua)
         _or_supportato = False
-        _cache_mercato[lingua] = (adesso, [])
+        _cache_mercato[chiave] = (adesso, [])
         return []
 
     if _or_supportato is None:
@@ -330,12 +353,13 @@ def _articoli_del_mercato(lingua: str, max_items: int, timespan: str) -> list[di
     _or_supportato = True
     logger.info("GDELT mercato %s (%d società, 2 interrogazioni): %d articoli grezzi",
                 lingua, len(tickers), len(articoli))
-    _cache_mercato[lingua] = (adesso, articoli)
+    _cache_mercato[chiave] = (adesso, articoli)
     return articoli
 
 
 def fetch_gdelt(ticker: str, nome: str | None = None,
-                max_items: int = 250, timespan: str = "7d") -> list[dict]:
+                max_items: int = 250, timespan: str = "7d",
+                finestra: tuple[datetime, datetime] | None = None) -> list[dict]:
     """
     News recenti su un ticker da GDELT, già filtrate per lingua e pertinenza.
     Ritorna una lista di dict pronti per il salvataggio (stesso schema delle
@@ -391,7 +415,7 @@ def fetch_gdelt(ticker: str, nome: str | None = None,
         mercato_di = ("Crypto" if e_crypto(ticker)
                       else lingua_locale if lingua_locale != "English" else None)
         if mercato_di and ticker.upper() in TERMINE_QUERY:
-            articoli = _articoli_del_mercato(mercato_di, max_items, timespan)
+            articoli = _articoli_del_mercato(mercato_di, max_items, timespan, finestra)
             if articoli:
                 via = "mercato"
 
@@ -402,7 +426,7 @@ def fetch_gdelt(ticker: str, nome: str | None = None,
             # Ogni interrogazione è indipendente: se la prima fallisce la
             # seconda ci prova lo stesso, e quello che è già arrivato resta.
             for q in varianti:
-                articoli.extend(_interroga(q, max_items, timespan))
+                articoli.extend(_interroga(q, max_items, timespan, finestra=finestra))
 
         if not articoli:
             logger.info("GDELT %s (query='%s'): nessun articolo", ticker, termine)

@@ -51,6 +51,30 @@ Su GitHub Actions: aggiungi i segreti in **Settings → Secrets and variables �
 2. **On-demand** → `/api/fetch/{ticker}` → `quick_fetch.py` in background
 3. **Alert** → dopo ogni fetch, `alerts.py` manda email agli utenti PRO con ticker in watchlist
 
+### Licenze delle fonti
+
+Girano solo tre fonti: **GDELT** (licenza libera anche commerciale), **SEC
+EDGAR** (pubblico dominio) e **Alpha Vantage** (dietro `AV_ENABLED`, con
+autorizzazione scritta del supporto). NewsAPI, Google News RSS e i feed
+Yahoo/Sole24Ore restano nel codice come riferimento ma **non vengono chiamati**:
+nessuno dei tre consente l'uso commerciale.
+
+Il censimento del 5 agosto 2026 ha però contato **32.675 righe su 33.126** (il
+98,6%) rimaste in archivio da prima che quei rubinetti venissero chiusi.
+Due strumenti manuali, entrambi da Actions:
+
+- `.github/workflows/backfill_gdelt.yml` ricostruisce lo storico da GDELT
+- `.github/workflows/pulizia_licenze.yml` censisce e poi elimina l'arretrato
+
+L'ordine conta: prima si ricostruisce, poi si cancella. Al contrario il sito
+resterebbe con 451 notizie per settimane.
+
+Una trappola da non ricreare: Alpha Vantage salva in `source` il **nome della
+testata**, non il proprio. Per mesi questo ha reso indistinguibile una riga
+Alpha Vantage (lecita) da una NewsAPI (vietata), e al momento del censimento
+non è stato possibile salvare le prime. Ora la provenienza viaggia in
+`score_source='av'`, scritta dalla fonte e non dedotta dal nome.
+
 ## Sveglia del backend e ore gratuite
 
 Il backend sta sul piano gratuito di Render, che **si addormenta dopo 15 minuti**
