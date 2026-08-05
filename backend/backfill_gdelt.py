@@ -110,6 +110,38 @@ def sonda_finestre() -> bool:
     return True
 
 
+def calma_il_ritmo(pausa: float) -> None:
+    """
+    Rallenta di proposito le chiamate a GDELT, prima ancora di cominciare.
+
+    Sembra controintuitivo ma va PIÙ VELOCE. Misurato sul primo giro vero del
+    5 agosto 2026: partendo dai 5 secondi del fetch quotidiano, GDELT ha
+    risposto 429 quasi subito, la pausa adattiva è salita al suo tetto di 20
+    secondi e da lì non è più scesa, perché `_rallenta` sa solo alzare. Il
+    risultato era il peggiore dei due mondi: venti secondi di attesa e un 429
+    lo stesso. La terza finestra ha consumato un minuto e mezzo per ottenere
+    zero articoli.
+
+    La seconda finestra, quando per caso è ripartita pulita, ha chiuso in 22
+    secondi con una sola chiamata: interrogazione raggruppata, 250 articoli,
+    tutte e venti le monete filtrate da quelli.
+
+    La differenza fra 22 secondi e un minuto e mezzo è tutta qui: chi bussa
+    piano viene servito, chi bussa forte viene messo in castigo. Sul fetch
+    quotidiano restiamo a 5 secondi perché le chiamate sono poche e sparse;
+    qui, che ne facciamo centinaia di fila, si parte già calmi.
+    """
+    import gdelt_source as g
+    g.PAUSA_MINIMA = pausa
+    g._pausa_corrente = pausa
+    # Il tetto di 20 secondi era tarato sul cron, che ha 12 minuti in tutto e
+    # deve rinunciare in fretta. Qui di tempo ce n'è, quindi conviene poter
+    # arretrare davvero invece di insistere contro un muro.
+    g.PAUSA_MASSIMA = max(g.PAUSA_MASSIMA, pausa * 4)
+    logger.info("Ritmo: una chiamata ogni %.0fs (tetto %.0fs)",
+                pausa, g.PAUSA_MASSIMA)
+
+
 def backfill(giorni: int, ampiezza: int, mercati: str, limite_minuti: int) -> int:
     tickers = tickers_da_riempire(mercati)
     logger.info("Ricostruzione: %d giorni a finestre di %d, %d titoli (%s)",
@@ -180,6 +212,11 @@ if __name__ == "__main__":
                     default="crypto", help="quali titoli (default crypto)")
     ap.add_argument("--limite-minuti", type=int, default=45,
                     help="tempo massimo, poi si ferma pulito (default 45)")
+    ap.add_argument("--pausa", type=float, default=10.0,
+                    help="secondi fra due chiamate a GDELT (default 10). "
+                         "Il fetch quotidiano usa 5, ma su centinaia di "
+                         "chiamate di fila quel ritmo fa scattare il 429 e si "
+                         "finisce ad aspettare di più ottenendo di meno.")
     ap.add_argument("--prova", action="store_true",
                     help="esegui solo la sonda e esci, senza scrivere niente")
     args = ap.parse_args()
@@ -189,6 +226,8 @@ if __name__ == "__main__":
         load_dotenv(os.path.join(os.path.dirname(os.path.abspath(__file__)), ".env"))
     except ImportError:
         pass
+
+    calma_il_ritmo(args.pausa)
 
     if not sonda_finestre():
         sys.exit(1)

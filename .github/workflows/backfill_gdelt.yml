@@ -69,6 +69,7 @@ jobs:
           python backend/backfill_gdelt.py \
             --giorni ${{ github.event.inputs.giorni }} \
             --mercati ${{ github.event.inputs.mercati }} \
+            --pausa 10 \
             --limite-minuti 60
 
       - name: Riepilogo
