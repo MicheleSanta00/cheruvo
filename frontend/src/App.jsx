@@ -1108,7 +1108,8 @@ function Pannello({ titolo, extra, children }) {
   )
 }
 
-function EmptyState({ t, onLoad, days, period, mercato, mktStats, risveglio }) {
+function EmptyState({ t, onLoad, days, period, mercato, mktStats, risveglio, mercatoAttivo = 'crypto' }) {
+  const cripto = mercatoAttivo === 'crypto'
   const { lang } = useLang()
   // I dati arrivano già da App: una sola chiamata condivisa con nastro,
   // colonna destra e barra di stato, invece di quattro richieste uguali.
