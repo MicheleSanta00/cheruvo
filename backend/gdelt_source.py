@@ -45,7 +45,8 @@ _ultima_chiamata = 0.0
 # a richiesta dell'utente) e il cron su GitHub Actions. Nessuno dei due sa cosa
 # sta facendo l'altro, quindi l'unico segnale reale è il rifiuto di GDELT.
 _pausa_corrente = PAUSA_MINIMA
-PAUSA_MASSIMA = 30.0
+PAUSA_MASSIMA = 20.0          # tetto della pausa fra chiamate
+ATTESA_MASSIMA_RIPROVA = 8.0  # tetto dell'attesa aggiuntiva su un 429
 
 
 def _rispetta_rate_limit():
@@ -63,7 +64,7 @@ def _rallenta():
     logger.warning("GDELT ha risposto 429: pausa portata a %.0fs", _pausa_corrente)
 
 
-def _interroga(q: str, max_items: int, timespan: str, tentativi: int = 3) -> list[dict]:
+def _interroga(q: str, max_items: int, timespan: str, tentativi: int = 2) -> list[dict]:
     """
     Una interrogazione a GDELT. Non solleva MAI: se va male ritorna [].
     Sul 429 aspetta e riprova, perché quel codice non significa "non ci sono
@@ -85,7 +86,14 @@ def _interroga(q: str, max_items: int, timespan: str, tentativi: int = 3) -> lis
             if resp.status_code == 429:
                 _rallenta()
                 if tentativo < tentativi - 1:
-                    time.sleep(_pausa_corrente * (tentativo + 1))
+                    # Attesa CON UN TETTO. Prima era _pausa_corrente * (n+1),
+                    # che con la pausa a 30 secondi diventava 30 e poi 60: due
+                    # minuti buttati su un ticker solo. Con quaranta ticker il
+                    # cron sforava i 12 minuti del workflow e veniva ucciso a
+                    # metà, quindi non salvava NIENTE e non girava nemmeno il
+                    # controllo di salute. Meglio saltare un ticker che perdere
+                    # tutto il giro.
+                    time.sleep(min(_pausa_corrente, ATTESA_MASSIMA_RIPROVA))
                     continue
                 logger.warning("GDELT '%s': 429 anche dopo %d tentativi, salto",
                                q, tentativi)
@@ -105,7 +113,7 @@ def _interroga(q: str, max_items: int, timespan: str, tentativi: int = 3) -> lis
             logger.warning("GDELT '%s' tentativo %d/%d fallito: %s",
                            q, tentativo + 1, tentativi, e)
             if tentativo < tentativi - 1:
-                time.sleep(2 * (tentativo + 1))
+                time.sleep(2)
     return []
 
 # Lingua locale attesa per borsa, oltre all'inglese

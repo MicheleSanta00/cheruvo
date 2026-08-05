@@ -58,6 +58,12 @@ DEFAULT_TICKERS = [
 # raggruppata, non su sedici. Restiamo dentro il timeout del workflow.
 MAX_TICKERS = 40
 
+# Il ciclo di raccolta si ferma da solo dopo questi secondi, lasciando il
+# resto del tempo alle cose che vengono DOPO: controllo di salute, alert,
+# digest, earnings. Il workflow ha 12 minuti totali: qui ne usiamo 8 e ne
+# restano 4, che sono abbondanti perché il resto non fa chiamate lente.
+LIMITE_FETCH_SECONDI = 8 * 60
+
 
 def get_watchlist_tickers() -> list[str]:
     """
@@ -143,7 +149,24 @@ if __name__ == "__main__":
 
     total_new = 0
     errors = 0
+    saltati = 0
     for ticker in selected:
+        # Freno di sicurezza. Il workflow viene ucciso a 12 minuti esatti, e
+        # quando succede NON viene salvato niente: né le notizie, né il
+        # controllo di salute, né gli alert, perché sta tutto dopo questo
+        # ciclo. È successo davvero il 5 agosto 2026, con un giro terminato a
+        # 12m16s e zero risultati.
+        #
+        # Meglio aggiornare venticinque ticker e finire, che tentarne quaranta
+        # e perdere tutto. Quelli saltati hanno la precedenza al giro dopo,
+        # perché la lista è ordinata per notizia più vecchia.
+        trascorso = (datetime.now(timezone.utc) - start).total_seconds()
+        if trascorso > LIMITE_FETCH_SECONDI:
+            saltati = len(selected) - selected.index(ticker)
+            logger.warning("Tempo quasi esaurito (%.0fs): salto gli ultimi %d ticker "
+                           "per arrivare in fondo al resto", trascorso, saltati)
+            break
+
         logger.info("─── %s ───", ticker)
         try:
             count = quick_fetch(ticker)
@@ -154,8 +177,9 @@ if __name__ == "__main__":
             errors += 1
 
     logger.info("─" * 55)
-    logger.info("Fetch completato: %d nuove news, %d errori su %d ticker",
-                total_new, errors, len(selected))
+    logger.info("Fetch completato: %d nuove news, %d errori, %d ticker saltati "
+                "per tempo, su %d in lista",
+                total_new, errors, saltati, len(selected))
 
     # Controllo salute: registra la copertura del giorno e avvisa se peggiora.
     # Sta QUI, subito dopo il fetch, perché è il fetch che vogliamo sorvegliare.

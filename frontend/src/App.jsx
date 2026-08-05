@@ -1255,8 +1255,12 @@ function EmptyState({ t, onLoad, days, period, mercato, mktStats, risveglio, mer
                 e.currentTarget.style.background = 'rgba(var(--rgb-contrasto), 0.03)'
               }}
             >
-              <span>{tk.flag}</span>
-              <span style={{ fontWeight: 700 }}>{tk.symbol}</span>
+              {eCrypto(tk.symbol)
+                ? <LogoCrypto ticker={tk.symbol} size={15} />
+                : tk.flag ? <span>{tk.flag}</span> : null}
+              <span style={{ fontWeight: 700 }}>
+                {eCrypto(tk.symbol) ? tk.symbol.replace('-USD', '') : tk.symbol}
+              </span>
               <span style={{ fontSize: 11, color: 'var(--muted)' }}>{tk.name}</span>
             </button>
           ))}
