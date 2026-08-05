@@ -1,0 +1,31 @@
+# Fine riga.
+#
+# Il 5 agosto 2026 dieci file risultavano "modificati" senza che nessuno li
+# avesse toccati: in git erano salvati con LF, su disco erano diventati CRLF,
+# e git leggeva ogni singola riga come cambiata. Un `git add -A` distratto
+# avrebbe prodotto un commit da 1473 righe tolte e 1518 rimesse, tutte
+# identiche, rendendo illeggibile la cronologia e inutile `git blame` su
+# quei file per sempre.
+#
+# Con questa riga i fine riga vengono normalizzati a LF dentro il repository
+# indipendentemente da come li scrive Windows, OneDrive o l'editor di turno.
+* text=auto eol=lf
+
+# I binari non vanno normalizzati: git li corromperebbe.
+*.png   binary
+*.jpg   binary
+*.jpeg  binary
+*.gif   binary
+*.ico   binary
+*.pdf   binary
+*.woff  binary
+*.woff2 binary
+*.ttf   binary
+*.zip   binary
+*.xlsx  binary
+*.pptx  binary
+*.docx  binary
+
+# Gli script di Windows sono l'eccezione: senza CRLF cmd.exe non li esegue.
+*.bat text eol=crlf
+*.cmd text eol=crlf

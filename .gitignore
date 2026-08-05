@@ -36,3 +36,6 @@ data/news.db
 # ── Landing — video frames e duplicati ──────────────────────────────────────
 landing/video/basta/
 landing/frames/
+
+# Sessioni di lavoro dell'assistente: file locali, non codice del progetto.
+.claude/

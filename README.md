@@ -51,6 +51,51 @@ Su GitHub Actions: aggiungi i segreti in **Settings → Secrets and variables �
 2. **On-demand** → `/api/fetch/{ticker}` → `quick_fetch.py` in background
 3. **Alert** → dopo ogni fetch, `alerts.py` manda email agli utenti PRO con ticker in watchlist
 
+## Sveglia del backend e ore gratuite
+
+Il backend sta sul piano gratuito di Render, che **si addormenta dopo 15 minuti**
+senza richieste e ci mette circa un minuto a ripartire. Per evitare che il primo
+visitatore aspetti quel minuto, un servizio esterno chiama `/ping` a intervalli
+regolari.
+
+Il vincolo da tenere a mente è il monte ore, e non è banale:
+
+| | ore consumate in un mese da 31 giorni |
+|---|---|
+| Incluse nel piano | **750** |
+| Sveglio 24 ore su 24 | 744, cioè **6 ore di margine** |
+| Sveglio 07:00–01:00 | 558, circa **190 ore di margine** |
+| Nessuna sveglia (solo traffico vero) | ~340 |
+
+Le ore sono **per workspace, non per servizio**, quindi un secondo servizio
+gratuito attinge dallo stesso monte. E siccome non c'è una carta registrata,
+sforare non genera una fattura: **sospende i servizi fino al mese successivo**.
+Tenerlo acceso troppo è il modo più rapido per farlo sparire davvero.
+
+Per questo la sveglia è limitata alla fascia 07:00–01:00 (fuso Europe/Rome), che
+copre le ore in cui un visitatore può plausibilmente arrivare e lascia margine
+abbondante. Consumo reale controllabile su Render in **Billing → Monthly Included
+Usage → Free Instance Hours**.
+
+Nota: la prima chiamata della giornata trova il servizio addormentato e impiega
+più dei 30 secondi oltre i quali cron-job.org considera fallita una richiesta.
+**Un segno rosso alle 07:00 è previsto e innocuo**, la chiamata sveglia comunque
+il servizio. Un rosso a metà giornata invece è un problema vero.
+
+### Perché non UptimeRobot
+
+C'era, e per 21 giorni ha segnato "down" mentre il servizio rispondeva 200. Non
+era un difetto di visualizzazione: nello stesso periodo Render contava circa
+metà delle ore trascorse, cioè il servizio si addormentava regolarmente e quei
+controlli **non arrivavano proprio**. In più il loro pannello non finiva mai di
+caricare e ogni azione rispondeva "something went wrong". Abbandonato invece che
+riparato.
+
+Vale la pena ricordare che l'allarme più importante non è questo: è
+`backend/salute.py`, che a ogni giro del cron confronta la copertura news con la
+media dei 7 giorni precedenti e manda una mail se crolla. Un server raggiungibile
+che serve dati fermi è un guasto peggiore di un server irraggiungibile.
+
 ## Tier Free vs PRO
 
 | Feature | Free | PRO |

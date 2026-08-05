@@ -12,8 +12,16 @@ on:
       - 'updater.py'
       - 'requirements-actions.txt'
 
-# Il keep-alive ogni 10 minuti è stato sostituito da UptimeRobot (esterno, gratuito):
-# stesso effetto anti cold-start, zero minuti di GitHub Actions consumati.
+# Il keep-alive NON sta qui. Girava ogni 10 minuti su Actions, e a quel ritmo
+# costava più minuti di quanti ne includa il piano: 144 avvii al giorno, e
+# GitHub arrotonda ogni avvio al minuto intero. Sta su cron-job.org (esterno,
+# gratuito), limitato alla fascia 07:00–01:00 per non bruciare le 750 ore
+# gratuite di Render. Dettagli e conti nel README, sezione "Sveglia del backend".
+#
+# Prima ancora stava su UptimeRobot, che per 21 giorni ha segnato "down" senza
+# mai raggiungere il server davvero. Se un giorno il sito tornasse lento al
+# primo caricamento, il primo posto da guardare è il registro di cron-job.org,
+# il secondo è Render → Billing → Free Instance Hours.
 
 jobs:
   # ── Test ────────────────────────────────────────────────────────────────
