@@ -141,9 +141,16 @@ def serie_sentiment(ticker: str, giorni: int) -> dict[date, tuple[float, int]]:
                    COUNT(*)              AS quante
             FROM news
             WHERE ticker = %s
-              -- NON "INTERVAL '%s days'": psycopg2 sostituisce anche dentro
-              -- le stringhe quotate e produrrebbe INTERVAL ''90' days',
-              -- cioè un errore di sintassi al primo giro.
+              -- La moltiplicazione invece di scrivere il numero di giorni
+              -- dentro la stringa dell'intervallo: là dentro psycopg2
+              -- sostituisce comunque il segnaposto e lo quota, producendo un
+              -- intervallo malformato e un errore di sintassi.
+              --
+              -- E attenzione a come si scrive QUESTO commento: psycopg2 conta
+              -- i segnaposto su tutto il testo, commenti compresi. Scriverne
+              -- uno qui dentro per spiegare il problema ne aggiunge uno terzo
+              -- che nessuno passa, e la query muore con "tuple index out of
+              -- range". È successo davvero, il 5 agosto 2026.
               AND published_date >= NOW() - (%s * INTERVAL '1 day')
               AND sentiment IS NOT NULL
               AND ({condizione})
