@@ -128,35 +128,45 @@ def permutazione(x: list[float], y: list[float], giri: int = GIRI_PERMUTAZIONE) 
 
 # ── Dati ──────────────────────────────────────────────────────────────────
 def serie_sentiment(ticker: str, giorni: int) -> dict[date, tuple[float, int]]:
-    """Media giornaliera del sentiment, solo dalle fonti che possiamo usare."""
+    """
+    Media giornaliera del sentiment, solo dalle fonti che possiamo usare.
+
+    I prefissi viaggiano come PARAMETRI e non incollati nella query, e non è
+    pignoleria. Scritti dentro il testo, il pattern `LIKE 'GDELT %'` porta un
+    simbolo di percentuale, e psycopg2 legge OGNI percentuale come l'inizio di
+    un segnaposto: quel `%` diventava un terzo parametro che nessuno passava e
+    la query moriva con "tuple index out of range". Passandoli come valori il
+    problema sparisce alla radice, e sparisce anche la possibilità di
+    iniezione SQL se un domani quella lista arrivasse da fuori.
+    """
     condizione = " OR ".join(
-        f"source LIKE '{p} %' OR source = '{p}'" for p in PREFISSI_LECITI)
+        "source LIKE %s OR source = %s" for _ in PREFISSI_LECITI)
     pool = get_pool()
     conn = pool.getconn()
     try:
         cur = conn.cursor()
+        # L'ordine dei parametri deve seguire l'ordine in cui i segnaposto
+        # compaiono nel testo: prima il titolo, poi i giorni, poi le fonti.
+        parametri = [ticker, giorni]
+        for prefisso in PREFISSI_LECITI:
+            parametri.append(f"{prefisso} %")    # il pattern del LIKE
+            parametri.append(prefisso)           # il confronto esatto
+
         cur.execute(f"""
             SELECT published_date::date AS giorno,
                    AVG(sentiment)::float AS media,
                    COUNT(*)              AS quante
             FROM news
             WHERE ticker = %s
-              -- La moltiplicazione invece di scrivere il numero di giorni
-              -- dentro la stringa dell'intervallo: là dentro psycopg2
-              -- sostituisce comunque il segnaposto e lo quota, producendo un
-              -- intervallo malformato e un errore di sintassi.
-              --
-              -- E attenzione a come si scrive QUESTO commento: psycopg2 conta
-              -- i segnaposto su tutto il testo, commenti compresi. Scriverne
-              -- uno qui dentro per spiegare il problema ne aggiunge uno terzo
-              -- che nessuno passa, e la query muore con "tuple index out of
-              -- range". È successo davvero, il 5 agosto 2026.
+              -- Moltiplicazione, invece di scrivere il numero di giorni dentro
+              -- la stringa dell'intervallo: là dentro il segnaposto verrebbe
+              -- quotato e produrrebbe un intervallo malformato.
               AND published_date >= NOW() - (%s * INTERVAL '1 day')
               AND sentiment IS NOT NULL
               AND ({condizione})
             GROUP BY giorno
             ORDER BY giorno
-        """, (ticker, giorni))
+        """, parametri)
         righe = cur.fetchall()
         cur.close()
     finally:

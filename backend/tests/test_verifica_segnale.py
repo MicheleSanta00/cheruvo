@@ -17,12 +17,19 @@ OGGI = date(2026, 8, 5)
 
 
 # ── La query non deve rompersi sui segnaposto ─────────────────────────────
-def test_la_query_ha_tanti_segnaposto_quanti_parametri():
+def test_la_query_sopravvive_alla_sostituzione_dei_parametri():
     """
-    psycopg2 conta i %s su TUTTO il testo della query, commenti inclusi. Il
-    5 agosto 2026 un commento che spiegava un bug conteneva un %s: diventava
-    un terzo segnaposto che nessuno passava, e la query moriva con
-    "tuple index out of range" appena arrivata in produzione.
+    Il test che avrebbe risparmiato due giri falliti in produzione.
+
+    Contare le occorrenze di "%s" non basta, ed è l'errore che ho fatto la
+    prima volta. psycopg2 non cerca "%s": applica la sostituzione in stile
+    printf su TUTTO il testo, e quindi ogni singolo simbolo di percentuale
+    conta. Il pattern `LIKE 'GDELT %'` ne contiene uno, e quello bastava a
+    far esplodere la query con "tuple index out of range" pur essendoci
+    esattamente due "%s".
+
+    Qui riproduco la sostituzione vera. Se il testo contiene una percentuale
+    di troppo, questo scoppia esattamente come scoppiava il workflow.
     """
     cur = MagicMock()
     cur.fetchall.return_value = []
@@ -35,9 +42,13 @@ def test_la_query_ha_tanti_segnaposto_quanti_parametri():
         v.serie_sentiment("BTC-USD", 90)
 
     sql, params = cur.execute.call_args[0]
-    assert sql.count("%s") == len(params), (
-        f"la query ha {sql.count('%s')} segnaposto ma riceve {len(params)} "
-        f"parametri: in produzione fallirebbe subito")
+    try:
+        sql % tuple("x" for _ in params)
+    except (TypeError, ValueError, IndexError) as e:
+        raise AssertionError(
+            f"la query non regge la sostituzione dei parametri ({e}). "
+            f"Di solito è un simbolo di percentuale di troppo nel testo: "
+            f"va passato come parametro o raddoppiato in '%%'.") from None
 
 
 def test_la_query_filtra_solo_le_fonti_lecite():
@@ -52,10 +63,15 @@ def test_la_query_filtra_solo_le_fonti_lecite():
     with patch.object(v, "get_pool", return_value=pool):
         v.serie_sentiment("BTC-USD", 90)
 
-    sql = cur.execute.call_args[0][0]
+    sql, params = cur.execute.call_args[0]
+    # I prefissi stanno nei PARAMETRI, non nel testo della query: cercarli
+    # nella stringa darebbe un test che passa solo finché li si incolla lì,
+    # cioè finché si tiene il bug del simbolo di percentuale.
+    testo = " ".join(str(p) for p in params)
     for prefisso in ("GDELT", "SEC EDGAR", "Alpha Vantage"):
-        assert prefisso in sql
-    assert "Google News" not in sql
+        assert prefisso in testo, f"{prefisso} non arriva alla query"
+    assert "Google News" not in testo and "Google News" not in sql
+    assert "Yahoo" not in testo and "Yahoo" not in sql
 
 
 # ── La statistica ─────────────────────────────────────────────────────────
