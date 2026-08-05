@@ -404,6 +404,59 @@ function raggruppaInCandele(prices, quante = 80) {
   return fuori
 }
 
+// ── Livelli disegnati a mano sul grafico di oggi ───────────────────────────
+//
+// Sono le due cose che si disegnano davvero su un intraday: una riga
+// orizzontale a un prezzo (supporto o resistenza) e una fascia fra due prezzi
+// (zona di ingresso, zona di rischio). Recharts le sa gia fare con
+// ReferenceLine e ReferenceArea, che questo grafico usa gia per la chiusura di
+// ieri e per il massimo/minimo: qui cambia solo chi sceglie il valore, l'utente
+// invece del codice.
+
+// Geometria dell'area di disegno. Recharts non espone una funzione per
+// convertire un pixel in un prezzo, quindi la si ricostruisce: serve sapere
+// quanto spazio si prende l'asse X in basso e il margine in alto, perche il
+// grafico vero e solo la fascia in mezzo.
+const ALTEZZA_ASSE_X = 30    // altezza predefinita dell'asse orizzontale
+const MARGINE_ALTO = 4       // lo stesso valore passato a <ComposedChart margin>
+
+/**
+ * Da coordinata verticale del mouse a prezzo.
+ *
+ * Il verso e invertito rispetto all'intuizione: sullo schermo y cresce verso
+ * il BASSO, sul grafico il prezzo cresce verso l'ALTO. Sbagliare questo segno
+ * e il modo classico di ritrovarsi le linee ribaltate, disegnate lontano da
+ * dove hai cliccato e in modo perfettamente simmetrico.
+ */
+export function prezzoDaY(chartY, altezza, dominioMin, dominioMax) {
+  const utile = altezza - MARGINE_ALTO - ALTEZZA_ASSE_X
+  if (!(utile > 0) || chartY == null) return null
+  const frazione = (chartY - MARGINE_ALTO) / utile
+  return dominioMax - frazione * (dominioMax - dominioMin)
+}
+
+const CHIAVE_LIVELLI = 'cheruvo:livelli:'
+
+export function leggiLivelli(ticker) {
+  try {
+    const grezzo = window.localStorage.getItem(CHIAVE_LIVELLI + ticker)
+    const v = JSON.parse(grezzo || '[]')
+    return Array.isArray(v) ? v : []
+  } catch {
+    // Navigazione in incognito, spazio esaurito, JSON rovinato a mano: in
+    // nessuno di questi casi ha senso far esplodere il grafico. Si riparte
+    // senza livelli, che e esattamente com'era prima di disegnarli.
+    return []
+  }
+}
+
+export function salvaLivelli(ticker, livelli) {
+  try {
+    window.localStorage.setItem(CHIAVE_LIVELLI + ticker, JSON.stringify(livelli))
+  } catch { /* vedi sopra: salvare e un di piu, non un requisito */ }
+}
+
+
 function GraficoOggi({ prices, ticker, statoBorsa, isMobile }) {
   const [espanso, setEspanso] = useState(false)
   const [candele, setCandele] = useState(false)
@@ -507,6 +560,26 @@ function GraficoOggiCorpo({ prices, ticker, statoBorsa, isMobile, espanso,
   const massimoVis = Math.max(...visibili.map(p => p.High ?? p.Close).filter(v => v != null))
   const minimoVis  = Math.min(...visibili.map(p => p.Low  ?? p.Close).filter(v => v != null))
 
+  // ── Livelli disegnati dall'utente ──────────────────────────────────────
+  // `strumento` null significa che il trascinamento fa quello di sempre, cioe
+  // lo zoom. Con uno strumento attivo il trascinamento disegna: sono due gesti
+  // identici, quindi devono escludersi, altrimenti ogni linea tracciata
+  // zoomerebbe anche il grafico.
+  const [strumento, setStrumento] = useState(null)   // null | 'linea' | 'zona'
+  const [livelli, setLivelli] = useState([])
+  const [disegno, setDisegno] = useState(null)       // anteprima mentre trascini
+
+  // I livelli sono per titolo: quelli di Bitcoin non hanno senso su Ethereum,
+  // e mostrarli sarebbe peggio che non averli.
+  useEffect(() => { setLivelli(leggiLivelli(ticker)) }, [ticker])
+
+  const aggiornaLivelli = (nuovi) => { setLivelli(nuovi); salvaLivelli(ticker, nuovi) }
+  const togliLivello = (id) => aggiornaLivelli(livelli.filter(l => l.id !== id))
+  const svuotaLivelli = () => aggiornaLivelli([])
+
+  const altezzaGrafico = espanso ? (isMobile ? 380 : 560) : (isMobile ? 250 : 300)
+  const dominio = [min - margine, max + margine]
+
   // Media mobile sui punti visibili: smussa il rumore del minuto per minuto.
   const [mostraMedia, setMostraMedia] = useState(false)
   const periodoMedia = Math.max(5, Math.round(visibili.length / 12))
@@ -525,15 +598,51 @@ function GraficoOggiCorpo({ prices, ticker, statoBorsa, isMobile, espanso,
                               [min, max, margine])
 
   const iniziaTrascino = (e) => {
+    if (strumento) {
+      const prezzo = prezzoDaY(e?.chartY, altezzaGrafico, dominio[0], dominio[1])
+      if (prezzo == null) return
+      setDisegno({ da: prezzo, a: prezzo })
+      return
+    }
     if (!e?.activeTooltipIndex && e?.activeTooltipIndex !== 0) return
     setTrascinando({ inizio: e.activeTooltipIndex, fine: e.activeTooltipIndex })
   }
   const muoviTrascino = (e) => {
+    if (disegno) {
+      const prezzo = prezzoDaY(e?.chartY, altezzaGrafico, dominio[0], dominio[1])
+      if (prezzo != null) setDisegno((d) => ({ ...d, a: prezzo }))
+      return
+    }
     if (!trascinando) return
     if (e?.activeTooltipIndex == null) return
     setTrascinando((t) => ({ ...t, fine: e.activeTooltipIndex }))
   }
+  const finisciDisegno = () => {
+    if (!disegno) return
+    const { da: p1, a: p2 } = disegno
+    setDisegno(null)
+    const id = `${Date.now()}-${Math.random().toString(36).slice(2, 7)}`
+
+    if (strumento === 'linea') {
+      // Per la linea conta solo dove hai premuto. Trascinare mentre si posa
+      // una riga orizzontale e un movimento involontario della mano, non una
+      // richiesta di spostarla: prenderla sul serio farebbe finire la linea
+      // qualche centesimo piu in la di dove la volevi.
+      aggiornaLivelli([...livelli, { id, tipo: 'linea', prezzo: p1 }])
+      return
+    }
+
+    const alto = Math.max(p1, p2)
+    const basso = Math.min(p1, p2)
+    // Una fascia alta zero pixel non e una zona: e un click andato storto
+    // mentre era attivo lo strumento sbagliato. Meglio ignorarlo che
+    // riempire il grafico di righe invisibili impossibili da cancellare.
+    const altezzaZona = (alto - basso) / (dominio[1] - dominio[0])
+    if (altezzaZona < 0.015) return
+    aggiornaLivelli([...livelli, { id, tipo: 'zona', da: basso, a: alto }])
+  }
   const finisciTrascino = () => {
+    if (disegno) { finisciDisegno(); return }
     if (!trascinando) return
     const { inizio, fine } = trascinando
     setTrascinando(null)
@@ -627,6 +736,20 @@ function GraficoOggiCorpo({ prices, ticker, statoBorsa, isMobile, espanso,
               color: 'var(--azure)', cursor: 'pointer',
             }}>← tutto</button>
           )}
+          {/* Strumenti di disegno. Sono un interruttore, non un'azione: finche
+              uno e acceso il trascinamento disegna invece di zoomare, e il
+              pulsante acceso e l'unica cosa che lo dice. */}
+          {[['livello', 'linea', 'Traccia un supporto o una resistenza'],
+            ['zona', 'zona', 'Evidenzia una fascia di prezzo']].map(([et, val, titolo]) => (
+            <button key={val} title={titolo}
+              onClick={() => setStrumento(s => (s === val ? null : val))} style={{
+              fontSize: 9.5, letterSpacing: '.1em', textTransform: 'uppercase',
+              fontWeight: 700, padding: '4px 9px', borderRadius: 3,
+              border: '1px solid ' + (strumento === val ? 'rgba(250,204,21,0.5)' : 'var(--border-br)'),
+              background: strumento === val ? 'rgba(250,204,21,0.16)' : 'transparent',
+              color: strumento === val ? 'var(--giallo)' : 'var(--muted)', cursor: 'pointer',
+            }}>{et}</button>
+          ))}
           <button onClick={() => setMostraMedia(v => !v)} title="Media mobile" style={{
             fontSize: 9.5, letterSpacing: '.1em', textTransform: 'uppercase',
             fontWeight: 700, padding: '4px 9px', borderRadius: 3,
@@ -665,10 +788,11 @@ function GraficoOggiCorpo({ prices, ticker, statoBorsa, isMobile, espanso,
       </div>
 
       <div style={{ position: 'relative', userSelect: 'none' }}>
-        <ResponsiveContainer width="100%" height={espanso ? (isMobile ? 380 : 560) : (isMobile ? 250 : 300)}>
+        <ResponsiveContainer width="100%" height={altezzaGrafico}>
           <ComposedChart data={dati} margin={{ top: 4, right: isMobile ? 4 : 16, left: 0, bottom: 0 }}
             onMouseDown={iniziaTrascino} onMouseMove={muoviTrascino}
-            onMouseUp={finisciTrascino} onMouseLeave={() => setTrascinando(null)}>
+            onMouseUp={finisciTrascino}
+            onMouseLeave={() => { setTrascinando(null); setDisegno(null) }}>
             <defs>
               <linearGradient id="oggiGrad" x1="0" y1="0" x2="0" y2="1">
                 <stop offset="0%"   stopColor={coloreHex} stopOpacity={0.22}/>
@@ -726,6 +850,33 @@ function GraficoOggiCorpo({ prices, ticker, statoBorsa, isMobile, espanso,
                 dot={false} isAnimationActive={false} connectNulls />
             )}
 
+            {/* I livelli disegnati a mano. Le zone vanno PRIMA delle linee cosi
+                una riga posata sul bordo di una fascia resta leggibile invece
+                di finirci sotto. */}
+            {livelli.filter(l => l.tipo === 'zona').map(l => (
+              <ReferenceArea key={l.id} y1={l.da} y2={l.a} ifOverflow="hidden"
+                fill="var(--giallo)" fillOpacity={0.09}
+                stroke="var(--giallo)" strokeOpacity={0.28} />
+            ))}
+            {livelli.filter(l => l.tipo === 'linea').map(l => (
+              <ReferenceLine key={l.id} y={l.prezzo} ifOverflow="hidden"
+                stroke="var(--giallo)" strokeOpacity={0.75} strokeWidth={1.2}
+                label={{ value: formattaPrezzo(l.prezzo), position: 'insideLeft',
+                         fill: '#facc15', fontSize: 9.5 }} />
+            ))}
+
+            {/* Anteprima mentre stai ancora trascinando */}
+            {disegno && strumento === 'zona' && (
+              <ReferenceArea y1={Math.min(disegno.da, disegno.a)}
+                y2={Math.max(disegno.da, disegno.a)} ifOverflow="hidden"
+                fill="var(--giallo)" fillOpacity={0.16}
+                stroke="var(--giallo)" strokeOpacity={0.5} />
+            )}
+            {disegno && strumento === 'linea' && (
+              <ReferenceLine y={disegno.da} ifOverflow="hidden"
+                stroke="var(--giallo)" strokeOpacity={0.5} strokeDasharray="3 3" />
+            )}
+
             {/* La fascia che si disegna mentre trascini per scegliere lo zoom */}
             {trascinando && Math.abs(trascinando.fine - trascinando.inizio) >= 1 && (
               <ReferenceArea
@@ -739,10 +890,47 @@ function GraficoOggiCorpo({ prices, ticker, statoBorsa, isMobile, espanso,
       </div>
 
       <div style={{ fontSize: 10.5, color: 'var(--muted)', marginTop: 8 }}>
-        {zoomAttivo
+        {strumento === 'linea'
+          ? 'Clicca sul grafico per posare un livello. Premi di nuovo "livello" per tornare allo zoom.'
+          : strumento === 'zona'
+          ? 'Trascina in verticale per coprire una fascia di prezzo. Premi di nuovo "zona" per tornare allo zoom.'
+          : zoomAttivo
           ? `Ingrandito su ${visibili.length} minuti. Premi "tutto" per tornare alla seduta intera.`
           : 'Trascina sul grafico per ingrandire un intervallo.'}
       </div>
+
+      {/* L'elenco dei livelli, con la crocetta per toglierli.
+          Cancellare cliccando la riga sul grafico sarebbe piu elegante ma su
+          un telefono significa centrare col pollice una linea alta un pixel.
+          Una lista si tocca sempre. */}
+      {livelli.length > 0 && (
+        <div style={{ display: 'flex', flexWrap: 'wrap', alignItems: 'center',
+                      gap: 6, marginTop: 8 }}>
+          {livelli.map(l => (
+            <span key={l.id} style={{
+              display: 'inline-flex', alignItems: 'center', gap: 6,
+              fontSize: 10, fontFamily: 'var(--mono)',
+              padding: '3px 7px', borderRadius: 3,
+              border: '1px solid rgba(250,204,21,0.32)',
+              background: 'rgba(250,204,21,0.08)', color: 'var(--giallo)',
+            }}>
+              {l.tipo === 'linea'
+                ? formattaPrezzo(l.prezzo)
+                : `${formattaPrezzo(l.da)} – ${formattaPrezzo(l.a)}`}
+              <button onClick={() => togliLivello(l.id)} title="Togli questo livello"
+                style={{ background: 'none', border: 'none', color: 'inherit',
+                         cursor: 'pointer', padding: 0, fontSize: 12, lineHeight: 1,
+                         opacity: 0.75 }}>×</button>
+            </span>
+          ))}
+          <button onClick={svuotaLivelli} style={{
+            fontSize: 9.5, letterSpacing: '.08em', textTransform: 'uppercase',
+            fontWeight: 700, padding: '3px 8px', borderRadius: 3,
+            border: '1px solid var(--border-br)', background: 'transparent',
+            color: 'var(--muted)', cursor: 'pointer',
+          }}>togli tutti</button>
+        </div>
+      )}
 
       {!aperto && !statoBorsa?.sempre_aperto && (
         <div style={{ fontSize: 11.5, color: 'var(--muted)', marginTop: 10, lineHeight: 1.5 }}>
