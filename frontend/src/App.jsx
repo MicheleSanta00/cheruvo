@@ -30,6 +30,37 @@ import PauraAvidita from './components/PauraAvidita.jsx'
 import SezioneAzioni from './components/SezioneAzioni.jsx'
 import PrezzoMobile from './components/PrezzoMobile.jsx'
 
+
+/**
+ * Schermo stretto? Serve a smontare l'impalcatura a riquadri fissi.
+ *
+ * Cheruvo su desktop è una plancia: altezza bloccata a 100dvh, colonne
+ * affiancate, e OGNI riquadro scorre per conto suo. È il comportamento giusto
+ * su un monitor, dove vedi tutto insieme e vuoi che l'intestazione resti
+ * ferma. Su un telefono lo stesso schema lascia al contenuto una finestrella
+ * alta pochi centimetri, incastrata fra barra in alto e barra di stato, dentro
+ * cui bisogna scorrere grafici e notizie con il pollice: impossibile.
+ *
+ * Su schermo stretto quindi si toglie l'impalcatura: niente altezze bloccate,
+ * niente scorrimenti interni, la pagina scorre tutta insieme come una pagina
+ * normale. È quello che il pollice si aspetta.
+ */
+function useSchermoStretto() {
+  const [stretto, setStretto] = useState(
+    () => typeof window !== 'undefined' && window.innerWidth <= 640
+  )
+  useEffect(() => {
+    const su = () => setStretto(window.innerWidth <= 640)
+    window.addEventListener('resize', su)
+    window.addEventListener('orientationchange', su)
+    return () => {
+      window.removeEventListener('resize', su)
+      window.removeEventListener('orientationchange', su)
+    }
+  }, [])
+  return stretto
+}
+
 const DEFAULT_TICKER = 'NVDA'
 const DEFAULT_DAYS   = 30
 const DEFAULT_PERIOD = '3mo'
@@ -51,6 +82,7 @@ export default function App() {
   const [showMarket, setShowMarket]   = useState(false)
   // Mercato attivo: azioni o crypto. Filtra tutto quello che è un elenco.
   const [mercatoAttivo, setMercatoAttivo] = useState(leggiMercato)
+  const stretto = useSchermoStretto()
   // Scappatoia per te: con ?azioni=1 nell'indirizzo la sezione titoli si
   // apre lo stesso, così puoi continuare a provarla mentre è chiusa al
   // pubblico. Nessuno ci arriva per caso.
@@ -281,7 +313,10 @@ export default function App() {
   const hasData = !!tickerInfo && !loading
 
   return (
-    <div style={{ display: 'flex', height: '100dvh', overflow: 'hidden', background: 'var(--black)', position: 'relative' }}>
+    <div style={{ display: 'flex', height: stretto ? 'auto' : '100dvh',
+                  minHeight: stretto ? '100dvh' : undefined,
+                  overflow: stretto ? 'visible' : 'hidden',
+                  background: 'var(--black)', position: 'relative' }}>
       <OnboardingTooltip hasData={hasData} />
       <ChatWidget
         ticker={loadedTicker}
@@ -322,7 +357,9 @@ export default function App() {
       </div>
 
       {/* Main area */}
-      <main style={{ flex: 1, display: 'flex', flexDirection: 'column', overflow: 'hidden', height: '100dvh', minWidth: 0 }}>
+      <main style={{ flex: 1, display: 'flex', flexDirection: 'column',
+                     overflow: stretto ? 'visible' : 'hidden',
+                     height: stretto ? 'auto' : '100dvh', minWidth: 0 }}>
 
         {/* Header */}
         <header style={{
@@ -562,8 +599,10 @@ export default function App() {
         <TickerStrip rows={righeFiltrate(mercato?.rows)} onPick={(tk) => { setTicker(tk); handleLoad(tk, days, period) }} />
 
         {/* Corpo + colonna di mercato sempre visibile a destra */}
-        <div style={{ flex: 1, display: 'flex', minHeight: 0, overflow: 'hidden' }}>
-        <div style={{ flex: 1, display: 'flex', flexDirection: 'column', minWidth: 0, overflow: 'hidden' }}>
+        <div style={{ flex: 1, display: 'flex', minHeight: 0,
+                      overflow: stretto ? 'visible' : 'hidden' }}>
+        <div style={{ flex: 1, display: 'flex', flexDirection: 'column', minWidth: 0,
+                      overflow: stretto ? 'visible' : 'hidden' }}>
 
         {/* ── Content area ── */}
         {mercatoAttivo === 'azioni' && !azioniSbloccate ? (
@@ -572,7 +611,8 @@ export default function App() {
         <>
         {!hasData && !error ? (
           /* Empty / loading state — full width */
-          <div style={{ flex: 1, overflowY: 'auto', padding: '20px 20px' }}>
+          <div style={{ flex: 1, overflowY: stretto ? 'visible' : 'auto',
+                        padding: stretto ? '14px 12px' : '20px 20px' }}>
             {error && <ErrorBanner msg={error} />}
             {!loading && !error && (
               <EmptyState t={t} onLoad={handleLoad} days={days} period={period}
@@ -583,7 +623,8 @@ export default function App() {
           </div>
         ) : (
           /* Two-column dashboard */
-          <div style={{ flex: 1, overflow: 'hidden', display: 'flex', flexDirection: 'column', minHeight: 0 }}>
+          <div style={{ flex: 1, overflow: stretto ? 'visible' : 'hidden',
+                        display: 'flex', flexDirection: 'column', minHeight: 0 }}>
 
           {/* Striscia metriche a tutta larghezza, subito sotto l'intestazione:
               è la fascia di riepilogo del titolo, come in un terminale. Prima
@@ -610,7 +651,9 @@ export default function App() {
               flusso notizie, e sotto il commento AI e gli approfondimenti.
               Prima erano due colonne affiancate e lo sguardo doveva scegliere
               da che parte cominciare. */}
-          <div className="dashboard-grid" style={{ flex: 1, overflowY: 'auto', display: 'flex', flexDirection: 'column', minHeight: 0 }}>
+          <div className="dashboard-grid" style={{ flex: 1,
+                        overflowY: stretto ? 'visible' : 'auto',
+                        display: 'flex', flexDirection: 'column', minHeight: 0 }}>
 
             {/* ── Commento AI e approfondimenti: sotto i dati ── */}
             <div style={{

@@ -345,3 +345,21 @@ input  { font-family: var(--sans); }
   #header-search input { padding-right: 12px !important; font-size: 13px; }
   #header-search .hide-mobile { display: none !important; }
 }
+
+/* ── Telefono: la pagina scorre tutta, non a riquadri ─────────────────── */
+@media (max-width: 640px) {
+  /* L'impalcatura a altezze fisse viene smontata da App.jsx (useSchermoStretto).
+     Qui restano le poche cose che devono comunque comportarsi bene. */
+
+  /* Intestazione appiccicata in alto: scorrendo il contenuto resta il prezzo
+     e il nome della moneta sempre visibili, che è l'unica cosa che serve
+     mentre si legge una notizia più in basso. */
+  header { position: sticky; top: 0; z-index: 40; }
+
+  /* La barra di stato non è posizionata: con lo scorrimento libero
+     finisce da sola in fondo alla pagina, senza bisogno di regole. */
+
+  /* Il grafico ha bisogno di respiro verticale: su un telefono 250 pixel
+     sono una striscia. */
+  .recharts-responsive-container { min-height: 260px; }
+}
