@@ -13,7 +13,17 @@ import apiFetch from '../apiFetch.js'
  *
  * Compare solo sulle criptovalute perché l'indice riguarda quel mercato.
  * Su un titolo azionario sarebbe un numero fuori posto.
+ *
+ * Perché è chiuso di default. Nella prima versione era un riquadro alto quasi
+ * duecento pixel fra le metriche e il grafico, e su un portatile spingeva il
+ * grafico sotto la piega dello schermo. Ma il grafico è il motivo per cui uno
+ * apre Cheruvo: l'indice è un contorno, e un contorno non può occupare il
+ * posto della portata principale. Da chiuso dice comunque le tre cose che
+ * contano (numero, etichetta, divergenza) su una riga sola, e chi vuole il
+ * resto lo apre.
  */
+
+const CHIAVE_APERTO = 'cheruvo:fng:aperto'
 
 const SCALA = [
   { fino: 24,  etichetta: 'Paura estrema', colore: '#dc2626' },
@@ -26,6 +36,18 @@ const SCALA = [
 export default function PauraAvidita({ sentimentNostro = null, lang = 'it' }) {
   const [d, setD] = useState(null)
   const [caricato, setCaricato] = useState(false)
+  // La scelta di tenerlo aperto resta: chi guarda l'indice tutti i giorni non
+  // deve riaprirlo a ogni caricamento, e chi non lo guarda non se lo ritrova
+  // più fra i piedi.
+  const [aperto, setAperto] = useState(() => {
+    try { return window.localStorage.getItem(CHIAVE_APERTO) === '1' } catch { return false }
+  })
+  const cambiaAperto = () => {
+    setAperto((v) => {
+      try { window.localStorage.setItem(CHIAVE_APERTO, v ? '0' : '1') } catch { /* incognito */ }
+      return !v
+    })
+  }
 
   useEffect(() => {
     let vivo = true
@@ -51,31 +73,116 @@ export default function PauraAvidita({ sentimentNostro = null, lang = 'it' }) {
     : Math.round((sentimentNostro + 1) * 50)
   const divergenza = nostroSu100 == null ? null : nostroSu100 - v
 
+  const mostraDivergenza = divergenza != null && Math.abs(divergenza) >= 12
+  const testoDivergenza = !mostraDivergenza ? null : lang === 'it'
+    ? (divergenza > 0 ? 'Notizie più ottimiste del mercato.'
+                      : 'Notizie più cupe del mercato.')
+    : (divergenza > 0 ? 'Press more optimistic than the market.'
+                      : 'Press gloomier than the market.')
+
+  // La barra 0-100 coi due indicatori sopra. Vive in due posti (riga chiusa e
+  // riquadro aperto) con altezze diverse, quindi sta in una funzione invece
+  // che copiata: due copie divergono al primo ritocco.
+  const barra = (alta) => (
+    <div style={{ position: 'relative', flex: alta ? 'none' : 1,
+                  minWidth: alta ? 0 : 90, maxWidth: alta ? 'none' : 190 }}>
+      <div style={{ display: 'flex', height: alta ? 6 : 4,
+                    borderRadius: 3, overflow: 'hidden' }}>
+        {SCALA.map((s, i) => (
+          <div key={s.etichetta} style={{
+            flex: i === 0 ? 25 : s.fino - SCALA[i - 1].fino,
+            background: s.colore, opacity: 0.35,
+          }} />
+        ))}
+      </div>
+      <div title={`Mercato: ${v} (${d.etichetta})`} style={{
+        position: 'absolute', top: alta ? -3 : -2, left: `${v}%`,
+        transform: 'translateX(-50%)',
+        width: 3, height: alta ? 12 : 8, background: colore, borderRadius: 2,
+        boxShadow: '0 0 0 2px var(--black)',
+      }} />
+      {nostroSu100 != null && (
+        <div title={`Notizie: ${sentimentNostro.toFixed(3)}`} style={{
+          position: 'absolute', top: alta ? -3 : -2,
+          left: `${Math.max(0, Math.min(100, nostroSu100))}%`,
+          transform: 'translateX(-50%)',
+          width: 3, height: alta ? 12 : 8, background: 'var(--azure)', borderRadius: 2,
+          boxShadow: '0 0 0 2px var(--black)',
+        }} />
+      )}
+    </div>
+  )
+
   return (
     <div style={{
       border: '1px solid var(--border-br)', borderRadius: 8,
-      overflow: 'hidden', marginBottom: 16,
+      overflow: 'hidden', marginBottom: 12,
     }}>
-      <div style={{
-        display: 'flex', alignItems: 'center', gap: 10, padding: '7px 12px',
-        background: 'var(--near-black)', borderBottom: '1px solid var(--border)',
-      }}>
-        <span style={{
-          fontSize: 10, letterSpacing: '.12em', textTransform: 'uppercase',
-          color: 'var(--muted)', fontWeight: 700,
+      {/* ── La riga sempre visibile ──────────────────────────────────────
+          Tutta l'informazione essenziale su 44 pixel invece di 180: quanto
+          vale, come si chiama, dove sta sulla scala e se diverge dalle
+          notizie. È cliccabile su tutta la larghezza, non solo sulla
+          freccetta, perché una zona di tocco larga un centimetro è un
+          bersaglio che si prende anche col pollice. */}
+      <div role="button" tabIndex={0} onClick={cambiaAperto}
+        onKeyDown={(e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); cambiaAperto() } }}
+        title={aperto ? 'Comprimi' : 'Espandi: ieri, settimana e scala completa'}
+        style={{
+          display: 'flex', alignItems: 'center', gap: 10, padding: '9px 12px',
+          background: 'var(--near-black)', cursor: 'pointer',
+          borderBottom: aperto ? '1px solid var(--border)' : 'none',
         }}>
-          {lang === 'it' ? 'Paura e avidità del mercato' : 'Market fear & greed'}
-        </span>
-        {/* Attribuzione accanto al dato: alternative.me non la impone, ma
-            regalano un servizio e costa una riga. */}
-        <a href="https://alternative.me/crypto/fear-and-greed-index/"
-           target="_blank" rel="noreferrer"
-           style={{ marginLeft: 'auto', fontSize: 10, color: 'var(--muted)' }}>
-          alternative.me
-        </a>
+        {/* Da chiuso la riga È il riquadro, quindi porta tutto il contenuto.
+            Da aperto diventa una semplice intestazione: ripetere qui numero,
+            barra e divergenza li farebbe comparire due volte a schermo, a
+            venti pixel di distanza. */}
+        {aperto ? (
+          <span style={{
+            fontSize: 10, letterSpacing: '.12em', textTransform: 'uppercase',
+            color: 'var(--muted)', fontWeight: 700,
+          }}>
+            {lang === 'it' ? 'Paura e avidità del mercato' : 'Market fear & greed'}
+          </span>
+        ) : (
+          <>
+            <span style={{
+              fontFamily: 'var(--mono)', fontSize: 17, fontWeight: 700,
+              fontVariantNumeric: 'tabular-nums', color: colore, lineHeight: 1,
+            }}>{v}</span>
+            <span style={{ fontSize: 11.5, fontWeight: 700, color: colore }}>{d.etichetta}</span>
+            {barra(false)}
+            {testoDivergenza && (
+              <span style={{ fontSize: 11, color: 'var(--off-white)',
+                             overflow: 'hidden', textOverflow: 'ellipsis',
+                             whiteSpace: 'nowrap' }}>
+                <span style={{ color: 'var(--azure)', fontWeight: 700 }}>
+                  {lang === 'it' ? 'Divergenza. ' : 'Divergence. '}
+                </span>
+                {testoDivergenza}
+              </span>
+            )}
+          </>
+        )}
+        <svg width="11" height="11" viewBox="0 0 16 16" fill="none" stroke="currentColor"
+             strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"
+             style={{ marginLeft: 'auto', flexShrink: 0, color: 'var(--muted)',
+                      transform: aperto ? 'rotate(180deg)' : 'none',
+                      transition: 'transform .18s ease' }}>
+          <path d="M3 6l5 5 5-5"/>
+        </svg>
       </div>
 
+      {aperto && (
       <div style={{ padding: '12px 14px' }}>
+        {/* Attribuzione accanto al dato: alternative.me non la impone, ma
+            regalano un servizio e costa una riga. */}
+        <div style={{ display: 'flex', marginBottom: 10 }}>
+          <a href="https://alternative.me/crypto/fear-and-greed-index/"
+             target="_blank" rel="noreferrer" onClick={(e) => e.stopPropagation()}
+             style={{ marginLeft: 'auto', fontSize: 10, color: 'var(--muted)' }}>
+            alternative.me
+          </a>
+        </div>
         <div style={{ display: 'flex', alignItems: 'baseline', gap: 12, marginBottom: 10 }}>
           <span style={{
             fontFamily: 'var(--mono)', fontSize: 30, fontWeight: 700,
@@ -98,32 +205,8 @@ export default function PauraAvidita({ sentimentNostro = null, lang = 'it' }) {
           </span>
         </div>
 
-        {/* Barra 0-100 coi cinque tratti della scala, e i due indicatori sopra */}
-        <div style={{ position: 'relative', marginBottom: 6 }}>
-          <div style={{ display: 'flex', height: 6, borderRadius: 3, overflow: 'hidden' }}>
-            {SCALA.map((s, i) => (
-              <div key={s.etichetta} style={{
-                flex: i === 0 ? 25 : s.fino - SCALA[i - 1].fino,
-                background: s.colore, opacity: 0.35,
-              }} />
-            ))}
-          </div>
-          {/* Indicatore del mercato */}
-          <div title={`Mercato: ${v} (${d.etichetta})`} style={{
-            position: 'absolute', top: -3, left: `${v}%`, transform: 'translateX(-50%)',
-            width: 3, height: 12, background: colore, borderRadius: 2,
-            boxShadow: '0 0 0 2px var(--black)',
-          }} />
-          {/* Indicatore del NOSTRO sentiment sulle notizie, se lo abbiamo */}
-          {nostroSu100 != null && (
-            <div title={`Notizie: ${sentimentNostro.toFixed(3)}`} style={{
-              position: 'absolute', top: -3, left: `${Math.max(0, Math.min(100, nostroSu100))}%`,
-              transform: 'translateX(-50%)',
-              width: 3, height: 12, background: 'var(--azure)', borderRadius: 2,
-              boxShadow: '0 0 0 2px var(--black)',
-            }} />
-          )}
-        </div>
+        {/* Stessa barra della riga chiusa, ma alta: qui c'è spazio. */}
+        <div style={{ marginBottom: 6 }}>{barra(true)}</div>
 
         <div style={{ display: 'flex', justifyContent: 'space-between',
                       fontSize: 9.5, color: 'var(--muted)', fontFamily: 'var(--mono)' }}>
@@ -151,6 +234,7 @@ export default function PauraAvidita({ sentimentNostro = null, lang = 'it' }) {
           </div>
         )}
       </div>
+      )}
     </div>
   )
 }
