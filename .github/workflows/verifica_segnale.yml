@@ -1,0 +1,55 @@
+name: Cheruvo — Il sentiment anticipa il prezzo?
+
+# La verifica da cui dipende cosa è Cheruvo.
+#
+# Gira qui perché serve DATABASE_URL, ma soprattutto perché il risultato deve
+# restare scritto da qualche parte con una data sopra. Un backtest rifatto a
+# mano ogni volta che il risultato non piace non è una verifica: è una ricerca
+# del numero che si voleva vedere.
+
+on:
+  workflow_dispatch:
+    inputs:
+      ticker:
+        description: 'Quale titolo'
+        required: true
+        default: 'BTC-USD'
+        type: string
+      giorni:
+        description: 'Quanti giorni di storico'
+        required: true
+        default: '90'
+        type: string
+
+jobs:
+  verifica:
+    name: ${{ github.event.inputs.ticker }}
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+          cache: 'pip'
+          cache-dependency-path: requirements-actions.txt
+
+      - name: Installa dipendenze
+        run: pip install -r requirements-actions.txt
+
+      - name: Verifica
+        env:
+          DATABASE_URL: ${{ secrets.DATABASE_URL }}
+          PYTHONPATH:   ${{ github.workspace }}/backend
+        run: |
+          python backend/verifica_segnale.py \
+            --ticker ${{ github.event.inputs.ticker }} \
+            --giorni ${{ github.event.inputs.giorni }}
+
+      - name: Nota
+        if: always()
+        run: |
+          echo "Un risultato trovato guardando il passato è un'ipotesi."
+          echo "Diventa una prova solo se regge fra un mese sui dati nuovi."
