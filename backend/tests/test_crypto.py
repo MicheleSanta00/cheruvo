@@ -46,25 +46,61 @@ def test_le_crypto_non_entrano_nel_calendario_earnings():
         assert earnings.refresh_earnings(["BTC-USD", "ETH-USD"]) == 0
 
 
-def test_gdelt_cerca_il_nome_non_il_ticker():
-    """Nessun giornale scrive 'BTC-USD': si cerca 'Bitcoin'."""
-    chiamate = []
-
+def _gdelt_finto(chiamate, articoli):
     def finto(*a, **k):
         chiamate.append(k.get("params", {}).get("query", ""))
         r = MagicMock(); r.status_code = 200; r.text = "{}"
         r.raise_for_status = lambda: None
-        r.json = lambda: {"articles": [{
-            "title": "Bitcoin Flashes Death Cross That Preceded 30% Price Decline",
-            "language": "English", "domain": "finance.yahoo.com",
-            "url": "http://x/1", "seendate": "20260804T184500Z"}]}
+        r.json = lambda: {"articles": articoli}
         return r
+    return finto
 
-    with patch.object(g.requests, "get", side_effect=finto):
+
+def test_gdelt_cerca_il_nome_non_il_ticker():
+    """Nessun giornale scrive 'BTC-USD': si cerca 'Bitcoin'."""
+    chiamate = []
+    articoli = [{
+        "title": "Bitcoin Flashes Death Cross That Preceded 30% Price Decline",
+        "language": "English", "domain": "finance.yahoo.com",
+        "url": "http://x/1", "seendate": "20260804T184500Z"}]
+
+    with patch.object(g.requests, "get", side_effect=_gdelt_finto(chiamate, articoli)):
         news = g.fetch_gdelt("BTC-USD")
 
-    assert chiamate == ["Bitcoin"]
+    assert len(chiamate) == 1
+    assert "Bitcoin" in chiamate[0]
+    assert "BTC-USD" not in chiamate[0]
     assert len(news) == 1
+
+
+def test_tutte_le_crypto_con_una_sola_chiamata():
+    """
+    Venti monete devono costare UNA interrogazione, non venti.
+
+    È lo stesso raggruppamento con OR usato per i titoli italiani, e sulle
+    crypto funziona ancora meglio perché i nomi (Bitcoin, Solana, Chainlink)
+    sono distintivi. Senza questo, ampliare il paniere avrebbe voluto dire
+    moltiplicare le chiamate e tornare dritti nei 429.
+    """
+    chiamate = []
+    articoli = [
+        {"title": "Bitcoin Flashes Death Cross", "language": "English",
+         "domain": "coindesk.com", "url": "http://x/1", "seendate": "20260805T090000Z"},
+        {"title": "Solana network hits record throughput", "language": "English",
+         "domain": "theblock.co", "url": "http://x/2", "seendate": "20260805T083000Z"},
+    ]
+    crypto = [tk for tk in g.TERMINE_QUERY if g.e_crypto(tk)]
+    assert len(crypto) >= 15, "il paniere crypto si è ristretto"
+
+    with patch.object(g.requests, "get", side_effect=_gdelt_finto(chiamate, articoli)):
+        risultati = {tk: g.fetch_gdelt(tk) for tk in crypto}
+
+    assert len(chiamate) == 1, f"{len(crypto)} monete hanno fatto {len(chiamate)} chiamate"
+    assert " OR " in chiamate[0]
+    # Ogni moneta riceve solo ciò che la nomina davvero
+    assert any("Death Cross" in n["title"] for n in risultati["BTC-USD"])
+    assert any("Solana" in n["title"] for n in risultati["SOL-USD"])
+    assert not risultati["DOGE-USD"]
 
 
 # ── Confronto a 24 ore vere ───────────────────────────────────────────────

@@ -40,7 +40,9 @@ DEFAULT_TICKERS = [
     # rendono circa otto volte più dei titoli italiani, sulla stessa licenza.
     # Vantaggio in più: scambiano 24 ore su 24, quindi il grafico della seduta
     # non resta immobile la sera e nel fine settimana come per le borse.
-    'BTC-USD', 'ETH-USD', 'SOL-USD', 'XRP-USD',
+    'BTC-USD', 'ETH-USD', 'SOL-USD', 'XRP-USD', 'ADA-USD', 'DOGE-USD',
+    'AVAX-USD', 'LINK-USD', 'DOT-USD', 'LTC-USD', 'UNI-USD', 'ATOM-USD',
+    'XLM-USD', 'NEAR-USD', 'BCH-USD', 'SHIB-USD',
 ]
 
 # Quanti ticker processare per run.
@@ -51,7 +53,10 @@ DEFAULT_TICKERS = [
 # Con 24 ci stanno tutti i default più le watchlist di un piccolo numero di
 # utenti. Il costo è tempo, non denaro: GDELT impone 5 secondi tra le
 # chiamate, quindi ~2 minuti, ben dentro il timeout di 12 minuti del workflow.
-MAX_TICKERS = 24
+# Alzato a 40 con l'arrivo delle criptovalute. Il costo in chiamate NON
+# cresce in proporzione: le 16 crypto viaggiano su UNA interrogazione
+# raggruppata, non su sedici. Restiamo dentro il timeout del workflow.
+MAX_TICKERS = 40
 
 
 def get_watchlist_tickers() -> list[str]:

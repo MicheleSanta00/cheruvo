@@ -138,7 +138,14 @@ function makeCandleShape(minP, maxP) {
     const bodyBot = Math.max(toY(Open), toY(Close))
     const bodyH   = Math.max(1.5, bodyBot - bodyTop)
     const cx      = x + width / 2
-    const cw      = Math.max(4, width * 0.6)
+    // Tetto di 26 pixel sulla larghezza del corpo.
+    //
+    // Serviva perché con pochi punti a schermo (zoom stretto) lo spazio per
+    // candela diventa enorme e il 60% di quello spazio produce rettangoli
+    // larghi centinaia di pixel: non si legge più niente, sembrano fasce di
+    // colore. Nessuna piattaforma di trading disegna candele più larghe di
+    // una ventina di pixel, per lo stesso motivo.
+    const cw      = Math.min(26, Math.max(3, width * 0.6))
 
     return (
       <g>
@@ -367,6 +374,10 @@ const stileInterruttore = {
  * dell'ultimo, massimo e minimo gli estremi, il volume la somma: è
  * esattamente come si costruisce una candela da timeframe più alto.
  */
+// Sotto questa soglia un grafico non racconta più un andamento: mostra
+// qualche forma isolata in mezzo al vuoto.
+const MIN_ZOOM = 25
+
 function raggruppaInCandele(prices, quante = 80) {
   if (!prices.length) return []
   const passo = Math.max(1, Math.ceil(prices.length / quante))
@@ -506,7 +517,10 @@ function GraficoOggiCorpo({ prices, ticker, statoBorsa, isMobile, espanso,
       })()
     : visibili
 
-  const dati = candele ? raggruppaInCandele(conMedia, isMobile ? 45 : 90) : conMedia
+  // Zoomando, i punti visibili sono già pochi: raggrupparli ancora
+  // lascerebbe tre candele. Il numero di candele cercato scende con lo zoom.
+  const candeleVolute = Math.max(MIN_ZOOM, Math.min(isMobile ? 45 : 90, visibili.length))
+  const dati = candele ? raggruppaInCandele(conMedia, candeleVolute) : conMedia
   const CandelaOggi = useMemo(() => makeCandleShape(min - margine, max + margine),
                               [min, max, margine])
 
@@ -525,9 +539,28 @@ function GraficoOggiCorpo({ prices, ticker, statoBorsa, isMobile, espanso,
     setTrascinando(null)
     // Trascinamenti brevissimi sono click andati storti, non richieste di zoom
     if (Math.abs(fine - inizio) < 3) return
+
     const base = (da != null) ? Math.min(da, a) : 0
-    setDa(base + Math.min(inizio, fine))
-    setA(base + Math.max(inizio, fine))
+    let sx = base + Math.min(inizio, fine)
+    let dx = base + Math.max(inizio, fine)
+
+    // Finestra minima di MIN_ZOOM punti.
+    //
+    // Senza questo si poteva arrivare a quattro minuti a schermo, e quattro
+    // punti sparsi su tutta la larghezza non sono un grafico: sono quattro
+    // forme isolate in mezzo al vuoto, da cui non si legge nessun andamento.
+    // Se la selezione è più stretta, la si allarga tenendola centrata su dove
+    // hai trascinato, così lo zoom va comunque dove volevi tu.
+    if (dx - sx + 1 < MIN_ZOOM) {
+      const centro = Math.round((sx + dx) / 2)
+      sx = centro - Math.floor(MIN_ZOOM / 2)
+      dx = sx + MIN_ZOOM - 1
+      // Ricentra se si esce dai bordi della serie
+      if (sx < 0) { sx = 0; dx = MIN_ZOOM - 1 }
+      if (dx > prices.length - 1) { dx = prices.length - 1; sx = Math.max(0, dx - MIN_ZOOM + 1) }
+    }
+    setDa(sx)
+    setA(dx)
   }
   const azzeraZoom = () => { setDa(null); setA(null); setTrascinando(null) }
 

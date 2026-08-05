@@ -129,6 +129,11 @@ TERMINE_QUERY = {
     # italiana no.
     "BTC-USD": "Bitcoin", "ETH-USD": "Ethereum", "SOL-USD": "Solana",
     "XRP-USD": "XRP", "ADA-USD": "Cardano", "DOGE-USD": "Dogecoin",
+    "AVAX-USD": "Avalanche", "LINK-USD": "Chainlink", "DOT-USD": "Polkadot",
+    "MATIC-USD": "Polygon", "LTC-USD": "Litecoin", "UNI-USD": "Uniswap",
+    "ATOM-USD": "Cosmos", "XLM-USD": "Stellar", "NEAR-USD": "NEAR",
+    "APT-USD": "Aptos", "ARB-USD": "Arbitrum", "OP-USD": "Optimism",
+    "SHIB-USD": "Shiba", "BCH-USD": "Bitcoin Cash",
 }
 
 
@@ -256,7 +261,15 @@ _or_supportato: bool | None = None   # None = non ancora scoperto
 
 
 def _ticker_del_mercato(lingua: str) -> list[str]:
-    """I ticker noti quotati su una borsa che parla quella lingua."""
+    """
+    I ticker che appartengono a un mercato. Le criptovalute sono un mercato a
+    sé: non hanno una borsa e scambiano ovunque, ma i loro nomi (Bitcoin,
+    Ethereum, Solana) sono distintivi come pochi altri, quindi il
+    raggruppamento con OR funziona su di loro meglio che su qualsiasi altra
+    cosa. Venti monete costano due chiamate invece di venti.
+    """
+    if lingua == "Crypto":
+        return [tk for tk in TERMINE_QUERY if e_crypto(tk)]
     return [tk for tk in TERMINE_QUERY
             if "." in tk and _LINGUA_BORSA.get(tk.split(".")[-1]) == lingua]
 
@@ -281,8 +294,13 @@ def _articoli_del_mercato(lingua: str, max_items: int, timespan: str) -> list[di
     termini = sorted({TERMINE_QUERY[tk] for tk in tickers})
     gruppo = "(" + " OR ".join(termini) + ")"
 
+    # Sulle crypto la lingua è una sola (inglese) e la seconda interrogazione
+    # sarebbe identica alla prima: non si fa.
+    interrogazioni = ([f"{gruppo} sourcelang:english"] if lingua == "Crypto"
+                      else [f"{gruppo} sourcelang:{lingua.lower()}",
+                            f"{gruppo} sourcelang:english"])
     articoli = []
-    for q in (f"{gruppo} sourcelang:{lingua.lower()}", f"{gruppo} sourcelang:english"):
+    for q in interrogazioni:
         articoli.extend(_interroga(q, max_items, timespan))
 
     # Non ho potuto verificare da fuori se GDELT accetta l'OR fra parentesi:
@@ -362,8 +380,10 @@ def fetch_gdelt(ticker: str, nome: str | None = None,
         # quindi non costa nessuna chiamata.
         articoli = []
         via = "titolo"
-        if lingua_locale != "English" and ticker.upper() in TERMINE_QUERY:
-            articoli = _articoli_del_mercato(lingua_locale, max_items, timespan)
+        mercato_di = ("Crypto" if e_crypto(ticker)
+                      else lingua_locale if lingua_locale != "English" else None)
+        if mercato_di and ticker.upper() in TERMINE_QUERY:
+            articoli = _articoli_del_mercato(mercato_di, max_items, timespan)
             if articoli:
                 via = "mercato"
 

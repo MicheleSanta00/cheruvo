@@ -3,11 +3,11 @@
 <head>
   <meta charset="UTF-8"/>
   <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
-  <title>Cheruvo — Sentiment AI delle azioni | Analisi notizie finanziarie</title>
-  <meta name="description" content="Analisi AI del sentiment delle azioni: Cheruvo legge le notizie finanziarie e ti dice se il mercato è rialzista o ribassista su ogni titolo, Borsa Italiana compresa. Gratis, senza carta."/>
+  <title>Cheruvo — Sentiment AI delle criptovalute | Bitcoin, Ethereum e altre 18</title>
+  <meta name="description" content="Sentiment delle criptovalute con l'AI: Cheruvo legge le notizie su Bitcoin, Ethereum, Solana e altre 17 monete e le trasforma in un numero, accanto all'indice di paura e avidità del mercato. Grafico che si muove 24 ore su 24. Gratis, senza carta."/>
   <link rel="canonical" href="https://cheruvo.com/"/>
-  <meta property="og:title" content="Cheruvo — Sentiment AI delle azioni"/>
-  <meta property="og:description" content="L'AI legge le notizie finanziarie e ti dice se il mercato è rialzista o ribassista su ogni titolo. Gratis."/>
+  <meta property="og:title" content="Cheruvo — Sentiment AI delle criptovalute"/>
+  <meta property="og:description" content="L'AI legge le notizie su Bitcoin, Ethereum e altre 18 monete e ti dice che aria tira. Accanto all'indice di paura e avidità del mercato. Gratis."/>
   <meta property="og:url" content="https://cheruvo.com"/>
   <meta property="og:type" content="website"/>
   <meta property="og:image" content="https://cheruvo.com/og-image.png"/>
@@ -20,7 +20,7 @@
   {
     "@context": "https://schema.org",
     "@graph": [
-      { "@type": "Organization", "name": "Cheruvo", "url": "https://cheruvo.com", "logo": "https://cheruvo.com/logo-v2.png", "description": "Analisi del sentiment delle notizie finanziarie per investitori retail, mercati USA ed Europa." },
+      { "@type": "Organization", "name": "Cheruvo", "url": "https://cheruvo.com", "logo": "https://cheruvo.com/logo-v2.png", "description": "Analisi del sentiment delle notizie sulle criptovalute per investitori retail: Bitcoin, Ethereum, Solana e altre." },
       { "@type": "WebSite", "name": "Cheruvo", "url": "https://cheruvo.com" }
     ]
   }
@@ -148,9 +148,9 @@ footer a:hover{color:var(--txt)}
 
   <div class="hero">
     <div>
-      <div class="lbl" style="margin-bottom:15px" data-i18n="heroKicker">Sentiment analysis · azioni USA ed Europa</div>
-      <h1 data-i18n-html="heroTitle">Il mercato ha già<br/>deciso. <em>Tu lo sai?</em></h1>
-      <p class="sub" data-i18n="heroSub">Cheruvo legge le notizie finanziarie con l'AI e le trasforma in un numero leggibile a colpo d'occhio, titolo per titolo. Comprese le azioni di Borsa Italiana, che quasi nessuno copre.</p>
+      <div class="lbl" style="margin-bottom:15px" data-i18n="heroKicker">Sentiment analysis · 20 criptovalute · 24 ore su 24</div>
+      <h1 data-i18n-html="heroTitle">Le crypto non dormono.<br/><em>Nemmeno noi.</em></h1>
+      <p class="sub" data-i18n="heroSub">Cheruvo legge le notizie su Bitcoin, Ethereum e altre 18 monete e le trasforma in un numero leggibile a colpo d'occhio. Accanto ci mette l'indice di paura e avidità del mercato: due misure indipendenti dello stesso umore, e quando divergono è lì che diventa interessante.</p>
       <div class="cta">
         <a class="btn p" href="https://app.cheruvo.com" data-i18n="heroCta">Apri Cheruvo — è gratis</a>
         <a class="btn" href="#prodotto" data-i18n="heroCta2">Guarda com'è fatto</a>
@@ -164,6 +164,21 @@ footer a:hover{color:var(--txt)}
         <span class="lbl neu" id="ora">—</span>
       </div>
       <div id="board"><div class="loading" data-i18n="loading">Caricamento dati di mercato…</div></div>
+      <div id="fng" style="padding:11px 13px;border-top:1px solid var(--line);display:none">
+        <div style="display:flex;align-items:baseline;gap:10px;margin-bottom:7px">
+          <span class="lbl" data-i18n="fngTitle">Paura e avidità del mercato</span>
+          <span id="fngVal" class="num" style="font-size:19px;margin-left:auto">—</span>
+          <span id="fngLbl" style="font-size:12px;font-weight:700">—</span>
+        </div>
+        <div style="display:flex;height:5px;border-radius:3px;overflow:hidden;position:relative">
+          <div style="flex:25;background:#dc2626;opacity:.35"></div>
+          <div style="flex:20;background:#f97316;opacity:.35"></div>
+          <div style="flex:11;background:#eab308;opacity:.35"></div>
+          <div style="flex:19;background:#84cc16;opacity:.35"></div>
+          <div style="flex:25;background:#16a34a;opacity:.35"></div>
+          <div id="fngMark" style="position:absolute;top:-3px;left:0;width:3px;height:11px;border-radius:2px;box-shadow:0 0 0 2px var(--panel)"></div>
+        </div>
+      </div>
       <div style="padding:9px 13px;border-top:1px solid var(--line);font-size:11px;color:var(--faint);font-family:var(--mono)" data-i18n="boardFoot">dati reali · aggiornati più volte al giorno</div>
     </div>
   </div>
@@ -178,7 +193,7 @@ footer a:hover{color:var(--txt)}
   </section>
 
   <section id="prodotto">
-    <h2 data-i18n="pTitle">Cosa vedi quando apri un titolo</h2>
+    <h2 data-i18n="pTitle">Cosa vedi quando apri una moneta</h2>
     <p class="lead" data-i18n="pLead">Niente muri di testo. Ogni schermata risponde a una domanda sola, con i numeri in evidenza e la fonte sempre a portata di clic.</p>
     <div class="cards">
       <div class="card">
@@ -189,7 +204,7 @@ footer a:hover{color:var(--txt)}
       <div class="card">
         <div class="tag">02 · CORRELAZIONE</div>
         <h3 data-i18n="c2t">La domanda scomoda</h3>
-        <p data-i18n="c2d">Il sentiment anticipa davvero il prezzo di questo titolo? Cheruvo calcola il legame e te lo dice, anche quando la risposta è no.</p>
+        <p data-i18n="c2d">Il sentiment anticipa davvero il prezzo di questa moneta? Cheruvo calcola il legame e te lo dice, anche quando la risposta è no.</p>
       </div>
       <div class="card">
         <div class="tag">03 · BORSA ITALIANA</div>
@@ -204,7 +219,7 @@ footer a:hover{color:var(--txt)}
     <p class="lead" data-i18n="mLead">Nessuna scatola nera: ogni passaggio è verificabile, e la fonte originale è sempre a un clic.</p>
     <div class="steps">
       <div class="step"><div class="k">01</div><h4 data-i18n="s1t">Raccolta</h4><p data-i18n="s1d">Le notizie arrivano da fonti con licenza aperta, senza scraping selvaggio.</p></div>
-      <div class="step"><div class="k">02</div><h4 data-i18n="s2t">Lettura AI</h4><p data-i18n="s2d">Un modello linguistico giudica ogni titolo dal punto di vista dell'investitore.</p></div>
+      <div class="step"><div class="k">02</div><h4 data-i18n="s2t">Lettura AI</h4><p data-i18n="s2d">Un modello linguistico giudica ogni notizia dal punto di vista di chi investe.</p></div>
       <div class="step"><div class="k">03</div><h4 data-i18n="s3t">Aggregazione</h4><p data-i18n="s3d">I punteggi diventano una serie giornaliera, confrontabile con il prezzo.</p></div>
       <div class="step"><div class="k">04</div><h4 data-i18n="s4t">Verifica</h4><p data-i18n="s4d">I giorni senza notizie restano vuoti: mai uno zero inventato al posto di un dato.</p></div>
     </div>
@@ -219,10 +234,10 @@ footer a:hover{color:var(--txt)}
         <div class="p">€0</div>
         <div style="font-size:12.5px;color:var(--faint)" data-i18n="planFreeSub">per sempre</div>
         <ul>
-          <li data-i18n="f1">Sentiment di ogni titolo coperto</li>
+          <li data-i18n="f1">Sentiment di tutte e 20 le monete</li>
           <li data-i18n="f2">Classifica di mercato aggiornata</li>
           <li data-i18n="f3">Grafico prezzo e sentiment</li>
-          <li data-i18n="f4">5 titoli in watchlist</li>
+          <li data-i18n="f4">5 monete in watchlist</li>
         </ul>
         <a class="btn" href="https://app.cheruvo.com" data-i18n="planFreeCta">Inizia gratis</a>
       </div>
@@ -233,7 +248,7 @@ footer a:hover{color:var(--txt)}
         <ul>
           <li data-i18n="p1">Watchlist illimitata e storico esteso</li>
           <li data-i18n="p2">Export PDF e CSV</li>
-          <li data-i18n="p3">Alert email sui titoli che segui</li>
+          <li data-i18n="p3">Alert email sulle monete che segui</li>
           <li data-i18n="p4">Pannello correlazione completo</li>
         </ul>
         <a class="btn p" href="https://app.cheruvo.com" data-i18n="planProCta">Passa a Pro</a>
@@ -243,7 +258,7 @@ footer a:hover{color:var(--txt)}
 
   <section class="faq">
     <h2 data-i18n="qTitle">Domande</h2>
-    <details><summary data-i18n="q1">Il sentiment prevede il prezzo?</summary><p data-i18n="a1">No, e Cheruvo non lo promette. È un termometro di come le notizie parlano di un titolo. Il pannello correlazione ti mostra, dati alla mano, quanto quel termometro sia stato utile per quel titolo specifico.</p></details>
+    <details><summary data-i18n="q1">Il sentiment prevede il prezzo?</summary><p data-i18n="a1">No, e Cheruvo non lo promette. È un termometro di come le notizie parlano di una moneta. Il pannello correlazione ti mostra, dati alla mano, quanto quel termometro sia stato utile per quella moneta specifica.</p></details>
     <details><summary data-i18n="q2">Da dove arrivano le notizie?</summary><p data-i18n="a2">Da fonti con licenza che ne consente il riuso. Vengono mostrati titolo, testata e link all'articolo originale: il testo integrale resta dell'editore.</p></details>
     <details><summary data-i18n="q3">Serve la carta di credito?</summary><p data-i18n="a3">No. Il piano base è gratuito e non chiede metodi di pagamento.</p></details>
     <details><summary data-i18n="q4">È consulenza finanziaria?</summary><p data-i18n="a4">No. Cheruvo fornisce dati e strumenti di lettura, non raccomandazioni di investimento. Le decisioni restano tue.</p></details>
@@ -270,11 +285,13 @@ const T = {
   en: {
     navProduct:'Product', navMethod:'Method', navPricing:'Pricing', navGuide:'Guide', navOpen:'Open Cheruvo',
     heroKicker:'Sentiment analysis · US and European stocks',
-    heroTitle:'The market has already<br/>decided. <em>Do you know?</em>',
-    heroSub:'Cheruvo reads financial news with AI and turns it into a number you can read at a glance, stock by stock. Italian equities included, which almost nobody covers.',
+    heroTitle:'Crypto never sleeps.<br/><em>Neither do we.</em>',
+    heroSub:'Cheruvo reads the news on Bitcoin, Ethereum and 18 more coins and turns it into a number you can read at a glance. Next to it sits the market fear and greed index: two independent readings of the same mood, and when they diverge is when it gets interesting.',
     heroCta:'Open Cheruvo — it’s free', heroCta2:'See how it looks',
     heroNote:'No card required', heroNote2:'news articles already analysed',
-    boardTitle:'Market today · last 48 hours', boardFoot:'real data · updated several times a day',
+    boardTitle:'Market today · last 48 hours',
+    fngTitle:'Market fear & greed',
+    fngTitle:'Paura e avidità del mercato', boardFoot:'real data · updated several times a day',
     loading:'Loading market data…',
     stNews:'News analysed', stTickers:'Stocks covered', stRank:'Ranked today', stCost:'Cost to start',
     pTitle:'What you see when you open a stock',
@@ -332,7 +349,11 @@ function toggleLang(){ lang = lang === 'it' ? 'en' : 'it'; localStorage.setItem(
 
 /* ── Dati veri dall'API ─────────────────────────────────────────────────── */
 const BASE = 'https://financial-sentiment-analysis-20px.onrender.com/api'
-const NOMI = {'UCG.MI':'UniCredit','LVMH.PA':'LVMH','NVDA':'NVIDIA','AMD':'AMD','RACE.MI':'Ferrari',
+const NOMI = {'BTC-USD':'Bitcoin','ETH-USD':'Ethereum','SOL-USD':'Solana','XRP-USD':'XRP',
+  'ADA-USD':'Cardano','DOGE-USD':'Dogecoin','AVAX-USD':'Avalanche','LINK-USD':'Chainlink',
+  'DOT-USD':'Polkadot','LTC-USD':'Litecoin','UNI-USD':'Uniswap','ATOM-USD':'Cosmos',
+  'XLM-USD':'Stellar','NEAR-USD':'NEAR','BCH-USD':'Bitcoin Cash','SHIB-USD':'Shiba',
+  'UCG.MI':'UniCredit','LVMH.PA':'LVMH','NVDA':'NVIDIA','AMD':'AMD','RACE.MI':'Ferrari',
   'ENEL.MI':'Enel','ENI.MI':'Eni','SAP.DE':'SAP','GOOGL':'Alphabet','TSLA':'Tesla','ASML.AS':'ASML',
   'AAPL':'Apple','MSFT':'Microsoft','META':'Meta','AMZN':'Amazon','INTC':'Intel','MU':'Micron',
   'SHEL.L':'Shell','ISP.MI':'Intesa','STM.MI':'STMicro','NFLX':'Netflix','GE':'GE'}
@@ -341,14 +362,18 @@ const f2  = v => (v > 0 ? '+' : v < 0 ? '−' : '') + Math.abs(v).toFixed(2)
 const nf  = n => Number(n).toLocaleString(lang === 'it' ? 'it-IT' : 'en-US')
 
 fetch(BASE + '/market/today').then(r => r.json()).then(d => {
-  const rows = d.rows || []
+  // Solo criptovalute: la home parla di crypto, mostrare Eni accanto a
+  // Bitcoin rimetterebbe in pagina la confusione che abbiamo appena tolto.
+  const rows = (d.rows || []).filter(r => String(r.ticker).endsWith('-USD'))
   if (!rows.length) return
+  const nome = tk => NOMI[tk] || tk.replace('-USD', '')
+  const sigla = tk => tk.replace('-USD', '')
   document.getElementById('strip').innerHTML =
     [...rows, ...rows.slice(0, 5)].map(r =>
-      `<div class="it"><span class="tk">${r.ticker}</span><span class="num ${cls(r.sentiment)}">${f2(r.sentiment)}</span></div>`).join('')
+      `<div class="it"><span class="tk">${sigla(r.ticker)}</span><span class="num ${cls(r.sentiment)}">${f2(r.sentiment)}</span></div>`).join('')
   document.getElementById('board').innerHTML = rows.slice(0, 7).map((r, i) =>
     `<div class="row"><span class="i">${i + 1}</span>
-     <span><b>${r.ticker}</b> <span class="n">${NOMI[r.ticker] || ''}</span></span>
+     <span><b>${sigla(r.ticker)}</b> <span class="n">${nome(r.ticker)}</span></span>
      <span class="n">${r.news} news</span>
      <span class="num ${cls(r.sentiment)}">${f2(r.sentiment)}</span></div>`).join('')
   document.getElementById('sRank').textContent = rows.length
@@ -367,6 +392,17 @@ fetch(BASE + '/market/stats').then(r => r.json()).then(s => {
     document.getElementById('miniNews').textContent = nf(s.news_total)
   }
   if (s.tickers) document.getElementById('sTk').textContent = s.tickers
+}).catch(() => {})
+
+fetch(BASE + '/fear-greed').then(r => r.json()).then(g => {
+  if (!g || !g.disponibile) return
+  document.getElementById('fng').style.display = 'block'
+  const v = document.getElementById('fngVal')
+  v.textContent = g.valore; v.style.color = g.colore
+  const l = document.getElementById('fngLbl')
+  l.textContent = g.etichetta; l.style.color = g.colore
+  const m = document.getElementById('fngMark')
+  m.style.left = g.valore + '%'; m.style.background = g.colore
 }).catch(() => {})
 
 document.getElementById('yy').textContent = new Date().getFullYear()

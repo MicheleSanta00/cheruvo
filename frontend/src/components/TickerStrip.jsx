@@ -12,7 +12,13 @@ export default function TickerStrip({ rows, onPick }) {
   if (!rows?.length) return null
 
   // Duplico la coda in fondo così il nastro riempie anche gli schermi larghi
-  const elenco = rows.length < 14 ? [...rows, ...rows.slice(0, 6)] : rows
+  // Il nastro si ripete per riempire la larghezza, ma SOLO se ha abbastanza
+  // elementi perché la ripetizione non si noti. Con due monete a schermo il
+  // raddoppio produceva "ETH BTC ETH BTC", che sembra un errore e non un
+  // nastro scorrevole.
+  const elenco = (rows.length >= 6 && rows.length < 14)
+    ? [...rows, ...rows.slice(0, 6)]
+    : rows
 
   return (
     <div
@@ -26,7 +32,7 @@ export default function TickerStrip({ rows, onPick }) {
     >
       {elenco.map((r, i) => (
         <button
-          key={`${r.ticker}-${i}`}
+          key={`${String(r.ticker).replace('-USD', '')}-${i}`}
           onClick={() => onPick?.(r.ticker)}
           style={{
             display: 'flex', alignItems: 'center', gap: 7, whiteSpace: 'nowrap',
@@ -37,7 +43,7 @@ export default function TickerStrip({ rows, onPick }) {
           onMouseEnter={(e) => { e.currentTarget.style.background = 'rgba(var(--rgb-contrasto), 0.04)' }}
           onMouseLeave={(e) => { e.currentTarget.style.background = 'transparent' }}
         >
-          <span style={{ fontWeight: 700, letterSpacing: '0.02em' }}>{r.ticker}</span>
+          <span style={{ fontWeight: 700, letterSpacing: '0.02em' }}>{String(r.ticker).replace('-USD', '')}</span>
           <span style={{
             fontFamily: 'var(--mono)', fontVariantNumeric: 'tabular-nums', fontWeight: 700,
             color: r.sentiment > 0.08 ? 'var(--green)' : r.sentiment < -0.08 ? 'var(--red)' : 'var(--muted)',

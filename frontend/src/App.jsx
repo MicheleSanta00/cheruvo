@@ -1051,14 +1051,26 @@ function LoadingState() {
   )
 }
 
-const SUGGESTED_TICKERS = [
-  { symbol: 'NVDA',   name: 'NVIDIA',        flag: '🇺🇸' },
-  { symbol: 'AAPL',   name: 'Apple',          flag: '🇺🇸' },
-  { symbol: 'TSLA',   name: 'Tesla',          flag: '🇺🇸' },
-  { symbol: 'ENI.MI', name: 'Eni',            flag: '🇮🇹' },
-  { symbol: 'MSFT',   name: 'Microsoft',      flag: '🇺🇸' },
-  { symbol: 'ENEL.MI',name: 'Enel',           flag: '🇮🇹' },
-]
+// Suggerimenti di partenza, diversi per mercato: proporre NVIDIA dentro la
+// sezione crypto mandava l'utente fuori dalla sezione in cui si trovava.
+const SUGGERITI = {
+  azioni: [
+    { symbol: 'NVDA',    name: 'NVIDIA',    flag: '🇺🇸' },
+    { symbol: 'AAPL',    name: 'Apple',     flag: '🇺🇸' },
+    { symbol: 'TSLA',    name: 'Tesla',     flag: '🇺🇸' },
+    { symbol: 'ENI.MI',  name: 'Eni',       flag: '🇮🇹' },
+    { symbol: 'MSFT',    name: 'Microsoft', flag: '🇺🇸' },
+    { symbol: 'ENEL.MI', name: 'Enel',      flag: '🇮🇹' },
+  ],
+  crypto: [
+    { symbol: 'BTC-USD',  name: 'Bitcoin',   flag: '' },
+    { symbol: 'ETH-USD',  name: 'Ethereum',  flag: '' },
+    { symbol: 'SOL-USD',  name: 'Solana',    flag: '' },
+    { symbol: 'XRP-USD',  name: 'XRP',       flag: '' },
+    { symbol: 'DOGE-USD', name: 'Dogecoin',  flag: '' },
+    { symbol: 'LINK-USD', name: 'Chainlink', flag: '' },
+  ],
+}
 
 // ── Schermata iniziale: una PLANCIA, non un cartello di benvenuto ───────────
 // Prima qui c'era un orb animato con "Benvenuto": bello ma vuoto, e faceva
@@ -1163,9 +1175,20 @@ function EmptyState({ t, onLoad, days, period, mercato, mktStats, risveglio }) {
         borderRadius: 10, overflow: 'hidden', marginBottom: 16,
         background: 'rgba(var(--rgb-contrasto), 0.015)',
       }}>
-        <Metrica etichetta={t.empty.kTickers} valore={stats?.tickers} />
-        <Metrica etichetta={t.empty.kNews} valore={stats?.news_total?.toLocaleString(lang === 'it' ? 'it-IT' : 'en-US')} />
-        <Metrica etichetta={t.empty.k24h} valore={stats?.news_today} />
+        {/* Le prime due venivano da /market/stats, che conta TUTTO l'archivio:
+            dentro la sezione crypto scrivevano "36 titoli seguiti" e "33.055
+            notizie", numeri veri ma di un altro mercato. Ora si calcolano
+            sulle righe effettivamente mostrate. */}
+        <Metrica etichetta={cripto ? 'Monete seguite' : t.empty.kTickers}
+                 valore={righe.length || null} />
+        <Metrica etichetta={cripto ? 'Notizie in 48 ore' : t.empty.kNews}
+                 valore={cripto
+                   ? righe.reduce((s, r) => s + (r.news || 0), 0) || null
+                   : stats?.news_total?.toLocaleString(lang === 'it' ? 'it-IT' : 'en-US')} />
+        <Metrica etichetta={cripto ? 'Con notizie oggi' : t.empty.k24h}
+                 valore={cripto
+                   ? righe.filter(r => r.news > 0).length || null
+                   : stats?.news_today} />
         <Metrica etichetta={t.empty.kRanked} valore={righe.length || null} />
       </div>
 
@@ -1210,7 +1233,7 @@ function EmptyState({ t, onLoad, days, period, mercato, mktStats, risveglio }) {
           {t.empty.suggestions}
         </div>
         <div style={{ display: 'flex', flexWrap: 'wrap', gap: 7 }}>
-          {SUGGESTED_TICKERS.map(tk => (
+          {(SUGGERITI[mercatoAttivo] || SUGGERITI.azioni).map(tk => (
             <button
               key={tk.symbol}
               onClick={() => onLoad(tk.symbol, days, period)}
