@@ -28,6 +28,7 @@ import LogoCrypto, { eCrypto, nelMercato, leggiMercato, salvaMercato, PREDEFINIT
   from './components/LogoCrypto.jsx'
 import PauraAvidita from './components/PauraAvidita.jsx'
 import SezioneAzioni from './components/SezioneAzioni.jsx'
+import PrezzoMobile from './components/PrezzoMobile.jsx'
 
 const DEFAULT_TICKER = 'NVDA'
 const DEFAULT_DAYS   = 30
@@ -339,7 +340,10 @@ export default function App() {
           {/* La ricerca sta SEMPRE nella barra: prima spariva appena aprivi un
               titolo, e per cercarne un altro dovevi tornare alla colonna. */}
           <HeaderSearch
-            placeholder={t.header.enterTicker}
+            // Su schermo stretto il testo lungo veniva troncato a
+            // "Inseris", che sembra un errore: meglio una parola sola.
+            placeholder={typeof window !== 'undefined' && window.innerWidth <= 640
+              ? (lang === 'it' ? 'Cerca' : 'Search') : t.header.enterTicker}
             mercatoAttivo={mercatoAttivo}
             days={days} period={period}
             onLoad={handleLoad} onTickerChange={setTicker}
@@ -585,6 +589,12 @@ export default function App() {
               è la fascia di riepilogo del titolo, come in un terminale. Prima
               stava dentro la colonna da 380px, dove sembrava un widget fra i
               tanti invece che l'identità numerica del titolo. */}
+          {/* Su telefono il prezzo apre la schermata. Su desktop questo
+              blocco non compare (classe mobile-only) perché lassù il prezzo
+              sta già nella barra in alto. */}
+          <PrezzoMobile ticker={loadedTicker || ticker} tickerInfo={tickerInfo}
+                        prices={prices} statoBorsa={statoBorsa} />
+
           {stats && <div id="kpi-avg"><KPIGrid stats={stats} /></div>}
 
           {/* Solo sulle crypto: l'indice riguarda quel mercato, su un

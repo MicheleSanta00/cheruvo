@@ -314,3 +314,34 @@ input  { font-family: var(--sans); }
 .wl-row:hover { background: rgba(var(--rgb-contrasto), 0.04) !important; }
 .wl-row:hover .wl-del { opacity: .55 !important; }
 .wl-del:hover { opacity: 1 !important; }
+
+/* ── Telefono: l'ordine di lettura cambia ─────────────────────────────── */
+@media (max-width: 640px) {
+  /* Il blocco prezzo compare solo qui. Classe dedicata: .mobile-only è
+     già usata altrove e deve restare inline-flex. */
+  .solo-telefono { display: flex !important; }
+
+  /* Le cinque metriche occupavano l'intera prima schermata prima ancora che
+     si vedesse un prezzo. Restano, ma compatte e su due colonne strette. */
+  #kpi-avg > div { gap: 1px !important; }
+  #kpi-avg [style*="font-size: 19px"],
+  #kpi-avg [style*="fontSize: 19"] { font-size: 15px !important; }
+
+  /* La bolla della chat stava sopra il grafico e sopra i pannelli. Su schermo
+     piccolo ogni pixel coperto è contenuto perso: si alza sopra la barra di
+     stato e si rimpicciolisce. */
+  .cheruvo-chat-launcher {
+    width: 46px !important; height: 46px !important;
+    right: 12px !important; bottom: 46px !important;
+    opacity: .92;
+  }
+
+  /* Il campo di ricerca mostrava "Inseris" e basta, perché il testo era
+     pensato per il desktop. Nasconderlo però toglierebbe l'unico modo di
+     aprire una moneta non in watchlist: resta, con un'etichetta che ci sta
+     e senza il promemoria della scorciatoia da tastiera, che su un telefono
+     non serve a nessuno. */
+  #header-search { min-width: 92px; }
+  #header-search input { padding-right: 12px !important; font-size: 13px; }
+  #header-search .hide-mobile { display: none !important; }
+}
