@@ -1,220 +1,198 @@
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useCallback } from 'react'
 import Icon from './Icon.jsx'
 
-const STEPS = [
+/**
+ * OnboardingTooltip.jsx — Il giro guidato del primo accesso.
+ *
+ * Riscritto il 5 agosto 2026. La versione precedente aveva tre difetti che si
+ * sommavano, e insieme facevano sembrare il tour impazzito.
+ *
+ * 1. POSIZIONAMENTO SBAGLIATO. Usava `position: absolute` sommando
+ *    `window.scrollY` alle coordinate dell'elemento. Ma Cheruvo non fa
+ *    scorrere la finestra: ha `overflow: hidden` e scorre i riquadri interni.
+ *    Quindi scrollY vale sempre zero, mentre getBoundingClientRect restituisce
+ *    coordinate relative allo SCHERMO. Due sistemi di riferimento diversi
+ *    mescolati: il fumetto finiva ovunque tranne dove doveva.
+ *    Ora è `position: fixed`, che parla la stessa lingua di
+ *    getBoundingClientRect. Nessuna somma, nessuna correzione.
+ *
+ * 2. PASSI CHE PUNTAVANO AL NULLA. Tre dei quattro passi erano ancorati a
+ *    elementi che esistono solo con un titolo aperto. Ma l'app adesso si apre
+ *    sulla classifica del mercato, senza nessun titolo: quei passi non avevano
+ *    bersaglio e il tour spariva a metà. Ora la sequenza si costruisce ogni
+ *    volta con i soli passi il cui bersaglio esiste DAVVERO in quel momento.
+ *
+ * 3. SALTI AUTOMATICI. Un effetto forzava il passaggio da un passo all'altro
+ *    quando arrivavano i dati, litigando con i click dell'utente. Tolto: si
+ *    avanza solo premendo avanti.
+ */
+
+const PASSI = [
   {
-    // Era 'sidebar-search'. Col passaggio all'interfaccia a terminale la
-    // ricerca si è spostata dalla colonna di sinistra alla barra in alto, e
-    // questo primo passo puntava a un elemento che non esiste più: il fumetto
-    // restava incollato nell'angolo in alto a sinistra indicando il nulla.
-    // Era la primissima cosa che vedeva un utente nuovo.
-    target: 'header-search',
-    icon: 'search',
-    title: 'Cerca un\'azione',
-    desc: 'Scrivi il simbolo di qualsiasi azione, americana o europea. Es: NVDA, AAPL, ENI.MI, ENEL.MI',
-    position: 'bottom',
+    id: 'header-search',
+    icona: 'search',
+    titolo: 'Cerca una moneta',
+    testo: 'Scrivi il nome o il simbolo. Da qualunque punto, Ctrl+K ti porta qui.',
   },
   {
-    target: 'kpi-avg',
-    icon: 'score',
-    title: 'Cos\'è il sentiment score?',
-    desc: 'È un numero da −1 a +1 che misura l\'umore del mercato su quell\'azione. Vicino a +1 = ottimismo, vicino a −1 = pessimismo.',
-    position: 'right',
+    id: 'kpi-avg',
+    icona: 'score',
+    titolo: 'Il punteggio del sentiment',
+    testo: 'Un numero da −1 a +1 che misura il tono delle notizie. Vicino a +1 ottimismo, vicino a −1 pessimismo.',
   },
   {
-    target: 'chart-area',
-    icon: 'charts',
-    title: 'Il grafico nel tempo',
-    desc: 'Vedi come cambia il sentiment giorno per giorno sovrapposto al prezzo reale. Se il sentiment sale prima del prezzo, potresti coglierlo in anticipo.',
-    position: 'top',
+    id: 'chart-area',
+    icona: 'charts',
+    titolo: 'Il grafico',
+    testo: 'Prezzo e sentiment sovrapposti. Con "Oggi" vedi la seduta minuto per minuto: sulle crypto si muove sempre.',
   },
   {
-    target: 'top-news',
-    icon: 'news',
-    title: 'Le notizie più impattanti',
-    desc: 'Le notizie più rialziste e ribassiste del momento, con il loro score. Clicca per leggere l\'articolo originale.',
-    position: 'top',
+    id: 'top-news',
+    icona: 'news',
+    titolo: 'Le notizie che contano',
+    testo: 'Quelle che generano il punteggio, con il loro peso. Clicca per leggere l\'originale.',
   },
 ]
 
-const isMobile = () => typeof window !== 'undefined' && window.innerWidth <= 640
+const LARGHEZZA = 290
+const MARGINE = 12
 
 export default function OnboardingTooltip({ hasData }) {
-  const [step, setStep]       = useState(0)
-  const [visible, setVisible] = useState(false)
-  const [waiting, setWaiting] = useState(false)   // "Ho capito" premuto: in attesa del primo ticker
-  const [pos, setPos]         = useState({ top: 0, left: 0 })
-  const [mobile]              = useState(isMobile)   // su mobile i tooltip vanno centrati
+  const [attivo, setAttivo] = useState(false)
+  const [indice, setIndice] = useState(0)
+  const [posizione, setPosizione] = useState(null)
+  const [disponibili, setDisponibili] = useState([])
 
   useEffect(() => {
-    if (localStorage.getItem('cheruvo_onboarded')) return
-    // Mostra subito il primo step (ricerca ticker)
-    setVisible(true)
+    try {
+      if (!localStorage.getItem('cheruvo_onboarded')) setAttivo(true)
+    } catch (_) { /* modalità privata */ }
   }, [])
 
+  // Solo i passi il cui bersaglio è presente adesso. Si ricalcola quando
+  // cambia lo stato dei dati, perché aprendo un titolo compaiono elementi
+  // nuovi e il giro può allungarsi.
   useEffect(() => {
-    // Quando arrivano i dati e siamo ancora allo step 0, il tour riprende dal passo 2
-    // (anche se l'utente aveva premuto "Ho capito" ed era in attesa)
-    if (hasData && step === 0) {
-      setWaiting(false)
-      setStep(1)
-      return
-    }
-    if (step > 0 && !hasData) return
-    if (!mobile) updatePosition()
-  }, [step, hasData])
+    if (!attivo) return
+    const presenti = PASSI.filter(p => document.getElementById(p.id))
+    setDisponibili(presenti)
+    setIndice(i => Math.min(i, Math.max(0, presenti.length - 1)))
+  }, [attivo, hasData])
 
-  // Mentre il tour è a schermo, nascondi il pulsante flottante della chat AI
-  // (altrimenti si sovrappone al tasto "Avanti" del tooltip, soprattutto su mobile).
+  const passo = disponibili[indice]
+
+  // Il calcolo della posizione. Coordinate dello schermo, punto. Il fumetto
+  // viene messo sotto l'elemento se c'è spazio, altrimenti sopra, e non esce
+  // mai dai bordi laterali.
+  const calcola = useCallback(() => {
+    if (!passo) return
+    const el = document.getElementById(passo.id)
+    if (!el) { setPosizione(null); return }
+    const r = el.getBoundingClientRect()
+    // Elemento fuori schermo o nascosto: niente fumetto appeso nel vuoto
+    if (r.width === 0 && r.height === 0) { setPosizione(null); return }
+
+    const sotto = r.bottom + 190 < window.innerHeight
+    let left = r.left + r.width / 2 - LARGHEZZA / 2
+    left = Math.max(MARGINE, Math.min(left, window.innerWidth - LARGHEZZA - MARGINE))
+
+    setPosizione({
+      top: sotto ? r.bottom + 14 : Math.max(MARGINE, r.top - 14),
+      left,
+      versoBasso: sotto,
+      // Il riquadro luminoso attorno all'elemento indicato
+      evidenzia: { top: r.top - 4, left: r.left - 4, width: r.width + 8, height: r.height + 8 },
+    })
+  }, [passo])
+
   useEffect(() => {
-    const shown = visible && !(waiting && step === 0)
-    document.body.classList.toggle('onboarding-active', shown)
-    return () => document.body.classList.remove('onboarding-active')
-  }, [visible, waiting, step])
-
-  const updatePosition = () => {
-    const current = STEPS[step]
-    const el = document.getElementById(current.target)
-    // Bersaglio sparito: il tour si chiude invece di restare appeso
-    // nell'angolo. Prima usciva senza fare niente, e il fumetto rimaneva
-    // fermo alle coordinate iniziali, cioè in alto a sinistra sopra il vuoto.
-    // Meglio nessun tour che un tour che indica il nulla.
-    if (!el) {
-      console.warn(`[onboarding] elemento "${current.target}" non trovato: tour interrotto`)
-      finish()
-      return
+    if (!attivo || !passo) return
+    calcola()
+    // Il layout può muoversi dopo il primo calcolo (dati che arrivano, font
+    // che finiscono di caricare, riquadri che si ridimensionano). Ricontrolla
+    // per un attimo invece di fidarsi di una misura sola.
+    const ripeti = setInterval(calcola, 400)
+    const stop = setTimeout(() => clearInterval(ripeti), 3000)
+    window.addEventListener('resize', calcola)
+    return () => {
+      clearInterval(ripeti); clearTimeout(stop)
+      window.removeEventListener('resize', calcola)
     }
-    const rect = el.getBoundingClientRect()
-    const scrollY = window.scrollY
+  }, [attivo, passo, calcola])
 
-    if (current.position === 'right') {
-      setPos({ top: rect.top + scrollY + rect.height / 2, left: rect.right + 16 })
-    } else if (current.position === 'bottom') {
-      setPos({ top: rect.bottom + scrollY + 12, left: rect.left + rect.width / 2 })
-    } else {
-      setPos({ top: rect.top + scrollY - 8, left: rect.left + rect.width / 2 })
-    }
+  const chiudi = () => {
+    setAttivo(false)
+    try { localStorage.setItem('cheruvo_onboarded', '1') } catch (_) {}
+  }
+  const avanti = () => {
+    if (indice < disponibili.length - 1) setIndice(i => i + 1)
+    else chiudi()
   }
 
-  const next = () => {
-    if (step < STEPS.length - 1) {
-      const nextStep = step + 1
-      // Se il prossimo step richiede dati e non ci sono, salta fino al primo step senza dati
-      if (nextStep >= 1 && !hasData) {
-        // Rimani sul tooltip attuale ma aggiorna il messaggio
-        setStep(0)
-        return
-      }
-      // Su desktop: se il target non esiste, chiudi. Su mobile i tooltip sono
-      // centrati e non dipendono dagli elementi, quindi non serve il controllo.
-      if (!mobile) {
-        const el = document.getElementById(STEPS[nextStep].target)
-        if (!el) { finish(); return }
-      }
-      setStep(nextStep)
-    } else {
-      finish()
-    }
-  }
+  useEffect(() => {
+    if (!attivo) return
+    const tasto = (e) => { if (e.key === 'Escape') chiudi() }
+    window.addEventListener('keydown', tasto)
+    return () => window.removeEventListener('keydown', tasto)
+  }, [attivo])
 
-  const finish = () => {
-    setVisible(false)
-    localStorage.setItem('cheruvo_onboarded', '1')
-  }
+  if (!attivo || !passo || !posizione) return null
 
-  // In attesa: l'utente ha capito il primo passo, il tour riprenderà col primo ticker
-  if (!visible || (waiting && step === 0)) return null
-
-  const current = STEPS[step]
-  const isRight = current.position === 'right'
+  const ultimo = indice === disponibili.length - 1
 
   return (
     <>
-      {/* Overlay scuro semi-trasparente (su mobile sempre attivo per mettere a fuoco) */}
-      <div
-        onClick={(mobile || step > 0) ? finish : undefined}
-        style={{
-          position: 'fixed', inset: 0, zIndex: 998,
-          background: (mobile || step > 0) ? 'rgba(0,0,0,0.55)' : 'transparent',
-          backdropFilter: (mobile || step > 0) ? 'blur(1px)' : 'none',
-          pointerEvents: (mobile || step > 0) ? 'all' : 'none',
-        }}
-      />
+      {/* Velo scuro, con un buco luminoso sull'elemento indicato */}
+      <div onClick={chiudi} style={{
+        position: 'fixed', inset: 0, zIndex: 998,
+        background: 'rgba(0,0,0,0.55)', pointerEvents: 'all',
+      }} />
+      <div style={{
+        position: 'fixed', zIndex: 999, pointerEvents: 'none',
+        borderRadius: 8, border: '1px solid var(--blue)',
+        boxShadow: '0 0 0 9999px rgba(0,0,0,0.55)',
+        ...posizione.evidenzia,
+      }} />
 
-      {/* Tooltip — ancorato all'elemento su desktop, centrato in basso su mobile */}
-      <div style={mobile ? {
-        position: 'fixed', left: 12, right: 12, bottom: 20, zIndex: 999,
-        background: 'var(--near-black)', border: '1px solid rgba(30,92,255,0.4)', borderRadius: 16,
-        padding: '18px 20px', boxShadow: '0 8px 40px rgba(0,0,0,0.6)', pointerEvents: 'all',
-      } : {
-        position: 'absolute',
-        top: pos.top,
-        left: pos.left,
-        zIndex: 999,
-        transform: isRight ? 'translateY(-50%)' : 'translate(-50%, -100%)',
-        maxWidth: 280,
+      <div style={{
+        position: 'fixed',
+        top: posizione.top, left: posizione.left,
+        transform: posizione.versoBasso ? 'none' : 'translateY(-100%)',
+        width: LARGHEZZA, zIndex: 1000,
         background: 'var(--near-black)',
-        border: '1px solid rgba(30,92,255,0.4)',
-        borderRadius: 14,
-        padding: '16px 18px',
-        boxShadow: '0 8px 40px rgba(0,0,0,0.6), 0 0 0 1px rgba(30,92,255,0.15)',
-        pointerEvents: 'all',
+        border: '1px solid rgba(30,92,255,0.45)', borderRadius: 10,
+        padding: '15px 17px', boxShadow: 'var(--ombra)', pointerEvents: 'all',
       }}>
-        {/* Freccia (solo desktop) */}
-        {!mobile && isRight && (
-          <div style={{
-            position: 'absolute', left: -8, top: '50%', transform: 'translateY(-50%)',
-            width: 0, height: 0,
-            borderTop: '8px solid transparent',
-            borderBottom: '8px solid transparent',
-            borderRight: '8px solid rgba(30,92,255,0.4)',
-          }} />
-        )}
-        {!mobile && !isRight && (
-          <div style={{
-            position: 'absolute', bottom: -8, left: '50%', transform: 'translateX(-50%)',
-            width: 0, height: 0,
-            borderLeft: '8px solid transparent',
-            borderRight: '8px solid transparent',
-            borderTop: '8px solid rgba(30,92,255,0.4)',
-          }} />
-        )}
-
-        {/* Indicatore step */}
         <div style={{ display: 'flex', gap: 4, marginBottom: 12 }}>
-          {STEPS.map((_, i) => (
+          {disponibili.map((_, i) => (
             <div key={i} style={{
               height: 3, flex: 1, borderRadius: 2,
-              background: i <= step ? 'var(--blue)' : 'rgba(var(--rgb-contrasto), 0.1)',
-              transition: 'background .3s',
+              background: i <= indice ? 'var(--blue)' : 'rgba(var(--rgb-contrasto), 0.12)',
             }} />
           ))}
         </div>
 
-        <div style={{ fontSize: 14, fontWeight: 600, marginBottom: 8, letterSpacing: '-.01em', display: 'flex', alignItems: 'center', gap: 7 }}>
-          <Icon name={current.icon} size={16} color="var(--azure)" /> {current.title}
+        <div style={{ display: 'flex', alignItems: 'center', gap: 7, marginBottom: 7 }}>
+          <Icon name={passo.icona} size={14} />
+          <span style={{ fontSize: 14, fontWeight: 700, letterSpacing: '-.01em' }}>{passo.titolo}</span>
         </div>
-        <div style={{ fontSize: 13, color: 'var(--off-white)', lineHeight: 1.65, marginBottom: 16 }}>
-          {current.desc}
-        </div>
+        <p style={{ fontSize: 12.5, color: 'var(--muted)', lineHeight: 1.55, marginBottom: 14 }}>
+          {passo.testo}
+        </p>
 
-        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: 12 }}>
-          <button
-            onClick={finish}
-            style={{ fontSize: 12, color: 'var(--muted)', background: 'transparent', border: 'none', cursor: 'pointer', flexShrink: 0 }}
-          >
-            Salta
-          </button>
-          <button
-            onClick={step === 0 ? () => setWaiting(true) : next}
-            style={{
-              fontSize: 13, fontWeight: 500, color: 'white',
-              background: 'var(--blue)', border: 'none',
-              borderRadius: 8, padding: '7px 18px', cursor: 'pointer', whiteSpace: 'nowrap',
-            }}
-          >
-            {step === 0 ? 'Ho capito' : step < STEPS.length - 1 ? 'Avanti' : 'Inizia'}
-          </button>
+        <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+          <button onClick={chiudi} style={{
+            fontSize: 12, color: 'var(--muted)', background: 'transparent',
+            border: 'none', cursor: 'pointer', padding: 0,
+          }}>Salta</button>
+          <span style={{ marginLeft: 'auto', fontSize: 11, color: 'var(--muted)',
+                         fontFamily: 'var(--mono)' }}>
+            {indice + 1}/{disponibili.length}
+          </span>
+          <button onClick={avanti} className="btn-glow" style={{
+            fontSize: 12.5, fontWeight: 700, color: '#fff', border: 'none',
+            borderRadius: 6, padding: '7px 15px', cursor: 'pointer',
+          }}>{ultimo ? 'Ho capito' : 'Avanti'}</button>
         </div>
       </div>
     </>
