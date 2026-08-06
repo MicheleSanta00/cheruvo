@@ -188,3 +188,75 @@ def test_il_verdetto_negativo_non_dice_che_il_segnale_non_esiste(capsys):
     sent, prezzi = _mondo(seme=11, legame=0.0)
     out = _verdetto(sent, prezzi, capsys)
     assert "NON dimostra che il segnale non esista" in out
+
+
+# ── I prezzi ──────────────────────────────────────────────────────────────
+def test_i_prezzi_si_leggono_dall_indice_non_dalle_colonne():
+    """
+    _yahoo_chart chiude con df.set_index("date"): la data è l'INDICE, non una
+    colonna. Cercarla fra le colonne non solleva nessun errore, restituisce
+    semplicemente una serie vuota, e il verdetto diventa "nessun giorno
+    allineato" per un motivo che non c'entra niente coi dati.
+    """
+    import pandas as pd
+    import prices
+
+    righe = [{"date": f"2026-08-{g:02d}", "Close": 100.0 + g} for g in range(1, 6)]
+    df = pd.DataFrame(righe)
+    df["date"] = pd.to_datetime(df["date"])
+    df = df.set_index("date").sort_index()
+
+    with patch.object(prices, "get_prices", return_value=df):
+        serie = v.serie_prezzi("BTC-USD", 90)
+
+    assert len(serie) == 5
+    assert serie[date(2026, 8, 3)] == 103.0
+
+
+def test_chiede_un_periodo_che_yahoo_conosce():
+    """
+    Yahoo accetta solo un vocabolario chiuso di periodi. La prima versione
+    chiedeva "105d", che non ne fa parte, e Yahoo rispondeva "possibly
+    delisted; no price data found" su BITCOIN: un messaggio che manda a
+    cercare il problema nel posto sbagliato.
+    """
+    import pandas as pd
+    import prices
+
+    validi = {"1d", "5d", "1mo", "3mo", "6mo", "1y", "2y", "5y", "max"}
+    visti = []
+
+    def finto(ticker, periodo):
+        visti.append(periodo)
+        return pd.DataFrame()
+
+    with patch.object(prices, "get_prices", side_effect=finto):
+        for giorni in (7, 30, 90, 180, 365):
+            v.serie_prezzi("BTC-USD", giorni)
+
+    assert visti, "get_prices non è stato chiamato"
+    for periodo in visti:
+        assert periodo in validi, f"'{periodo}' non è un periodo che Yahoo accetta"
+
+
+def test_il_periodo_copre_anche_l_orizzonte_piu_lungo():
+    """
+    Per il rendimento a T+7 servono sette giorni di prezzi OLTRE l'ultimo
+    giorno di notizie. Un periodo esatto quanto i giorni chiesti lascerebbe
+    senza prezzo proprio le osservazioni finali.
+    """
+    import pandas as pd
+    import prices
+
+    giorni_per_etichetta = {"1mo": 30, "3mo": 90, "6mo": 180, "1y": 365, "2y": 730}
+    visti = []
+
+    def finto(ticker, periodo):
+        visti.append(periodo)
+        return pd.DataFrame()
+
+    with patch.object(prices, "get_prices", side_effect=finto):
+        v.serie_prezzi("BTC-USD", 90)
+
+    coperti = giorni_per_etichetta[visti[0]]
+    assert coperti >= 90 + max(v.ORIZZONTI)

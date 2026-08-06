@@ -175,9 +175,49 @@ def serie_sentiment(ticker: str, giorni: int) -> dict[date, tuple[float, int]]:
 
 
 def serie_prezzi(ticker: str, giorni: int) -> dict[date, float]:
-    import yfinance as yf
-    storico = yf.Ticker(ticker).history(period=f"{giorni + 15}d")
-    return {i.date(): float(r["Close"]) for i, r in storico.iterrows()}
+    """
+    Chiusure giornaliere, prese dallo stesso codice che serve il grafico.
+
+    Prima chiamava yfinance con period="105d", e Yahoo ha risposto "possibly
+    delisted; no price data found" su BITCOIN. Non era un problema di Bitcoin:
+    Yahoo accetta solo un vocabolario chiuso di periodi (1d, 5d, 1mo, 3mo,
+    6mo, 1y...) e "105d" non ne fa parte, quindi rifiutava la richiesta e
+    yfinance traduceva quel rifiuto in un messaggio fuorviante.
+
+    Usare `prices.get_prices` invece di reinventare la chiamata ha due
+    vantaggi: parla il vocabolario giusto, e se Yahoo tace ripiega su Alpha
+    Vantage esattamente come fa il sito. È codice già rodato in produzione,
+    non una seconda strada da mantenere.
+    """
+    from prices import get_prices
+
+    # Al periodo più corto che copre i giorni chiesti, con un margine per gli
+    # orizzonti in avanti: per il rendimento a T+7 servono sette giorni di
+    # prezzi oltre l'ultimo giorno di notizie.
+    for etichetta, quanti in (("1mo", 30), ("3mo", 90), ("6mo", 180),
+                              ("1y", 365), ("2y", 730)):
+        if quanti >= giorni + max(ORIZZONTI) + 5:
+            periodo = etichetta
+            break
+    else:
+        periodo = "5y"
+
+    df = get_prices(ticker, periodo)
+    if df is None or df.empty:
+        return {}
+
+    # ATTENZIONE: la data è l'INDICE del DataFrame, non una colonna.
+    # `_yahoo_chart` chiude con `df.set_index("date")`, quindi cercarla fra le
+    # colonne restituisce sempre niente e la serie esce vuota, senza errori.
+    serie = {}
+    for indice, riga in df.iterrows():
+        giorno = indice.date() if hasattr(indice, "date") else indice
+        if isinstance(giorno, str):
+            giorno = date.fromisoformat(giorno[:10])
+        chiusura = riga.get("Close")
+        if chiusura is not None and chiusura == chiusura:   # scarta i NaN
+            serie[giorno] = float(chiusura)
+    return serie
 
 
 def allinea(sent: dict, prezzi: dict, orizzonte: int
