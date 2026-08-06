@@ -122,9 +122,18 @@ app.include_router(market_router, prefix="/api")
 app.include_router(digest_router, prefix="/api")
 app.include_router(earnings_router, prefix="/api")
 
+# Questo dizionario viene passato a SuperNewsAnalyzer, che lo salva in
+# self.api_key e non lo legge MAI: verificato il 6 agosto 2026, `self.api_key`
+# compare una volta sola in tutto database.py, nell'assegnazione. È un residuo
+# della versione Streamlit del progetto.
+#
+# Lo lascio perché toglierlo tocca la firma di SuperNewsAnalyzer e non è il
+# momento, ma NEWSAPI è stata rimossa: quella chiave era in chiaro nella storia
+# di git, il suo rubinetto è staccato da luglio, e newsapi.org non offre un modo
+# di rigenerarla. Meglio non averla affatto che averne una che non si può
+# cambiare.
 API_KEY = {
     "ALPHA_VANTAGE": os.environ.get("ALPHA_VANTAGE", ""),
-    "NEWSAPI":       os.environ.get("NEWSAPI", ""),
     "FMP":           os.environ.get("FMP", ""),
     "REDDIT": {
         "client_id":     os.environ.get("REDDIT_CLIENT_ID", ""),

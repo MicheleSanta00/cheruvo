@@ -81,7 +81,10 @@ jobs:
       - name: Fetch news e invia alert PRO
         env:
           ALPHA_VANTAGE:           ${{ secrets.ALPHA_VANTAGE }}
-          NEWSAPI:                 ${{ secrets.NEWSAPI }}
+          # NEWSAPI tolta il 6 agosto 2026. Il rubinetto era staccato da luglio
+          # (i loro termini escludono la produzione), la chiave era in chiaro
+          # nella storia di git, e newsapi.org non permette di rigenerarla.
+          # Passarla qui significava solo tenerla in circolo per niente.
           DATABASE_URL:            ${{ secrets.DATABASE_URL }}
           RESEND_API_KEY:          ${{ secrets.RESEND_API_KEY }}
           FROM_EMAIL:              ${{ secrets.FROM_EMAIL }}
