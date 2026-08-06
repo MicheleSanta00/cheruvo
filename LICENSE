@@ -1,0 +1,80 @@
+Copyright (c) 2026 Michele Santacaterina. Tutti i diritti riservati.
+All rights reserved.
+
+═══════════════════════════════════════════════════════════════════════════
+
+ITALIANO
+
+Questo codice sorgente è pubblicamente CONSULTABILE ma NON è software libero
+né open source.
+
+È CONSENTITO:
+  - leggere il codice;
+  - studiarlo a fini personali, didattici o di ricerca;
+  - citarne porzioni in discussioni tecniche, con attribuzione.
+
+NON è consentito, senza autorizzazione scritta del titolare:
+  - usare il codice, in tutto o in parte, in qualunque prodotto o servizio,
+    commerciale o gratuito;
+  - copiarlo, modificarlo, tradurlo o crearne opere derivate;
+  - ridistribuirlo, pubblicarlo altrove o concederlo in sublicenza;
+  - impiegarlo per addestrare modelli di apprendimento automatico.
+
+Il fork all'interno di GitHub è permesso dai Termini di Servizio della
+piattaforma esclusivamente per le finalità previste da quei termini, e non
+costituisce concessione di alcuno dei diritti negati sopra.
+
+Il repository è pubblico per una ragione pratica e non ideologica: i
+repository pubblici hanno minuti di GitHub Actions illimitati, e questo
+progetto ne consuma parecchi per raccogliere notizie. Rendere leggibile il
+codice è il prezzo di quella scelta, non una rinuncia ai diritti su di esso.
+
+I dati raccolti ed elaborati (archivio notizie, punteggi di sentiment, serie
+storiche) NON fanno parte di questo repository e non sono coperti da questa
+licenza.
+
+Per richieste di utilizzo: michelesantacaterina08@gmail.com
+
+═══════════════════════════════════════════════════════════════════════════
+
+ENGLISH
+
+This source code is publicly VIEWABLE but is NOT free or open source
+software.
+
+YOU MAY:
+  - read the code;
+  - study it for personal, educational or research purposes;
+  - quote portions of it in technical discussion, with attribution.
+
+YOU MAY NOT, without the copyright holder's written permission:
+  - use the code, in whole or in part, in any product or service, whether
+    commercial or free of charge;
+  - copy, modify, translate it or create derivative works from it;
+  - redistribute it, republish it elsewhere or sublicense it;
+  - use it to train machine learning models.
+
+Forking within GitHub is permitted by the platform's Terms of Service solely
+for the purposes set out in those terms, and does not grant any of the rights
+withheld above.
+
+The repository is public for a practical rather than ideological reason:
+public repositories get unlimited GitHub Actions minutes, and this project
+uses a good many of them to collect news. Making the code readable is the
+price of that choice, not a waiver of rights over it.
+
+The data collected and processed (news archive, sentiment scores, time
+series) is NOT part of this repository and is not covered by this licence.
+
+Usage enquiries: michelesantacaterina08@gmail.com
+
+═══════════════════════════════════════════════════════════════════════════
+
+IL SOFTWARE È FORNITO "COSÌ COM'È", SENZA GARANZIE DI ALCUN TIPO, ESPRESSE O
+IMPLICITE. IN NESSUN CASO IL TITOLARE POTRÀ ESSERE RITENUTO RESPONSABILE PER
+QUALSIASI RECLAMO, DANNO O ALTRA RESPONSABILITÀ DERIVANTE DAL SOFTWARE O DAL
+SUO UTILIZZO.
+
+THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+IMPLIED. IN NO EVENT SHALL THE COPYRIGHT HOLDER BE LIABLE FOR ANY CLAIM,
+DAMAGES OR OTHER LIABILITY ARISING FROM THE SOFTWARE OR ITS USE.
