@@ -198,7 +198,12 @@ def rescore_non_av_news(ticker: str, batch_size: int = 10,
               -- aveva già calcolato meglio, sul suo stesso ticker. Il filtro
               -- che conta è quello su score_source, qui sotto.
               AND source != 'Alpha Vantage'
-              AND COALESCE(score_source, 'vader') NOT IN ('llm2', 'av')
+              -- 'gdelt' si aggiunge il 6 agosto 2026: quelle righe portano
+              -- il tono calcolato sul TESTO INTEGRALE dell'articolo. Farle
+              -- ri-classificare da un modello che vede solo il titolo
+              -- sostituirebbe un punteggio migliore con uno peggiore, e in
+              -- più brucerebbe quota su un flusso da centinaia di pezzi.
+              AND COALESCE(score_source, 'vader') NOT IN ('llm2', 'av', 'gdelt')
               AND published_date >= NOW() - INTERVAL '7 days'
             ORDER BY published_date DESC
             LIMIT %s

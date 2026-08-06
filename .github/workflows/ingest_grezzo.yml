@@ -1,0 +1,74 @@
+name: Cheruvo — Raccolta dai file GDELT
+
+# Perché un workflow separato e non dentro `update_news.yml`.
+#
+# Quel cron ha 12 minuti di tetto e ne usa già una decina fra fetch, Groq,
+# alert, digest ed earnings. Attaccarci una raccolta da qualche minuto lo
+# farebbe uccidere a metà, e quando succede NON viene salvato niente: è
+# esattamente il guasto del 5 agosto 2026.
+#
+# Gli orari sono sfalsati di tre ore rispetto all'updater (che gira a 0, 6, 12
+# e 18 UTC) così i due non si contendono né i minuti né il database.
+#
+# BUDGET. Il piano gratuito dà 2000 minuti al mese e l'updater ne consuma già
+# circa 1200. Questa raccolta, a quattro giri al giorno, dovrebbe stare sui
+# 400-500. Il margine non è enorme: se il consumo cresce, la prima cosa da
+# fare è portare la pianificazione da quattro a due giri al giorno, non
+# ridurre le ore coperte.
+
+on:
+  schedule:
+    - cron: '0 3,9,15,21 * * *'
+  workflow_dispatch:
+    inputs:
+      ore:
+        description: 'Quante ore indietro raccogliere'
+        required: true
+        default: '6'
+        type: string
+      solo_inglese:
+        description: 'Salta il feed tradotto (dimezza il traffico)'
+        required: true
+        default: false
+        type: boolean
+
+jobs:
+  raccolta:
+    name: raccolta
+    runs-on: ubuntu-latest
+    timeout-minutes: 25
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+          cache: 'pip'
+          cache-dependency-path: requirements-actions.txt
+
+      - name: Installa dipendenze
+        run: pip install -r requirements-actions.txt
+
+      - name: Raccogli
+        env:
+          DATABASE_URL: ${{ secrets.DATABASE_URL }}
+          PYTHONPATH:   ${{ github.workspace }}/backend
+        run: |
+          ORE="${{ github.event.inputs.ore }}"
+          ORE="${ORE:-6}"
+          ARGS="--ore $ORE --limite-minuti 15"
+          if [ "${{ github.event.inputs.solo_inglese }}" = "true" ]; then
+            ARGS="$ARGS --solo-inglese"
+          fi
+          echo "Comando: python backend/ingest_grezzo.py $ARGS"
+          python backend/ingest_grezzo.py $ARGS
+
+      - name: Riepilogo
+        if: always()
+        run: |
+          echo "Esito: ${{ job.status }}"
+          echo ""
+          echo "Se il consumo di minuti Actions diventa un problema, riduci la"
+          echo "frequenza nel cron invece delle ore coperte: perdere metà dei"
+          echo "giri costa meno che perdere metà delle notizie di ogni giro."
