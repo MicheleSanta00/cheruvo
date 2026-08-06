@@ -1,20 +1,67 @@
 # Cheruvo
 
-Piattaforma SaaS di sentiment analysis su news finanziarie per investitori retail.
+**[cheruvo.com](https://cheruvo.com)** · Il sentiment delle criptovalute, letto dalle notizie.
+
+Cheruvo legge la stampa finanziaria mondiale, assegna un punteggio a ogni
+articolo su venti criptovalute e lo mette accanto all'indice di paura e avidità
+del mercato. Serve a rispondere a una domanda sola: **che aria tira su questa
+moneta, senza leggere settanta articoli.**
+
+Tutto in italiano, gratis, senza account a pagamento.
+
+## Cosa NON è
+
+Vale la pena scriverlo prima del resto, perché è il modo in cui prodotti come
+questo di solito mentono.
+
+**Non prevede il prezzo.** Nessuno ha ancora dimostrato che il sentiment delle
+notizie anticipi il mercato, e finché non è dimostrato qui dentro non viene
+promesso. `backend/verifica_segnale.py` è lo strumento che serve a rispondere a
+quella domanda in modo onesto: usa un test di permutazione, soglie fissate
+prima di guardare i dati e un confronto con compra-e-tieni, e sa dire "non lo
+so" quando i giorni disponibili sono pochi.
+
+**Non è affidabile su tutte le monete allo stesso modo.** Il numero vale quanto
+le notizie che lo sostengono: su Bitcoin ce ne sono a sufficienza, su una
+alt-coin con tre articoli al giorno una media è rumore. Il conteggio è sempre
+mostrato accanto al punteggio, apposta.
+
+**Non è consulenza finanziaria.**
+
+## Da dove vengono i dati
+
+Solo fonti con diritto d'uso commerciale verificato:
+
+| Fonte | Licenza | Uso |
+|---|---|---|
+| **GDELT** (API + file grezzi ogni 15 min) | libera, anche commerciale, con ridistribuzione | fonte principale |
+| **SEC EDGAR** | pubblico dominio (atti USA) | depositi societari |
+| **Alpha Vantage** | autorizzazione scritta del supporto | opzionale, dietro interruttore |
+| **alternative.me** | libera per uso commerciale | indice paura e avidità |
+
+NewsAPI, Google News RSS e i feed Yahoo sono stati **staccati**: nessuno dei tre
+consente l'uso in produzione. Il codice che li chiamava resta come riferimento,
+spento, con i motivi scritti accanto.
 
 ## Stack
 
 | Layer | Tecnologia |
 |-------|-----------|
-| Frontend | React 18 + Vite |
-| Backend | FastAPI (Python 3.11) |
-| Auth | Supabase |
-| Database | PostgreSQL (Supabase) |
-| Pagamenti | Stripe |
-| Email alert | Resend |
-| Deploy frontend | Vercel |
-| Deploy backend | Render |
-| Cron | GitHub Actions (ogni 6h) |
+| Frontend | React 18 + Vite → Vercel |
+| Backend | FastAPI (Python 3.11) → Render |
+| Auth e database | Supabase (PostgreSQL) |
+| Punteggi | GDELT tone, VADER, Groq/Llama |
+| Pagamenti | Stripe (attualmente disattivato) |
+| Email | Resend |
+| Automazioni | GitHub Actions |
+
+## Licenza
+
+Il codice è **pubblicamente consultabile ma non libero**: vedi
+[`LICENSE`](./LICENSE). Il repository è pubblico per una ragione pratica, cioè i
+minuti di GitHub Actions illimitati che servono a raccogliere le notizie, non
+perché i diritti siano stati ceduti. I dati raccolti non fanno parte del
+repository.
 
 ## Setup locale
 
@@ -22,7 +69,7 @@ Piattaforma SaaS di sentiment analysis su news finanziarie per investitori retai
 
 ```bash
 cd backend
-cp .env.example .env
+cp ../.env.example .env
 # Compila .env con le tue chiavi
 pip install -r requirements.txt
 uvicorn main:app --reload --port 8000
@@ -40,27 +87,46 @@ npm run dev
 
 ## Variabili d'ambiente richieste
 
-Vedi `backend/.env.example` per la lista completa.
+Vedi [`.env.example`](./.env.example) nella radice del progetto.
 
 Su Render: aggiungi le variabili in **Environment → Environment Variables**.  
 Su GitHub Actions: aggiungi i segreti in **Settings → Secrets and variables → Actions**.
 
 ## Architettura news
 
-1. **GitHub Actions** (ogni 6h) → `updater.py` → `quick_fetch.py` (VADER sentiment) → PostgreSQL
-2. **On-demand** → `/api/fetch/{ticker}` → `quick_fetch.py` in background
-3. **Alert** → dopo ogni fetch, `alerts.py` manda email agli utenti PRO con ticker in watchlist
+Due canali di raccolta, che si completano invece di sovrapporsi.
+
+**1. File grezzi di GDELT** — `.github/workflows/ingest_grezzo.yml`, ogni 6 ore
+   → `backend/ingest_grezzo.py` → PostgreSQL
+
+   È il canale principale per volume. GDELT pubblica un file ogni 15 minuti su
+   un server statico: niente rate limit, niente tetto di 250 risultati, e un
+   feed separato per il resto del mondo tradotto. Il punteggio lo porta il file
+   stesso, calcolato da GDELT sul **testo integrale** dell'articolo.
+
+**2. API di GDELT** — `.github/workflows/update_news.yml`, ogni 6 ore
+   → `updater.py` → `backend/quick_fetch.py` → PostgreSQL
+
+   Più mirato ma limitato: 250 risultati per interrogazione e un rate limit
+   severo. Qui il punteggio nasce da VADER sul titolo e viene poi riclassificato
+   da Groq. Serve anche al fetch a richiesta, quando un utente cerca un titolo
+   che non abbiamo ancora.
+
+**Alert** — dopo ogni giro, `backend/alerts.py` manda le email a chi ha quel
+titolo in watchlist.
+
+I tre punteggi convivono nella stessa tabella e si distinguono con
+`score_source`: `gdelt` (testo integrale), `llm2` (Groq sul titolo), `av`
+(Alpha Vantage), `vader` (ripiego). Groq **non tocca** le righe `gdelt` e `av`:
+sostituirebbe un punteggio migliore con uno peggiore.
 
 ### Licenze delle fonti
 
-Girano solo tre fonti: **GDELT** (licenza libera anche commerciale), **SEC
-EDGAR** (pubblico dominio) e **Alpha Vantage** (dietro `AV_ENABLED`, con
-autorizzazione scritta del supporto). NewsAPI, Google News RSS e i feed
-Yahoo/Sole24Ore restano nel codice come riferimento ma **non vengono chiamati**:
-nessuno dei tre consente l'uso commerciale.
+L'elenco delle fonti ammesse è in cima a questo file. Qui sotto sta invece la
+parte operativa: cosa fare dell'arretrato.
 
-Il censimento del 5 agosto 2026 ha però contato **32.675 righe su 33.126** (il
-98,6%) rimaste in archivio da prima che quei rubinetti venissero chiusi.
+Il censimento del 5 agosto 2026 ha contato **32.675 righe su 33.126** (il
+98,6%) rimaste in archivio da prima che i rubinetti vietati venissero chiusi.
 Due strumenti manuali, entrambi da Actions:
 
 - `.github/workflows/backfill_gdelt.yml` ricostruisce lo storico da GDELT
@@ -120,36 +186,59 @@ Vale la pena ricordare che l'allarme più importante non è questo: è
 media dei 7 giorni precedenti e manda una mail se crolla. Un server raggiungibile
 che serve dati fermi è un guasto peggiore di un server irraggiungibile.
 
-## Tier Free vs PRO
+## Piani
 
-| Feature | Free | PRO |
-|---------|------|-----|
-| Watchlist ticker | 3 | Illimitata |
-| Periodo news | 30 giorni | 90 giorni |
-| Periodo prezzi | 1M, 3M | + 6M, 1Y |
-| Export CSV | ❌ | ✓ |
-| Stats avanzate | ❌ | ✓ |
-| Email alert | ❌ | ✓ |
+**Nessuno.** Il 6 agosto 2026 il muro a pagamento è stato spento e tutte le
+funzioni sono aperte: watchlist senza limiti, storico completo, export, alert.
+
+Non è generosità, è aritmetica: gli abbonati erano zero, quindi quel muro non
+proteggeva nessun ricavo e toglieva funzioni proprio alle persone da cui si
+può imparare qualcosa. La domanda a cui serve rispondere adesso non è "quanto
+pagano" ma "chi lo usa e perché".
+
+Stripe e la tabella `subscriptions` sono rimasti al loro posto e funzionanti.
+Riaccendere il muro è **un interruttore**: la variabile d'ambiente
+`PAYWALL_ATTIVO` per il backend (vedi `backend/auth.py`) e `isPro` in
+`frontend/src/App.jsx`.
 
 ## Struttura progetto
 
 ```
 cheruvo/
 ├── backend/
-│   ├── main.py          # FastAPI app, caching, rate limiting
-│   ├── database.py      # Connection pool, SuperNewsAnalyzer
-│   ├── quick_fetch.py   # Fetch news multi-sorgente + VADER
-│   ├── alerts.py        # Sistema email alert PRO
-│   ├── prices.py        # Prezzi OHLCV via yFinance
-│   ├── stripe_routes.py # Checkout, webhook, subscription
-│   └── requirements.txt
-├── frontend/
-│   └── src/
-│       ├── App.jsx
-│       ├── components/
-│       └── hooks/
+│   ├── main.py               # FastAPI, caching, rate limiting
+│   ├── auth.py               # Supabase + interruttore PAYWALL_ATTIVO
+│   ├── database.py           # connection pool
+│   │
+│   ├── gdelt_grezzo.py       # lettore dei file GDELT (misura, non scrive)
+│   ├── ingest_grezzo.py      # raccolta dai file GDELT  ← canale principale
+│   ├── gdelt_source.py       # API GDELT
+│   ├── quick_fetch.py        # orchestrazione fonti + salvataggio
+│   ├── sec_source.py         # SEC EDGAR
+│   ├── sentiment_groq.py     # riclassificazione con Llama
+│   │
+│   ├── backfill_gdelt.py     # ricostruzione storico
+│   ├── verifica_segnale.py   # il sentiment anticipa il prezzo?
+│   ├── pulizia_licenze.py    # censimento e rimozione righe senza licenza
+│   ├── salute.py             # allarme sul crollo di copertura
+│   │
+│   ├── prices.py             # prezzi OHLCV
+│   ├── paura_avidita.py      # indice paura e avidità
+│   ├── alerts.py             # email
+│   └── tests/                # 149 test
+│
+├── frontend/src/
+│   ├── App.jsx
+│   └── components/
+│
 ├── .github/workflows/
-│   └── update_news.yml  # Cron GitHub Actions
-├── updater.py           # Script cron principale
-└── README.md
+│   ├── ingest_grezzo.yml     # raccolta, 4 volte al giorno
+│   ├── update_news.yml       # API GDELT + alert, 4 volte al giorno
+│   ├── backfill_gdelt.yml    # manuale
+│   ├── verifica_segnale.yml  # manuale
+│   └── pulizia_licenze.yml   # manuale
+│
+├── docs/                     # landing su cheruvo.com
+├── updater.py
+└── LICENSE
 ```
