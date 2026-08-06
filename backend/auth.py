@@ -87,7 +87,27 @@ async def get_current_user(
     return await _verify_with_supabase(credentials.credentials)
 
 
+# ── Paywall: spento ───────────────────────────────────────────────────────
+#
+# Il 6 agosto 2026 il piano a pagamento è stato aperto a tutti. Il motivo non è
+# generosità: gli abbonati erano zero, quindi quel muro non stava proteggendo
+# nessun ricavo. Stava solo togliendo funzioni alle uniche persone da cui si
+# può imparare qualcosa, e in cambio non dava niente.
+#
+# La domanda a cui serve rispondere adesso non è "quanto pagano" ma "chi lo usa
+# e perché", e quella risposta la danno solo gli utenti. Quando ci saranno,
+# rimettere il muro è UNA riga: basta togliere questo interruttore.
+#
+# Tutto il resto (Stripe, la tabella subscriptions, i controlli) è rimasto al
+# suo posto e continua a funzionare: chi si abbonasse davvero verrebbe
+# registrato come prima. Cambia solo che non serve.
+PAYWALL_ATTIVO = os.environ.get("PAYWALL_ATTIVO", "").strip().lower() in ("1", "true", "yes")
+
+
 def get_user_tier(user_id: str) -> str:
+    if not PAYWALL_ATTIVO:
+        return "pro"
+
     cached = _get_cached_tier(user_id)
     if cached is not None:
         return cached

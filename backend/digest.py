@@ -21,7 +21,7 @@ from fastapi.responses import HTMLResponse
 from pydantic import BaseModel
 
 import database
-from auth import get_current_user
+from auth import get_current_user, PAYWALL_ATTIVO
 
 logger = logging.getLogger(__name__)
 router = APIRouter(prefix="/digest")
@@ -116,7 +116,12 @@ def get_recipients() -> list[dict]:
     finally:
         _rel(conn)
     return [{"user_id": str(r[0]), "email": r[1],
-             "plan": "pro" if r[2] == "pro" else "free",
+             # Il digest legge lo stato direttamente dal database e quindi
+             # non passa da get_user_tier: senza questo, con il paywall
+             # spento il resto del sito sarebbe aperto ma la mail settimanale
+             # continuerebbe a mandare un solo titolo, che è il tipo di
+             # incoerenza che fa sembrare il prodotto rotto.
+             "plan": "pro" if (not PAYWALL_ATTIVO or r[2] == "pro") else "free",
              "tickers": list(r[3] or [])} for r in rows]
 
 

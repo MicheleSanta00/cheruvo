@@ -100,7 +100,7 @@ h2{font-family:var(--serif);font-size:clamp(24px,3vw,34px);font-weight:400;lette
 .step h4{font-size:14px;margin:8px 0 6px;font-weight:700}
 .step p{font-size:12.5px;color:var(--dim)}
 
-.plans{display:grid;grid-template-columns:1fr 1fr;gap:14px;max-width:720px}
+.plans{display:grid;grid-template-columns:repeat(auto-fit,minmax(280px,1fr));gap:14px;max-width:720px}
 .plan{border:1px solid var(--line);border-radius:10px;background:var(--panel);padding:22px;display:flex;flex-direction:column}
 .plan.hi{border-color:rgba(30,92,255,.5);background:linear-gradient(180deg,rgba(30,92,255,.07),var(--panel))}
 .plan .p{font-family:var(--mono);font-size:30px;font-weight:700;margin:7px 0 3px}
@@ -225,35 +225,31 @@ footer a:hover{color:var(--txt)}
     </div>
   </section>
 
+  <!-- Prezzi, 6 agosto 2026: due piani diventati uno.
+       La tabella prometteva un muro che nell'app non esiste più. Lasciarla
+       avrebbe fatto credere a chi arriva che metà delle funzioni siano
+       bloccate, cioè avrebbe respinto proprio le persone che servono adesso.
+       Il vecchio confronto Base/Pro sta nella storia di git. -->
   <section id="prezzi">
     <h2 data-i18n="prTitle">Prezzi</h2>
-    <p class="lead" data-i18n="prLead">Si parte gratis. Il piano Pro serve quando l'uso diventa quotidiano.</p>
+    <p class="lead" data-i18n="prLead">Tutto aperto, senza account a pagamento. Cheruvo è in costruzione e serve gente che lo usi davvero, non abbonati.</p>
     <div class="plans">
-      <div class="plan">
-        <div class="lbl" data-i18n="planFree">Base</div>
+      <div class="plan hi" style="max-width:440px">
+        <div class="lbl" data-i18n="planFree">Tutto incluso</div>
         <div class="p">€0</div>
-        <div style="font-size:12.5px;color:var(--faint)" data-i18n="planFreeSub">per sempre</div>
+        <div style="font-size:12.5px;color:var(--faint)" data-i18n="planFreeSub">nessuna carta richiesta</div>
         <ul>
           <li data-i18n="f1">Sentiment di tutte e 20 le monete</li>
           <li data-i18n="f2">Classifica di mercato aggiornata</li>
-          <li data-i18n="f3">Grafico prezzo e sentiment</li>
-          <li data-i18n="f4">5 monete in watchlist</li>
-        </ul>
-        <a class="btn" href="https://app.cheruvo.com" data-i18n="planFreeCta">Inizia gratis</a>
-      </div>
-      <div class="plan hi">
-        <div class="lbl" style="color:var(--azure)">Pro</div>
-        <div class="p">€9<span style="font-size:14px;color:var(--faint)">/<span data-i18n="month">mese</span></span></div>
-        <div style="font-size:12.5px;color:var(--faint)" data-i18n="planProSub">disdici quando vuoi</div>
-        <ul>
-          <li data-i18n="p1">Watchlist illimitata e storico esteso</li>
+          <li data-i18n="f3">Grafico prezzo e sentiment, con livelli disegnabili</li>
+          <li data-i18n="f4">Watchlist senza limiti e storico completo</li>
           <li data-i18n="p2">Export PDF e CSV</li>
           <li data-i18n="p3">Alert email sulle monete che segui</li>
-          <li data-i18n="p4">Pannello correlazione completo</li>
         </ul>
-        <a class="btn p" href="https://app.cheruvo.com" data-i18n="planProCta">Passa a Pro</a>
+        <a class="btn p" href="https://app.cheruvo.com" data-i18n="planFreeCta">Apri Cheruvo</a>
       </div>
     </div>
+    <p class="lead" style="margin-top:22px;font-size:13px" data-i18n="prNota">Un giorno ci sarà un piano a pagamento. Quel giorno lo dirò prima, e chi usa Cheruvo adesso non perderà quello che ha.</p>
   </section>
 
   <section class="faq">
@@ -308,10 +304,11 @@ const T = {
     s2t:'AI reading', s2d:'A language model judges each headline from an investor’s perspective.',
     s3t:'Aggregation', s3d:'Scores become a daily series you can compare against price.',
     s4t:'Verification', s4d:'Days without news stay empty: never a made-up zero in place of data.',
-    prTitle:'Pricing', prLead:'Start free. Pro is for when you use it daily.',
-    planFree:'Free', planFreeSub:'forever', planFreeCta:'Start free',
+    prTitle:'Pricing', prLead:'Everything open, no paid accounts. Cheruvo is being built and needs people who actually use it, not subscribers.',
+    prNota:'One day there will be a paid plan. I will say so first, and whoever uses Cheruvo now will not lose what they have.',
+    planFree:'Everything included', planFreeSub:'no card required', planFreeCta:'Open Cheruvo',
     f1:'Sentiment for every covered stock', f2:'Live market ranking',
-    f3:'Price and sentiment chart', f4:'5 stocks in your watchlist',
+    f3:'Price and sentiment chart, with drawable levels', f4:'Unlimited watchlist and full history',
     month:'month', planProSub:'cancel anytime', planProCta:'Go Pro',
     p1:'Unlimited watchlist and extended history', p2:'PDF and CSV export',
     p3:'Email alerts on the stocks you follow', p4:'Full correlation panel',

@@ -73,7 +73,18 @@ export default function App() {
   const [ticker, setTicker]           = useState(() => PREDEFINITO[leggiMercato()] || DEFAULT_TICKER)
   const [days, setDays]               = useState(DEFAULT_DAYS)
   const [period, setPeriod]           = useState(DEFAULT_PERIOD)
-  const [isPro, setIsPro]             = useState(false)
+  // Paywall spento il 6 agosto 2026: tutte le funzioni sono aperte a tutti.
+  //
+  // Partendo da `true` sparisce ogni lucchetto, ogni invito a pagare e ogni
+  // periodo bloccato, senza dover toccare i dieci punti che leggono questa
+  // variabile. Il backend fa la stessa cosa dalla sua parte (PAYWALL_ATTIVO in
+  // auth.py): riaccenderlo vuol dire rimettere `false` qui e la variabile
+  // d'ambiente là.
+  //
+  // Il motivo: gli abbonati erano zero. Quel muro non proteggeva ricavi, e
+  // toglieva funzioni proprio alle persone che servono per capire cosa
+  // costruire.
+  const [isPro, setIsPro]             = useState(true)
   const [showProfile, setShowProfile] = useState(false)
   const [sidebarOpen, setSidebarOpen] = useState(false)
   const [loadedTicker, setLoadedTicker] = useState(null)
@@ -168,13 +179,14 @@ export default function App() {
     // permettere.
     identifyUser(user.id, user.email)
 
+    // L'abbonamento si continua a leggere, ma solo per sapere CHI è chi nelle
+    // statistiche. Non decide più cosa uno può vedere: quello lo stabilisce
+    // `isPro`, che parte acceso finché il paywall resta spento. Se un domani
+    // si riaccende, basta rimettere `setIsPro(pro)` qui sotto.
     apiFetch(`/subscription/${user.id}`)
-      .then(data => {
-        const pro = data.status === 'pro'
-        setIsPro(pro)
-        identifyUser(user.id, user.email, pro ? 'pro' : 'free')
-      })
-      .catch(() => setIsPro(false))
+      .then(data => identifyUser(user.id, user.email,
+                                 data.status === 'pro' ? 'pro' : 'free'))
+      .catch(() => { /* senza risposta resta tutto aperto, come deve */ })
   }, [user])
 
   const handleLoad = async (tk, d, p, autoFetch = true, silenzioso = false) => {
@@ -504,16 +516,14 @@ export default function App() {
             )}
             {loading && <Spinner />}
             {fetching && <Spinner color="var(--azure)" />}
-            {isPro ? (
-              <span style={{ fontSize: 11, color: '#4ade80', border: '1px solid rgba(74,222,128,0.3)', borderRadius: 6, padding: '3px 8px' }}>
-                {t.header.pro}
-              </span>
-            ) : (
-              <button onClick={handleUpgrade} style={{
-                fontSize: 11, color: 'white', background: 'var(--blue)',
-                border: 'none', borderRadius: 6, padding: '4px 10px', cursor: 'pointer', fontWeight: 500,
-              }}>{t.header.upgradePro}</button>
-            )}
+            {/* Qui c'erano il distintivo PRO e il pulsante per abbonarsi.
+                Con il paywall spento sono spariti entrambi, e per due motivi
+                diversi: il pulsante perché non c'è più niente da comprare, il
+                distintivo perché un contrassegno che hanno TUTTI non distingue
+                nessuno e occupa spazio in una barra già affollata.
+                Riaccendendo il paywall vanno rimessi (stanno nella storia di
+                git, e le traduzioni t.header.pro / t.header.upgradePro sono
+                rimaste al loro posto). */}
             {/* "Mercato" rimosso: la schermata iniziale È il mercato, il bottone
                 mostrava la stessa cosa due volte. L'Academy è stata tolta
                 dall'interfaccia perché fuori fuoco rispetto al prodotto: il
