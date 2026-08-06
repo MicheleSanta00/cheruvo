@@ -359,7 +359,8 @@ def _articoli_del_mercato(lingua: str, max_items: int, timespan: str,
 
 def fetch_gdelt(ticker: str, nome: str | None = None,
                 max_items: int = 250, timespan: str = "7d",
-                finestra: tuple[datetime, datetime] | None = None) -> list[dict]:
+                finestra: tuple[datetime, datetime] | None = None,
+                usa_paniere: bool = True) -> list[dict]:
     """
     News recenti su un ticker da GDELT, già filtrate per lingua e pertinenza.
     Ritorna una lista di dict pronti per il salvataggio (stesso schema delle
@@ -414,7 +415,18 @@ def fetch_gdelt(ticker: str, nome: str | None = None,
         via = "titolo"
         mercato_di = ("Crypto" if e_crypto(ticker)
                       else lingua_locale if lingua_locale != "English" else None)
-        if mercato_di and ticker.upper() in TERMINE_QUERY:
+        # Il paniere di mercato fa risparmiare chiamate ma DILUISCE: le 250
+        # posizioni che GDELT concede a una interrogazione vengono spartite fra
+        # venti monete, e a Bitcoin ne restano una manciata. Misurato in
+        # produzione: "250 articoli grezzi, 2 tenute, 248 scartate".
+        #
+        # Per il fetch quotidiano il compromesso conviene, perché venti monete
+        # con due chiamate invece che con venti è l'unico modo di starci dentro.
+        # Per ricostruire lo storico di UN titolo no: lì il risparmio non serve
+        # a niente e la diluizione è esattamente il problema, perché produce
+        # tanti giorni con due o tre notizie, cioè sotto la soglia oltre la
+        # quale una media vale qualcosa.
+        if usa_paniere and mercato_di and ticker.upper() in TERMINE_QUERY:
             articoli = _articoli_del_mercato(mercato_di, max_items, timespan, finestra)
             if articoli:
                 via = "mercato"

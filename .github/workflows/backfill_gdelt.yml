@@ -12,7 +12,7 @@ on:
   workflow_dispatch:
     inputs:
       mercati:
-        description: 'Quali titoli'
+        description: 'Quali titoli (ignorato se compili "ticker")'
         required: true
         default: 'crypto'
         type: choice
@@ -20,6 +20,11 @@ on:
           - crypto   # 20 monete in UNA interrogazione: pochi minuti
           - azioni   # gli 11 titoli USA costano una chiamata ciascuno
           - tutti
+      ticker:
+        description: 'Un solo titolo, es. BTC-USD (molto più efficace per quello)'
+        required: false
+        default: ''
+        type: string
       giorni:
         description: 'Quanti giorni indietro'
         required: true
@@ -66,11 +71,14 @@ jobs:
           GROQ_API_KEY: ${{ secrets.GROQ_API_KEY }}
           PYTHONPATH:   ${{ github.workspace }}/backend
         run: |
-          python backend/backfill_gdelt.py \
-            --giorni ${{ github.event.inputs.giorni }} \
-            --mercati ${{ github.event.inputs.mercati }} \
-            --pausa 10 \
-            --limite-minuti 60
+          ARGS="--giorni ${{ github.event.inputs.giorni }} --pausa 10 --limite-minuti 60"
+          if [ -n "${{ github.event.inputs.ticker }}" ]; then
+            ARGS="$ARGS --ticker ${{ github.event.inputs.ticker }}"
+          else
+            ARGS="$ARGS --mercati ${{ github.event.inputs.mercati }}"
+          fi
+          echo "Comando: python backend/backfill_gdelt.py $ARGS"
+          python backend/backfill_gdelt.py $ARGS
 
       - name: Riepilogo
         if: always()

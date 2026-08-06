@@ -172,10 +172,19 @@ def calma_il_ritmo(pausa: float) -> None:
                 pausa, g.PAUSA_MASSIMA, g.ATTESA_MASSIMA_RIPROVA)
 
 
-def backfill(giorni: int, ampiezza: int, mercati: str, limite_minuti: int) -> int:
-    tickers = tickers_da_riempire(mercati)
-    logger.info("Ricostruzione: %d giorni a finestre di %d, %d titoli (%s)",
-                giorni, ampiezza, len(tickers), mercati)
+def backfill(giorni: int, ampiezza: int, mercati: str, limite_minuti: int,
+             solo: str | None = None) -> int:
+    tickers = [solo.upper()] if solo else tickers_da_riempire(mercati)
+
+    # Con UN titolo solo si rinuncia al paniere di mercato e si interroga
+    # direttamente il suo nome. Le 250 posizioni di GDELT vanno tutte a lui
+    # invece di essere spartite fra venti monete, e i giorni con abbastanza
+    # notizie da fare una media sensata si moltiplicano. Costa lo stesso
+    # numero di chiamate: una per finestra.
+    da_solo = len(tickers) == 1
+    logger.info("Ricostruzione: %d giorni a finestre di %d, %d titoli (%s)%s",
+                giorni, ampiezza, len(tickers), mercati,
+                ", interrogazione dedicata" if da_solo else "")
 
     avvio = time.time()
     limite = limite_minuti * 60
@@ -206,7 +215,8 @@ def backfill(giorni: int, ampiezza: int, mercati: str, limite_minuti: int) -> in
         trovati = 0
         for ticker in tickers:
             try:
-                news = fetch_gdelt(ticker, finestra=(inizio, fine))
+                news = fetch_gdelt(ticker, finestra=(inizio, fine),
+                                   usa_paniere=not da_solo)
                 trovati += len(news)
                 if news:
                     salvate = save_news(ticker, news)
@@ -256,6 +266,11 @@ if __name__ == "__main__":
                          "perdono pezzi.")
     ap.add_argument("--mercati", choices=("crypto", "azioni", "tutti"),
                     default="crypto", help="quali titoli (default crypto)")
+    ap.add_argument("--ticker", default=None,
+                    help="ricostruisci UN solo titolo (es. BTC-USD). Molto più "
+                         "efficace per quel titolo: le 250 posizioni per "
+                         "interrogazione vanno tutte a lui invece di essere "
+                         "spartite con le altre monete.")
     ap.add_argument("--limite-minuti", type=int, default=45,
                     help="tempo massimo, poi si ferma pulito (default 45)")
     ap.add_argument("--pausa", type=float, default=10.0,
@@ -282,4 +297,5 @@ if __name__ == "__main__":
         logger.info("Era solo una prova: non ho scritto niente.")
         sys.exit(0)
 
-    backfill(args.giorni, args.finestra, args.mercati, args.limite_minuti)
+    backfill(args.giorni, args.finestra, args.mercati, args.limite_minuti,
+             args.ticker)

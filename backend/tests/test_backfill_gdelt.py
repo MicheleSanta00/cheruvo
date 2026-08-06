@@ -232,3 +232,39 @@ def test_il_ritmo_alza_anche_l_attesa_dopo_un_rifiuto():
     finally:
         g.PAUSA_MINIMA, g._pausa_corrente = minima, corrente
         g.PAUSA_MASSIMA, g.ATTESA_MASSIMA_RIPROVA = massima, attesa
+
+
+# ── Un titolo solo non deve spartire le 250 posizioni ─────────────────────
+def test_col_titolo_singolo_niente_paniere_di_mercato():
+    """
+    Il paniere raggruppa venti monete in UNA interrogazione, e le 250
+    posizioni che GDELT concede vengono spartite fra tutte. Misurato in
+    produzione su Bitcoin: "250 articoli grezzi, 2 tenute, 248 scartate".
+
+    Per il fetch quotidiano è il compromesso giusto. Per ricostruire lo
+    storico di un titolo solo è esattamente il problema, perché produce
+    decine di giorni con due o tre notizie, cioè sotto la soglia oltre la
+    quale una media significa qualcosa.
+    """
+    articoli = [{"title": "Bitcoin hits new high", "language": "English",
+                 "domain": "coindesk.com", "url": "http://x/1",
+                 "seendate": "20260607T120000Z"}]
+
+    with patch.object(g, "_articoli_del_mercato") as paniere, \
+         patch.object(g, "_interroga", return_value=articoli):
+        g.fetch_gdelt("BTC-USD", finestra=GIUGNO, usa_paniere=False)
+
+    paniere.assert_not_called()
+
+
+def test_di_default_il_paniere_resta(capsys):
+    """Il fetch quotidiano non deve cambiare comportamento."""
+    articoli = [{"title": "Bitcoin steady", "language": "English",
+                 "domain": "coindesk.com", "url": "http://x/1",
+                 "seendate": "20260607T120000Z"}]
+
+    with patch.object(g, "_articoli_del_mercato",
+                      return_value=articoli) as paniere:
+        g.fetch_gdelt("BTC-USD", timespan="7d")
+
+    paniere.assert_called_once()
