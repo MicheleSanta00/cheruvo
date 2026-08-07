@@ -58,13 +58,36 @@ import logging
 import math
 import os
 import sys
-from datetime import datetime, timezone
+from datetime import date, datetime, timezone
 
 logger = logging.getLogger(__name__)
 
 FINESTRA_ORE = 24        # cosa chiamiamo "oggi"
 BASELINE_GIORNI = 28     # la normalità: le quattro settimane precedenti
 MINIMO_GIORNI = 14       # sotto questo si dice "non lo so"
+
+# Il giorno in cui le regole di raccolta sono cambiate, e prima del quale i
+# dati NON sono confrontabili con quelli di oggi.
+#
+# Questa riga è nata da un errore vero, trovato guardando la prima risposta in
+# produzione. Il modulo diceva "normale" per Bitcoin ed Ethereum, e sembrava
+# giusto: hanno più di quattordici giorni di storico, grazie alla
+# ricostruzione da GDELT. Solo che quello storico è stato raccolto con le
+# regole VECCHIE, prima che il filtro di contesto tagliasse il 72% del volume
+# e prima che un articolo potesse valere per più monete.
+#
+# Confrontare oggi con quei giorni vuol dire misurare le nostre modifiche e
+# chiamarle mercato. Il paragone sulla quota di attenzione attutisce il
+# problema (se cala tutto, le quote restano), ma non lo cancella: il taglio ha
+# colpito le azioni molto più delle monete, quindi la quota delle monete è
+# salita per una ragione che non ha niente a che fare con le notizie.
+#
+# `MINIMO_GIORNI` da solo non bastava, perché conta i giorni disponibili e non
+# sa che il primo agosto e il sette agosto misurano cose diverse. Con questa
+# data il rilevatore tace fino al 21 agosto 2026 e poi comincia a parlare su
+# dati omogenei, che è esattamente quello che avevo promesso e che il codice
+# non faceva.
+DA_QUANDO = date(2026, 8, 7)
 MINIMO_MEDIANA = 2.0     # una moneta con meno di 2 articoli al giorno tipici
                          # non ha una normalità da cui scostarsi
 FATTORE_MAD = 1.4826     # porta il MAD sulla scala di una deviazione standard
@@ -182,7 +205,8 @@ def _giorni_per_ticker(pool) -> tuple[dict, dict, dict]:
 
 def _per_ticker(ticker: str, conteggi: dict, toni: dict,
                 totale_giorno: dict, oggi) -> dict:
-    giorni = sorted(g for g in conteggi if g < oggi)
+    # I giorni prima del cambio di regole non contano: vedi DA_QUANDO.
+    giorni = sorted(g for g in conteggi if g < oggi and g >= DA_QUANDO)
     disponibili = len(giorni)
 
     n_oggi = conteggi.get(oggi, 0)

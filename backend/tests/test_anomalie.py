@@ -16,7 +16,11 @@ from datetime import date, timedelta
 import anomalie as an
 
 
-def _giorni(quanti: int, inizio=date(2026, 7, 1)) -> list:
+def _giorni(quanti: int, inizio=None) -> list:
+    # I giorni finti partono da DA_QUANDO: prima di quella data il modulo
+    # scarta tutto, e un test costruito su luglio misurerebbe il filtro
+    # invece della statistica.
+    inizio = inizio or an.DA_QUANDO
     return [inizio + timedelta(days=i) for i in range(quanti)]
 
 
@@ -123,6 +127,29 @@ def test_con_pochi_giorni_dice_che_sta_imparando():
     assert r["stato"] == "in_apprendimento"
     assert r["z_volume"] is None, "ha stimato uno scarto senza storico"
     assert r["giorni_mancanti"] == an.MINIMO_GIORNI - 5
+
+
+def test_lo_storico_prima_del_cambio_di_regole_non_conta():
+    """
+    L'errore trovato guardando la prima risposta in produzione: il modulo
+    diceva "normale" per Bitcoin, perché grazie alla ricostruzione da GDELT
+    aveva più di quattordici giorni di storico. Peccato che quei giorni
+    fossero stati raccolti con le regole vecchie, prima che il filtro di
+    contesto tagliasse il 72% del volume.
+
+    Confrontare oggi con quei giorni vuol dire misurare le proprie modifiche
+    e chiamarle mercato.
+    """
+    vecchi = _giorni(30, inizio=an.DA_QUANDO - timedelta(days=40))
+    oggi = an.DA_QUANDO + timedelta(days=1)
+    conteggi = {g: 10 for g in vecchi}
+    conteggi[oggi] = 90
+    toni = {g: 0.0 for g in list(vecchi) + [oggi]}
+    totale = {g: 1000 for g in list(vecchi) + [oggi]}
+
+    r = an._per_ticker("BTC-USD", conteggi, toni, totale, oggi)
+    assert r["stato"] == "in_apprendimento", (
+        "ha usato come normalità dei giorni raccolti con regole diverse")
 
 
 def test_una_moneta_quasi_senza_notizie_non_ha_una_normalita():
