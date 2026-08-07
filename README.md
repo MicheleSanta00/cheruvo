@@ -117,6 +117,20 @@ Due canali di raccolta, che si completano invece di sovrapporsi.
      primo, e le azioni vengono prima delle monete nel dizionario: "Microsoft
      mette Bitcoin in tesoreria" veniva archiviata solo come MSFT.
 
+   Le sigle sono state provate e quasi tutte bocciate. Su 98.243 righe ne
+   avrebbero portate 61 in più, ma DOGE è il Department of Government
+   Efficiency (12 su 12), OP è l'operazione chirurgica in tedesco, SOL è il
+   sole in spagnolo, ISP è il fornitore di connettività. Sopravvivono
+   **BTC ed ETH**, e solo col contesto obbligatorio: circa 28 articoli al
+   giorno, quasi tutti su Bitcoin. L'elenco sta in `SIGLE_AMMESSE` e la
+   misura si rilancia con `gdelt_grezzo.py --modo sigle`.
+
+   I titoli arrivano da GDELT con i caratteri non inglesi codificati in
+   entità HTML. Fino al 7 agosto 2026 nessuno le decodificava, quindi ogni
+   titolo non inglese finiva in archivio come `H&#xFC;fte verschlissen` ed è
+   così che l'utente lo leggeva. `backend/ripara_titoli.py` sistema
+   l'arretrato, con censimento prima della riscrittura.
+
 **2. API di GDELT** — `.github/workflows/update_news.yml`, ogni 6 ore
    → `updater.py` → `backend/quick_fetch.py` → PostgreSQL
 
@@ -245,6 +259,7 @@ cheruvo/
 │   ├── backfill_gdelt.py     # ricostruzione storico
 │   ├── verifica_segnale.py   # il sentiment anticipa il prezzo?
 │   ├── pulizia_licenze.py    # censimento e rimozione righe senza licenza
+│   ├── ripara_titoli.py      # decodifica le entita HTML nei titoli
 │   ├── salute.py             # allarme sul crollo di copertura
 │   │
 │   ├── prices.py             # prezzi OHLCV
@@ -261,7 +276,8 @@ cheruvo/
 │   ├── update_news.yml       # API GDELT + alert, 4 volte al giorno
 │   ├── backfill_gdelt.yml    # manuale
 │   ├── verifica_segnale.yml  # manuale
-│   └── pulizia_licenze.yml   # manuale
+│   ├── pulizia_licenze.yml   # manuale
+│   └── ripara_titoli.yml     # manuale
 │
 ├── docs/                     # landing su cheruvo.com
 ├── updater.py

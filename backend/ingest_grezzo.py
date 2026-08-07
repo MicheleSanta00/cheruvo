@@ -188,16 +188,22 @@ def _quali_ticker(titolo_art: str, termini: dict) -> list[str]:
     faceva la versione precedente, dava la precedenza a chi capitava prima nel
     dizionario: le azioni, sempre, per come è scritto TERMINE_QUERY.
     """
-    from gdelt_grezzo import CONTESTO, MAIUSCOLI, serve_contesto
+    from gdelt_grezzo import (CONTESTO, MAIUSCOLI, SIGLE_AMMESSE,
+                              serve_contesto)
     import re as _re
 
     trovati = []
     ha_contesto = bool(CONTESTO.search(titolo_art))
     for tk, term in termini.items():
         flag = 0 if term in MAIUSCOLI else _re.IGNORECASE
+        per_sigla = False
         if not _re.search(r"\b" + _re.escape(term) + r"\b", titolo_art, flag):
-            continue
-        if serve_contesto(tk, term) and not ha_contesto:
+            sigla = SIGLE_AMMESSE.get(tk)
+            if not (sigla and _re.search(r"\b" + _re.escape(sigla) + r"\b",
+                                         titolo_art)):
+                continue
+            per_sigla = True
+        if (per_sigla or serve_contesto(tk, term)) and not ha_contesto:
             continue
         trovati.append(tk)
     return trovati

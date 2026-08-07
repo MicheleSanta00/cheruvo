@@ -1,0 +1,65 @@
+name: Cheruvo — Ripara i titoli con entità HTML
+
+# Perché passa da qui e non dal tuo computer: lo script ha bisogno di
+# DATABASE_URL, che è il segreto del database di produzione. Qui è già
+# configurato, lo usa solo GitHub e non compare mai nei log.
+#
+# Solo avvio manuale. Non è un lavoro ricorrente: da quando `gdelt_grezzo`
+# decodifica le entità, le righe nuove nascono già corrette. Questo serve
+# all'arretrato, che si esaurisce una volta sola.
+
+on:
+  workflow_dispatch:
+    inputs:
+      azione:
+        description: 'Cosa fare'
+        required: true
+        default: 'censimento'
+        type: choice
+        options:
+          - censimento   # conta e mostra gli esempi, non tocca niente
+          - ripara       # riscrive i titoli
+
+jobs:
+  titoli:
+    name: ${{ github.event.inputs.azione }}
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+          cache: 'pip'
+          cache-dependency-path: requirements-actions.txt
+
+      - name: Installa dipendenze
+        run: pip install -r requirements-actions.txt
+
+      # Due passi distinti invece di uno con un "if" dentro: così il pulsante
+      # verde di GitHub dice a colpo d'occhio quale dei due è stato eseguito,
+      # senza aprire i log per sapere se qualcosa è stato riscritto.
+      - name: Censimento (nessuna modifica)
+        if: github.event.inputs.azione == 'censimento'
+        env:
+          DATABASE_URL: ${{ secrets.DATABASE_URL }}
+          PYTHONPATH:   ${{ github.workspace }}/backend
+        run: python backend/ripara_titoli.py
+
+      - name: Riparazione
+        if: github.event.inputs.azione == 'ripara'
+        env:
+          DATABASE_URL: ${{ secrets.DATABASE_URL }}
+          PYTHONPATH:   ${{ github.workspace }}/backend
+        run: python backend/ripara_titoli.py --ripara
+
+      - name: Riepilogo
+        if: always()
+        run: |
+          echo "Azione richiesta: ${{ github.event.inputs.azione }}"
+          echo "Esito: ${{ job.status }}"
+          echo ""
+          echo "Il censimento non modifica nulla e si puo' ripetere a piacere."
+          echo "La riparazione riscrive i titoli e non ha un annulla."

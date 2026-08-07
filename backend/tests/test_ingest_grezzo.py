@@ -156,6 +156,65 @@ def test_le_monete_dal_nome_comune_restano_filtrate():
                              TERMINE_QUERY) == ["SOL-USD"]
 
 
+# ── Le due sigle ammesse ──────────────────────────────────────────────────
+def test_le_sigle_btc_ed_eth_entrano_solo_col_contesto():
+    """
+    Promosse dalla misura del 7 agosto 2026, uniche due su 31. Tre lettere
+    sono un indizio più debole di una parola intera, quindi il contesto è
+    obbligatorio anche se al nome "Bitcoin" non lo chiediamo.
+    """
+    assert ing._quali_ticker("BTC surges past 120K as ETF inflows accelerate",
+                             TERMINE_QUERY) == ["BTC-USD"]
+    assert ing._quali_ticker("ETH price drops as validators exit the network",
+                             TERMINE_QUERY) == ["ETH-USD"]
+    # Nessuna parola di mercato: resta fuori.
+    assert ing._quali_ticker("BTC Development names a new board member",
+                             TERMINE_QUERY) == []
+
+
+def test_le_altre_29_sigle_restano_fuori():
+    """
+    Le bocciate della misura, ognuna col suo motivo. Se un giorno qualcuno le
+    riapre per alzare i numeri, questo test glielo ricorda.
+    """
+    casi = [
+        "DOGE's claim of $110B in savings was inflated",   # governo americano
+        "Hüfte verschlissen: Bernd Stelter nimmt für die OP 22 Kilo ab",  # chirurgia
+        "ECLIPSE TOTAL DE SOL: así se vivió en Mallorca",  # il sole
+        "MU Podcast: Visitors From Within",                # ufologia
+        "Il tuo ISP ti sta rallentando: come verificarlo", # connettività
+        "NVDA listed among top holdings in the fund",      # sigla pulita, bocciata
+    ]
+    for t in casi:
+        assert ing._quali_ticker(t, TERMINE_QUERY) == [], t
+
+
+def test_la_sigla_non_scavalca_le_maiuscole():
+    """Minuscolo vuol dire un'altra cosa, e il contesto non basta a salvarlo."""
+    assert ing._quali_ticker("the price of btc holders keeps rising",
+                             TERMINE_QUERY) == []
+
+
+# ── I titoli arrivano decodificati ────────────────────────────────────────
+def test_il_titolo_perde_le_entita_html():
+    """
+    GDELT consegna i caratteri non inglesi come entità numeriche. Senza
+    decodifica finivano in archivio così, ed è così che l'utente li leggeva.
+    """
+    r = _riga("H&#xFC;fte verschlissen: Bernd Stelter und die Bitcoin-Kurse")
+    assert "ü" in ing.titolo(r)
+    assert "&#x" not in ing.titolo(r)
+
+
+def test_le_entita_non_creano_confini_di_parola_finti():
+    """
+    In "MU&#x160;KARCA" la sigla MU è seguita da "&", che per una regex è un
+    confine di parola: quel titolo serbo risultava una notizia su Micron.
+    """
+    r = _riga("OTKRIVEN IDENTITET BRUTALNO PRETU&#x10C;ENOG MU&#x160;KARCA")
+    assert ing._quali_ticker(ing.titolo(r), TERMINE_QUERY) == []
+
+
 # ── Un articolo, più titoli ───────────────────────────────────────────────
 def test_un_articolo_conta_per_ogni_asset_che_nomina():
     """

@@ -39,6 +39,7 @@ scopre in mezz'ora invece che in due giorni.
 """
 import argparse
 import csv
+import html
 import io
 import logging
 import re
@@ -156,10 +157,25 @@ def righe_della_finestra(ore: int,
 
 
 def titolo(riga: list[str]) -> str:
+    """
+    Il titolo dell'articolo, con le entità HTML decodificate.
+
+    Quel `html.unescape` non è un dettaglio estetico. GDELT consegna i
+    caratteri non inglesi come entità numeriche, quindi senza decodifica un
+    titolo tedesco arriva come "H&#xFC;fte verschlissen" e uno arabo come una
+    fila di "&#x633;". Per mesi è finito così in archivio, ed è così che
+    l'utente lo leggeva: proprio la metà del mondo per cui abbiamo aggiunto
+    il feed tradotto.
+
+    C'è anche un effetto sul filtro. In "MU&#x160;KARCA" la sigla MU è seguita
+    da "&", che per un'espressione regolare è un confine di parola: quel
+    titolo serbo risultava una notizia su Micron. Decodificato diventa
+    "MUŠKARCA" e il falso positivo sparisce da solo.
+    """
     if len(riga) <= COL_EXTRA:
         return ""
     m = _TITOLO_RX.search(riga[COL_EXTRA] or "")
-    return (m.group(1).strip() if m else "")
+    return html.unescape(m.group(1)).strip() if m else ""
 
 
 def lingua(riga: list[str]) -> str:
@@ -246,10 +262,30 @@ CONTESTO = re.compile(
     r"\b(crypto|cryptocurrenc\w*|token|coin|blockchain|defi|wallet|"
     r"stock|shares?|market|trading|traders?|price|nasdaq|earnings|"
     r"nyse|ftse|dax|investor\w*|dividend\w*|ipo|revenue|profit\w*|"
-    r"quarterly|valuation|analysts?|"
+    r"quarterly|valuation|analysts?|etf\w*|futures|"
     r"borsa|azion\w+|mercat\w+|quotazion\w+|criptovalut\w+|"
     r"investitor\w+|trimestral\w+|ricavi|analist\w+|"
     r"prezzo|titol\w+|投資|bourse|aktie\w*)\b", re.I)
+
+
+# Le sole due sigle promosse dalla misura del 7 agosto 2026, su 31 provate.
+#
+# Su 98.243 righe le sigle avrebbero portato 61 articoli in più, ma leggendoli
+# uno per uno restava poco: DOGE è il Department of Government Efficiency
+# (12 su 12), OP è l'operazione chirurgica in tedesco, SOL è il sole in
+# spagnolo, MU è un podcast di ufologia, ISP è il fornitore di connettività.
+# Con una parola di mercato nel titolo ne sopravvivevano otto in tutto.
+#
+# BTC ed ETH sono le uniche due che valgono la pena, e solo col contesto:
+# valgono circa 28 articoli al giorno, quasi tutti su Bitcoin. Non sono
+# infallibili nemmeno loro, "BTC Development (NASDAQ:BDCIW)" è un'altra
+# azienda, ma una precisione intorno al 75% su una moneta che ne raccoglie 76
+# al giorno è un affare accettabile.
+#
+# Le altre 29 restano fuori. Se un giorno viene voglia di riaprirle, la misura
+# si rilancia con `--modo sigle`: costa un minuto e la risposta è già stata no
+# una volta.
+SIGLE_AMMESSE = {"BTC-USD": "BTC", "ETH-USD": "ETH"}
 
 
 def serve_contesto(ticker: str, termine: str) -> bool:
@@ -308,6 +344,10 @@ def conta_pertinenti(righe: list[list[str]], termini: dict,
     rx = {tk: re.compile(r"\b" + re.escape(term) + r"\b",
                          0 if term in MAIUSCOLI else re.I)
           for tk, term in termini.items()}
+    # Le due sigle promosse: sempre maiuscole, e il contesto lo esige
+    # `serve_contesto` più sotto.
+    rx_sigla = {tk: re.compile(r"\b" + re.escape(s) + r"\b")
+                for tk, s in SIGLE_AMMESSE.items() if tk in termini}
 
     for r in righe:
         t = titolo(r)
@@ -319,10 +359,21 @@ def conta_pertinenti(righe: list[list[str]], termini: dict,
         # tesoreria" diventava una notizia MSFT e Bitcoin la perdeva. Un modo
         # silenzioso di sottostimare proprio la parte che ci interessa.
         primo = True
+        contesto = CONTESTO.search(t)
         for tk, pattern in rx.items():
+            per_sigla = False
             if not pattern.search(t):
-                continue
-            if rigoroso and serve_contesto(tk, termini[tk]) and not CONTESTO.search(t):
+                # Il nome non c'è. Resta la sigla, per le due ammesse.
+                sigla = rx_sigla.get(tk)
+                if not (sigla and sigla.search(t)):
+                    continue
+                per_sigla = True
+            # La sigla pretende SEMPRE il contesto, anche quando il nome per
+            # sé non lo pretenderebbe: "BTC Development (NASDAQ:BDCIW)" è
+            # un'altra azienda, e tre lettere sono un indizio più debole di
+            # una parola intera.
+            serve = per_sigla or serve_contesto(tk, termini[tk])
+            if rigoroso and serve and not contesto:
                 continue
             per_ticker[tk] += 1
             # La lingua conta l'ARTICOLO, non le sue assegnazioni: altrimenti
