@@ -32,6 +32,36 @@ della classifica, e il primo posto era sorteggiato.
 
 **Non è consulenza finanziaria.**
 
+## Cosa mostra, e perché non è un livello
+
+Un livello non è un'informazione. "BTC −0,08" non dice a nessuno se quel numero
+è normale per Bitcoin, e chi lo legge non può farci niente.
+
+`backend/anomalie.py` misura invece lo **scarto dalla normalità della moneta
+stessa**: volume e tono delle ultime 24 ore contro le quattro settimane
+precedenti. "Il sentiment su SOL sta quattro deviazioni sotto la sua norma, col
+quadruplo delle notizie del solito" è un'affermazione sulle **notizie**, che
+sappiamo dimostrare, non sul **prezzo**, che non sappiamo ancora.
+
+Tre scelte statistiche, ognuna col suo motivo scritto accanto alla costante:
+
+- **mediana e MAD** invece di media e deviazione standard, perché un solo picco
+  passato gonferebbe la sigma abbastanza da nascondere tutti i picchi futuri;
+- **un pavimento di Poisson** sul volume, perché un conteggio che vale 8
+  oscilla di ±2,8 anche quando non succede niente;
+- **si confronta la quota di attenzione**, non il conteggio nudo, altrimenti
+  ogni sabato sarebbe un crollo per tutte le monete insieme.
+
+La soglia è **4σ**, ed è stata misurata e non scelta: a 2σ la simulazione
+produceva 34 avvisi falsi a settimana su quaranta monete, a 4σ ne produce meno
+di uno. Resta sensibile a quello che conta: su una moneta media un ×3 di volume
+viene visto il 97% delle volte, su Bitcoin basta un ×2.
+
+Sotto **14 giorni di storico** il modulo non stima niente e dichiara di stare
+ancora imparando. L'archivio riparte dal 6 agosto 2026 e le regole di raccolta
+sono cambiate il 7, quindi una normalità calcolata prima di fine agosto
+descriverebbe le nostre modifiche e non il mercato.
+
 ## Da dove vengono i dati
 
 Solo fonti con diritto d'uso commerciale verificato:

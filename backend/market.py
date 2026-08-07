@@ -152,6 +152,44 @@ def market_stats():
     return stats
 
 
+ANOMALIE_TTL = 15 * 60
+
+
+@router.get("/anomalie")
+def market_anomalie():
+    """
+    Cosa si è staccato oggi dalla propria normalità.
+
+    Pubblico come /today, perché è la risposta alla domanda che un livello non
+    sa dare: "è successo qualcosa?". Le monete ancora in apprendimento restano
+    nell'elenco con il loro stato, invece di sparire: sapere che di una moneta
+    non sappiamo ancora dire niente è più onesto che far finta che sia calma.
+    """
+    chiave = f"market:anomalie:{_finestra(ANOMALIE_TTL)}"
+    cached = cache_get(chiave, ttl=ANOMALIE_TTL)
+    if cached is not None:
+        return cached
+
+    try:
+        import anomalie
+        righe = anomalie.calcola()
+        payload = {
+            "updated_at": datetime.now(timezone.utc).isoformat(),
+            "baseline_giorni": anomalie.BASELINE_GIORNI,
+            "minimo_giorni": anomalie.MINIMO_GIORNI,
+            "soglia": anomalie.SOGLIA_Z,
+            "anomalie": [r for r in righe if r["stato"] == "anomalia"],
+            "righe": righe,
+        }
+    except Exception as e:
+        logger.error("market anomalie error: %s", e)
+        payload = {"updated_at": datetime.now(timezone.utc).isoformat(),
+                   "anomalie": [], "righe": []}
+
+    cache_set(chiave, payload, ttl=ANOMALIE_TTL if payload["righe"] else 60)
+    return payload
+
+
 @router.get("/today")
 def market_today():
     """Classifica pubblica dei ticker per sentiment recente (cache 15 min)."""

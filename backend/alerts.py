@@ -50,31 +50,47 @@ def get_pro_users_watchlists() -> dict[str, list[str]]:
 
 
 def get_sentiment_alerts(tickers: list[str]) -> list[dict]:
-    """Ritorna ticker con sentiment significativo (positivo o negativo)."""
+    """
+    I ticker in watchlist su cui oggi è successo qualcosa di anomalo.
+
+    Fino al 7 agosto 2026 questa funzione faceva un'altra cosa: prendeva le
+    24 ore e teneva chi aveva `ABS(AVG(sentiment)) > 0.2`. Una soglia su un
+    LIVELLO, e per questo sbagliata in tutte e due le direzioni. Scriveva per
+    una moneta con tre articoli capitati sopra 0,2, e restava zitta il giorno
+    in cui il volume di notizie su Bitcoin triplicava senza che la media si
+    spostasse. Avvisava quando il numero era alto, mai quando era cambiato,
+    che è l'unica cosa per cui vale la pena mandare un'email.
+
+    Ora l'avviso nasce da `anomalie.py`, che confronta ogni moneta con la
+    propria normalità delle quattro settimane precedenti. Se lo storico non
+    basta ancora, non arriva niente: nessun avviso è meglio di un avviso
+    fondato su due settimane di dati.
+    """
     if not tickers:
         return []
-    conn = _conn()
-    try:
-        cur = conn.cursor()
-        placeholders = ",".join(["%s"] * len(tickers))
-        cur.execute(f"""
-            SELECT ticker, AVG(sentiment) as avg_sent, COUNT(*) as news_count
-            FROM news
-            WHERE published_date >= NOW() - INTERVAL '24 hours'
-              AND ticker IN ({placeholders})
-            GROUP BY ticker
-            HAVING ABS(AVG(sentiment)) > 0.2
-            ORDER BY ABS(AVG(sentiment)) DESC
-        """, tickers)
-        rows = cur.fetchall()
-        cur.close()
-    finally:
-        _rel(conn)
 
-    return [
-        {"ticker": r[0], "avg_sentiment": round(r[1], 3), "news_count": r[2]}
-        for r in rows
-    ]
+    import anomalie
+
+    voluti = {t.upper() for t in tickers}
+    try:
+        righe = anomalie.solo_anomalie(anomalie.calcola())
+    except Exception as e:
+        logger.error("anomalie non calcolabili: %s", e)
+        return []
+
+    fuori = []
+    for r in righe:
+        if r["ticker"].upper() not in voluti:
+            continue
+        fuori.append({
+            "ticker": r["ticker"],
+            "avg_sentiment": r["sentiment_oggi"] if r["sentiment_oggi"] is not None else 0.0,
+            "news_count": r["notizie_oggi"],
+            "notizie_tipiche": r["notizie_tipiche"],
+            "z_volume": r["z_volume"],
+            "z_tono": r["z_tono"],
+        })
+    return fuori
 
 
 def _sentiment_label(score: float) -> tuple[str, str, str]:
@@ -89,18 +105,45 @@ def _sentiment_label(score: float) -> tuple[str, str, str]:
         return "📉", "negativo", "#ef4444"
 
 
+def _riga_motivo(a: dict) -> str:
+    """
+    Perché questa moneta è finita nell'email.
+
+    La frase è il prodotto. Un'email che dice "sentiment −0,31" fa alzare le
+    spalle; una che dice "il triplo delle notizie del solito" fa aprire il
+    sito. E soprattutto è un'affermazione sulle NOTIZIE, che sappiamo
+    dimostrare, non sul prezzo, che non sappiamo ancora.
+    """
+    pezzi = []
+    zv, zt = a.get("z_volume"), a.get("z_tono")
+    tipiche = a.get("notizie_tipiche")
+
+    if zv is not None and abs(zv) >= 2 and tipiche:
+        volte = a["news_count"] / tipiche if tipiche else 0
+        if zv > 0:
+            pezzi.append(f"{a['news_count']} notizie contro le {tipiche:g} solite"
+                         + (f", quasi {volte:.0f} volte tanto" if volte >= 1.8 else ""))
+        else:
+            pezzi.append(f"solo {a['news_count']} notizie contro le {tipiche:g} solite")
+    if zt is not None and abs(zt) >= 2:
+        verso = "più positivo" if zt > 0 else "più negativo"
+        pezzi.append(f"tono molto {verso} del suo normale")
+    return " · ".join(pezzi) or "movimento fuori dalla norma"
+
+
 def _build_email_html(alerts: list[dict]) -> str:
     rows_html = ""
     for a in alerts:
         emoji, label, color = _sentiment_label(a["avg_sentiment"])
         rows_html += f"""
         <tr>
-          <td style="padding:10px 0;border-bottom:1px solid #f0f0f0;font-weight:500">{a['ticker']}</td>
-          <td style="padding:10px 0;border-bottom:1px solid #f0f0f0;color:{color};font-weight:500">
-            {emoji} {label} ({a['avg_sentiment']:+.3f})
+          <td style="padding:12px 0;border-bottom:1px solid #f0f0f0;vertical-align:top">
+            <div style="font-weight:600">{a['ticker']}</div>
+            <div style="color:#666;font-size:13px;margin-top:3px">{_riga_motivo(a)}</div>
           </td>
-          <td style="padding:10px 0;border-bottom:1px solid #f0f0f0;color:#888">
-            {a['news_count']} news
+          <td style="padding:12px 0;border-bottom:1px solid #f0f0f0;color:{color};
+                     font-weight:500;vertical-align:top;text-align:right;white-space:nowrap">
+            {emoji} {a['avg_sentiment']:+.2f}
           </td>
         </tr>"""
 
@@ -110,16 +153,12 @@ def _build_email_html(alerts: list[dict]) -> str:
         <div style="width:32px;height:32px;background:#1e5cff;border-radius:8px"></div>
         <span style="font-size:16px;font-weight:500">Cheruvo</span>
       </div>
-      <h2 style="font-size:20px;margin-bottom:6px">Sentiment alert nelle ultime 24h</h2>
-      <p style="color:#666;margin-bottom:20px">Movimenti significativi nei tuoi ticker in watchlist.</p>
+      <h2 style="font-size:20px;margin-bottom:6px">Qualcosa è cambiato</h2>
+      <p style="color:#666;margin-bottom:20px">
+        Rispetto alla normalità delle ultime quattro settimane, su questi titoli
+        della tua watchlist oggi è successo qualcosa fuori dal solito.
+      </p>
       <table style="width:100%;border-collapse:collapse;font-size:14px">
-        <thead>
-          <tr style="color:#888;font-size:12px;text-transform:uppercase">
-            <th style="text-align:left;padding-bottom:8px">Ticker</th>
-            <th style="text-align:left;padding-bottom:8px">Sentiment</th>
-            <th style="text-align:left;padding-bottom:8px">Notizie</th>
-          </tr>
-        </thead>
         <tbody>{rows_html}</tbody>
       </table>
       <a href="{FRONTEND_URL}" style="display:inline-block;margin-top:24px;background:#1e5cff;color:white;
@@ -127,8 +166,11 @@ def _build_email_html(alerts: list[dict]) -> str:
         Apri Cheruvo →
       </a>
       <p style="color:#bbb;font-size:11px;margin-top:28px">
-        Ricevi questa email perché sei un utente PRO di Cheruvo con ticker in watchlist.<br>
-        Alert generati ogni 6 ore via GitHub Actions.
+        Ricevi questa email perché hai dei titoli in watchlist su Cheruvo.<br>
+        Un avviso parte solo quando il dato si stacca di quattro deviazioni
+        dalla normalità del titolo stesso: capita meno di una volta a settimana
+        su tutto l'elenco. Questo non è un segnale di acquisto o vendita, dice
+        che se ne sta parlando in modo insolito.
       </p>
     </div>"""
 
