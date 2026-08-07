@@ -45,6 +45,7 @@ import re
 import sys
 import zipfile
 from collections import Counter
+from datetime import datetime, timedelta, timezone
 
 import requests
 
@@ -107,6 +108,53 @@ def leggi_gkg(url: str) -> list[list[str]]:
     return righe
 
 
+def quarti_dora_indietro(ore: int) -> list[str]:
+    """
+    I timestamp dei file da scaricare, dal più recente al più vecchio.
+
+    GDELT pubblica ai minuti 00, 15, 30 e 45 di ogni ora. Si parte da un
+    quarto d'ora fa e non da adesso, perché il file dell'istante corrente
+    spesso non è ancora stato pubblicato e darebbe un 404.
+
+    Sta qui e non nel raccoglitore perché serve a tutti e due, e due copie
+    della stessa aritmetica sui fusi orari è il genere di cosa che diverge
+    senza che nessuno se ne accorga.
+    """
+    adesso = datetime.now(timezone.utc).replace(second=0, microsecond=0)
+    adesso -= timedelta(minutes=adesso.minute % 15 + 15)
+    return [(adesso - timedelta(minutes=15 * i)).strftime("%Y%m%d%H%M%S")
+            for i in range(ore * 4)]
+
+
+def righe_della_finestra(ore: int,
+                         quale_file: str | None = None) -> tuple[list, int, int]:
+    """
+    Tutte le righe pubblicate nelle ultime `ore`, da entrambi i feed.
+
+    Sostituisce la lettura di `lastupdate.txt`, che ha un difetto scoperto il
+    7 agosto 2026: l'elenco annuncia il file tradotto qualche istante prima
+    che sia davvero sul server, e chi lo legge in quel momento prende un 404.
+    Due misure di fila sono uscite senza il feed tradotto per questo motivo,
+    cioè senza la stampa europea, che è metà del campione e la metà che ci
+    interessa di più.
+
+    I timestamp calcolati non hanno quel problema: se un file manca si passa
+    al successivo, ed è quello che il raccoglitore fa da sempre (nel run delle
+    24 ore ne ha letti 188 su 192).
+    """
+    stamp = [quale_file] if quale_file else quarti_dora_indietro(ore)
+    righe: list[list[str]] = []
+    ok = ko = 0
+    for ts in stamp:
+        for suffisso in ("", "translation."):
+            try:
+                righe.extend(leggi_gkg(f"{BASE}/{ts}.{suffisso}gkg.csv.zip"))
+                ok += 1
+            except Exception:
+                ko += 1
+    return righe, ok, ko
+
+
 def titolo(riga: list[str]) -> str:
     if len(riga) <= COL_EXTRA:
         return ""
@@ -154,7 +202,7 @@ def descrivi_formato(righe: list[list[str]]) -> None:
           f"({con_titolo / max(1, len(righe)):.0%})")
     esempio = next((r for r in righe if titolo(r)), None)
     if esempio:
-        print(f"\n  esempio di riga letta:")
+        print("\n  esempio di riga letta:")
         print(f"    dominio: {esempio[COL_DOMINIO][:45]}")
         print(f"    titolo:  {titolo(esempio)[:70]}")
         print(f"    tono:    {tono(esempio)}")
@@ -352,7 +400,7 @@ def misura(quale_file: str | None) -> int:
     print(f"\n  In UN file da 15 minuti: {tot_c} articoli crypto, {tot_a} su azioni")
     print(f"  Proiettato su un giorno (96 file): "
           f"{tot_c * 96} crypto, {tot_a * 96} azioni")
-    print(f"\n  Oggi, con l'API, Bitcoin raccoglie circa 4 articoli al giorno.")
+    print("\n  Oggi, con l'API, Bitcoin raccoglie circa 4 articoli al giorno.")
     btc = totali_crypto.get("BTC-USD", 0)
     print(f"  Qui Bitcoin da solo fa {btc} in 15 minuti = {btc * 96} al giorno.")
 
@@ -423,7 +471,7 @@ def _compare_in(voci: list[str], termine: str) -> bool:
     return any(rx.search(v) for v in voci)
 
 
-def misura_colonne(quale_file: str | None) -> int:
+def misura_colonne(quale_file: str | None, ore: int = 6) -> int:
     sys.path.insert(0, __import__("os").path.dirname(__import__("os").path.abspath(__file__)))
     from gdelt_source import TERMINE_QUERY
 
@@ -444,69 +492,53 @@ def misura_colonne(quale_file: str | None) -> int:
     esempi = {n: [] for n, _, _ in colonne}
     temi_visti = Counter()
 
-    for etichetta, elenco_url in (("INGLESE", ULTIMO_EN),
-                                  ("RESTO DEL MONDO (tradotto)", ULTIMO_TRAD)):
-        print(f"\n── Feed {etichetta} " + "─" * max(2, 48 - len(etichetta)))
-        try:
-            if quale_file:
-                suffisso = "" if etichetta == "INGLESE" else "translation."
-                url = f"{BASE}/{quale_file}.{suffisso}gkg.csv.zip"
-            else:
-                url = url_gkg(scarica_elenco(elenco_url))
-            if not url:
-                print("  Nessun file GKG nell'elenco.")
+    print(f"\n  Leggo {ore} ore di file da entrambi i feed.\n")
+    righe, file_ok, file_ko = righe_della_finestra(ore, quale_file)
+    righe_tot = len(righe)
+
+    for r in righe:
+        t = titolo(r)
+        if t:
+            con_titolo += 1
+        for nome, idx, con_pos in colonne:
+            if len(r) > idx and (r[idx] or "").strip():
+                presenti[nome] += 1
+
+        # Chi entrerebbe già oggi, con la regola del titolo.
+        dal_titolo = set()
+        if t:
+            for tk, term in TERMINE_QUERY.items():
+                flag = 0 if term in MAIUSCOLI else re.I
+                if not re.search(r"\b" + re.escape(term) + r"\b", t, flag):
+                    continue
+                if serve_contesto(tk, term) and not CONTESTO.search(t):
+                    continue
+                dal_titolo.add(tk)
+        if dal_titolo:
+            gia_nel_titolo += 1
+
+        for nome, idx, con_pos in colonne:
+            if len(r) <= idx:
                 continue
-            print(f"  {url.split('/')[-1]}")
-            righe = leggi_gkg(url)
-        except Exception as e:
-            print(f"  ERRORE: {e}")
-            continue
-
-        righe_tot += len(righe)
-
-        for r in righe:
-            t = titolo(r)
-            if t:
-                con_titolo += 1
-            for nome, idx, con_pos in colonne:
-                if len(r) > idx and (r[idx] or "").strip():
-                    presenti[nome] += 1
-
-            # Chi entrerebbe già oggi, con la regola del titolo.
-            dal_titolo = set()
-            if t:
-                for tk, term in TERMINE_QUERY.items():
-                    flag = 0 if term in MAIUSCOLI else re.I
-                    if not re.search(r"\b" + re.escape(term) + r"\b", t, flag):
-                        continue
-                    if serve_contesto(tk, term) and not CONTESTO.search(t):
-                        continue
-                    dal_titolo.add(tk)
-            if dal_titolo:
-                gia_nel_titolo += 1
-
-            for nome, idx, con_pos in colonne:
-                if len(r) <= idx:
-                    continue
-                voci = _voci(r[idx], con_pos)
-                if not voci:
-                    continue
-                trovati = {tk for tk, term in TERMINE_QUERY.items()
-                           if _compare_in(voci, term)}
-                extra = trovati - dal_titolo
-                if not extra:
-                    continue
-                nuovi[nome] += 1
-                for tk in extra:
-                    nuovi_ticker[nome][tk] += 1
-                if len(esempi[nome]) < 6:
-                    esempi[nome].append((sorted(extra), t[:78] or "(senza titolo)"))
-                # I temi di un articolo che nomina una cripta: servono a
-                # scegliere un filtro di contesto fatto di codici veri e non
-                # inventati a memoria.
-                if nome == "NOMI PROPRI" and any(tk.endswith("-USD") for tk in extra):
-                    if len(r) > COL_TEMI:
-                        temi_visti.update(_voci(r[COL_TEMI]))
+            voci = _voci(r[idx], con_pos)
+            if not voci:
+                continue
+            trovati = {tk for tk, term in TERMINE_QUERY.items()
+                       if _compare_in(voci, term)}
+            extra = trovati - dal_titolo
+            if not extra:
+                continue
+            nuovi[nome] += 1
+            for tk in extra:
+                nuovi_ticker[nome][tk] += 1
+            if len(esempi[nome]) < 6:
+                esempi[nome].append((sorted(extra), t[:78] or "(senza titolo)"))
+            # I temi di un articolo che nomina una cripta: servono a
+            # scegliere un filtro di contesto fatto di codici veri e non
+            # inventati a memoria.
+            if nome == "NOMI PROPRI" and any(tk.endswith("-USD") for tk in extra):
+                if len(r) > COL_TEMI:
+                    temi_visti.update(_voci(r[COL_TEMI]))
 
     if not righe_tot:
         print("\n  Nessuna riga letta: non c'è niente da misurare.")
@@ -515,7 +547,8 @@ def misura_colonne(quale_file: str | None) -> int:
     print("\n" + "=" * 72)
     print("  COSA C'È DAVVERO NEI FILE")
     print("=" * 72)
-    print(f"\n  righe totali: {righe_tot}")
+    print(f"\n  file letti: {file_ok} ({file_ko} non disponibili)")
+    print(f"  righe totali: {righe_tot}")
     print(f"  con un titolo leggibile: {con_titolo} ({con_titolo / righe_tot:.0%})")
     for nome, _, _ in colonne:
         print(f"  con {nome.lower():<16} {presenti[nome]:>6} "
@@ -587,7 +620,7 @@ def sigla_di(ticker: str) -> str:
     return (ticker or "").upper().split("-")[0].split(".")[0]
 
 
-def misura_sigle(quale_file: str | None) -> int:
+def misura_sigle(quale_file: str | None, ore: int = 6) -> int:
     sys.path.insert(0, __import__("os").path.dirname(__import__("os").path.abspath(__file__)))
     from gdelt_source import TERMINE_QUERY
 
@@ -617,56 +650,37 @@ def misura_sigle(quale_file: str | None) -> int:
     rx_sigla = {tk: re.compile(r"\b" + re.escape(s) + r"\b")  # SEMPRE maiuscole
                 for tk, s in sigle.items()}
 
-    for etichetta, elenco_url in (("INGLESE", ULTIMO_EN),
-                                  ("RESTO DEL MONDO (tradotto)", ULTIMO_TRAD)):
-        print(f"\n── Feed {etichetta} " + "─" * max(2, 48 - len(etichetta)))
-        try:
-            if quale_file:
-                suffisso = "" if etichetta == "INGLESE" else "translation."
-                url = f"{BASE}/{quale_file}.{suffisso}gkg.csv.zip"
-            else:
-                url = url_gkg(scarica_elenco(elenco_url))
-            if not url:
-                print("  Nessun file GKG nell'elenco.")
-                continue
-            print(f"  {url.split('/')[-1]}")
-            righe = leggi_gkg(url)
-        except Exception as e:
-            # Il feed tradotto viaggia in ritardo e ogni tanto l'elenco lo
-            # annuncia prima che sia sul server. Misurare metà campione è
-            # meglio che non misurare.
-            print(f"  ERRORE: {e}")
+    print(f"\n  Leggo {ore} ore di file da entrambi i feed.\n")
+    righe, file_ok, file_ko = righe_della_finestra(ore, quale_file)
+    righe_tot = len(righe)
+
+    for r in righe:
+        t = titolo(r)
+        if not t:
             continue
+        contesto = bool(CONTESTO.search(t))
 
-        righe_tot += len(righe)
-
-        for r in righe:
-            t = titolo(r)
-            if not t:
+        oggi = set()
+        for tk, term in TERMINE_QUERY.items():
+            flag = 0 if term in MAIUSCOLI else re.I
+            if not re.search(r"\b" + re.escape(term) + r"\b", t, flag):
                 continue
-            contesto = bool(CONTESTO.search(t))
+            if serve_contesto(tk, term) and not contesto:
+                continue
+            oggi.add(tk)
+        if oggi:
+            oggi_tot += 1
 
-            oggi = set()
-            for tk, term in TERMINE_QUERY.items():
-                flag = 0 if term in MAIUSCOLI else re.I
-                if not re.search(r"\b" + re.escape(term) + r"\b", t, flag):
-                    continue
-                if serve_contesto(tk, term) and not contesto:
-                    continue
-                oggi.add(tk)
-            if oggi:
-                oggi_tot += 1
-
-            for tk, pattern in rx_sigla.items():
-                if tk in oggi or not pattern.search(t):
-                    continue
-                s = sigle[tk]
-                extra[s] += 1
-                if contesto:
-                    extra_contesto[s] += 1
-                esempi.setdefault(s, [])
-                if len(esempi[s]) < 3:
-                    esempi[s].append((contesto, t[:76]))
+        for tk, pattern in rx_sigla.items():
+            if tk in oggi or not pattern.search(t):
+                continue
+            s = sigle[tk]
+            extra[s] += 1
+            if contesto:
+                extra_contesto[s] += 1
+            esempi.setdefault(s, [])
+            if len(esempi[s]) < 3:
+                esempi[s].append((contesto, t[:76]))
 
     if not righe_tot:
         print("\n  Nessuna riga letta: non c'è niente da misurare.")
@@ -675,7 +689,8 @@ def misura_sigle(quale_file: str | None) -> int:
     print("\n" + "=" * 72)
     print("  LA TABELLA DA CUI SI DECIDE")
     print("=" * 72)
-    print(f"\n  righe lette: {righe_tot}")
+    print(f"\n  file letti: {file_ok} ({file_ko} non disponibili)")
+    print(f"  righe lette: {righe_tot}")
     print(f"  articoli che entrano oggi: {oggi_tot}\n")
     print(f"  {'sigla':<8}{'in più':>8}{'con mercato':>13}{'senza':>8}   giudizio")
     print("  " + "─" * 68)
@@ -694,7 +709,17 @@ def misura_sigle(quale_file: str | None) -> int:
         print(f"  {s:<8}{n:>8}{con:>13}{senza:>8}   {g}")
 
     if not extra:
-        print("  nessuna sigla ha portato niente in questo campione")
+        # Zero non vuol dire "non esiste". Con nessun caso osservato su n
+        # prove, il limite superiore al 95% sta intorno a 3/n: è la regola
+        # del tre, e serve a non trasformare un campione piccolo in un
+        # verdetto. Senza questa riga, un file da mille titoli basterebbe a
+        # chiudere per sempre una strada che magari valeva.
+        tetto = 3 / righe_tot
+        print("  nessuna sigla ha portato niente in questo campione\n")
+        print(f"  Attenzione a come si legge questo zero. Su {righe_tot} titoli,")
+        print(f"  il limite superiore al 95% è {tetto:.3%}, cioè fino a circa")
+        print(f"  {int(tetto * 336000)} articoli al giorno sui 336.000 che GDELT pubblica.")
+        print("  Un campione più grande può ancora ribaltare il risultato.")
 
     print("\n" + "=" * 72)
     print("  GLI ESEMPI")
@@ -725,11 +750,15 @@ if __name__ == "__main__":
                          "sigle: quanto porterebbe cercare BTC oltre a Bitcoin.")
     ap.add_argument("--colonne", action="store_true",
                     help="scorciatoia per --modo colonne")
+    ap.add_argument("--ore", type=int, default=6,
+                    help="quante ore di file leggere (default 6, cioè 48 "
+                         "file). Un file solo non basta per misurare una cosa "
+                         "rara: serve solo a vedere se il codice gira.")
     args = ap.parse_args()
 
     modo = "colonne" if args.colonne else args.modo
     if modo == "colonne":
-        sys.exit(misura_colonne(args.file))
+        sys.exit(misura_colonne(args.file, args.ore))
     if modo == "sigle":
-        sys.exit(misura_sigle(args.file))
+        sys.exit(misura_sigle(args.file, args.ore))
     sys.exit(misura(args.file))

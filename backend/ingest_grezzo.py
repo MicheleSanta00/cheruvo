@@ -53,12 +53,13 @@ import logging
 import os
 import sys
 import time
-from datetime import datetime, timedelta, timezone
+from datetime import datetime, timezone
 
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 
 from gdelt_grezzo import (BASE, COL_DATA, COL_DOMINIO, COL_URL,  # noqa: E402
-                          conta_pertinenti, leggi_gkg, lingua, titolo, tono)
+                          conta_pertinenti, leggi_gkg, lingua,
+                          quarti_dora_indietro, titolo, tono)
 from gdelt_source import TERMINE_QUERY  # noqa: E402
 from quick_fetch import save_news  # noqa: E402
 
@@ -81,20 +82,6 @@ def _tono_nostro(t: float | None) -> float:
     if t is None:
         return 0.0
     return max(-1.0, min(1.0, t / DIVISORE_TONO))
-
-
-def quarti_dora_indietro(ore: int) -> list[str]:
-    """
-    I timestamp dei file da scaricare, dal più recente al più vecchio.
-
-    GDELT pubblica ai minuti 00, 15, 30 e 45 di ogni ora. Si parte da un
-    quarto d'ora fa e non da adesso, perché il file dell'istante corrente
-    spesso non è ancora stato pubblicato e darebbe un 404.
-    """
-    adesso = datetime.now(timezone.utc).replace(second=0, microsecond=0)
-    adesso -= timedelta(minutes=adesso.minute % 15 + 15)
-    return [(adesso - timedelta(minutes=15 * i)).strftime("%Y%m%d%H%M%S")
-            for i in range(ore * 4)]
 
 
 def raccogli(ore: int, limite_minuti: int, solo_inglese: bool = False) -> int:
