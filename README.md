@@ -135,18 +135,30 @@ sostituirebbe un punteggio migliore con uno peggiore.
 
 ### Licenze delle fonti
 
-L'elenco delle fonti ammesse è in cima a questo file. Qui sotto sta invece la
-parte operativa: cosa fare dell'arretrato.
+L'elenco delle fonti ammesse è in cima a questo file. Qui sotto sta la storia
+dell'arretrato, perché è finita.
 
-Il censimento del 5 agosto 2026 ha contato **32.675 righe su 33.126** (il
-98,6%) rimaste in archivio da prima che i rubinetti vietati venissero chiusi.
-Due strumenti manuali, entrambi da Actions:
+Il censimento del 5 agosto 2026 aveva contato **32.675 righe su 33.126**, il
+98,6%, rimaste in archivio da prima che i rubinetti vietati venissero chiusi.
+Cancellarle subito avrebbe lasciato il sito con 451 notizie, quindi prima si è
+ricostruito lo storico da GDELT.
+
+Il **7 agosto 2026** le 32.675 righe sono state eliminate. L'archivio è passato
+da 36.702 a **4.027 notizie**, tutte da fonti con diritto d'uso verificato. Il
+censimento fatto poche ore prima della cancellazione contava ancora 32.675
+righe vietate, lo stesso identico numero di due giorni prima: da quando le
+fonti sono state staccate non ne è nata nemmeno una nuova, ed è la prova che i
+rubinetti sono chiusi davvero e non solo nelle intenzioni.
+
+Gli strumenti restano, entrambi manuali da Actions:
 
 - `.github/workflows/backfill_gdelt.yml` ricostruisce lo storico da GDELT
-- `.github/workflows/pulizia_licenze.yml` censisce e poi elimina l'arretrato
+- `.github/workflows/pulizia_licenze.yml` censisce e, con l'altra voce del
+  menu, elimina
 
-L'ordine conta: prima si ricostruisce, poi si cancella. Al contrario il sito
-resterebbe con 451 notizie per settimane.
+Il censimento non modifica niente e si può rilanciare quando si vuole: se un
+giorno tornasse a contare più di zero, vorrebbe dire che una fonte vietata è
+rientrata da qualche parte.
 
 Una trappola da non ricreare: Alpha Vantage salva in `source` il **nome della
 testata**, non il proprio. Per mesi questo ha reso indistinguibile una riga
