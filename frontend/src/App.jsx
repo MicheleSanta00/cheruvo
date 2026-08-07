@@ -3,7 +3,7 @@ import Auth        from './components/Auth.jsx'
 import Profile     from './components/Profile.jsx'
 import { supabase } from './supabase.js'
 import { useLang }  from './LangContext.jsx'
-import apiFetch    from './apiFetch.js'
+import apiFetch, { onServerLento } from './apiFetch.js'
 
 import Sidebar     from './components/Sidebar.jsx'
 import KPIGrid     from './components/KPIGrid.jsx'
@@ -117,6 +117,16 @@ export default function App() {
   // restava davanti a una fila di trattini e a un "Caricamento" che non
   // finiva mai, indistinguibile da un prodotto rotto.
   const [risveglio, setRisveglio] = useState(false)
+
+  // L'avviso di risveglio non aspetta che una chiamata fallisca.
+  //
+  // Prima `risveglio` si accendeva solo dentro il catch, cioè dopo che un
+  // tentativo era andato a vuoto: con la scadenza a 15 secondi e due tentativi
+  // vuol dire mezzo minuto di schermo muto prima di dire qualcosa. apiFetch
+  // invece segnala già dopo quattro secondi che la richiesta sta impiegando
+  // troppo, e quattro secondi è la soglia oltre la quale una persona comincia
+  // a pensare che il sito sia rotto.
+  useEffect(() => onServerLento(setRisveglio), [])
 
   useEffect(() => {
     let vivo = true

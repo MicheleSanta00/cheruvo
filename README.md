@@ -240,6 +240,14 @@ copre le ore in cui un visitatore può plausibilmente arrivare e lascia margine
 abbondante. Consumo reale controllabile su Render in **Billing → Monthly Included
 Usage → Free Instance Hours**.
 
+Lato app, quel minuto va detto e non subito in silenzio. `apiFetch.js` dà una
+scadenza a ogni chiamata e, se supera i quattro secondi, avvisa l'interfaccia
+che il server sta ripartendo (`onServerLento`). Fino al 7 agosto 2026 non
+c'era né scadenza né avviso: la fetch restava appesa, quindi il meccanismo di
+riprova che `App.jsx` aveva già scritto non veniva MAI raggiunto, e la pagina
+mostrava "Caricamento dati di mercato..." all'infinito finché non ricaricavi a
+mano. Chi arrivava per la prima volta vedeva un sito rotto.
+
 Nota: la prima chiamata della giornata trova il servizio addormentato e impiega
 più dei 30 secondi oltre i quali cron-job.org considera fallita una richiesta.
 **Un segno rosso alle 07:00 è previsto e innocuo**, la chiamata sveglia comunque
