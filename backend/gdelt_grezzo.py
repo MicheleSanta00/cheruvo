@@ -66,6 +66,13 @@ COL_TONO = 15       # V1.5TONE: tono,positivo,negativo,polarita,...
 COL_TRADUZIONE = 25  # V2.1TRANSLATIONINFO, es. "srclc:ita;eng:Moses"
 COL_EXTRA = 26      # V2EXTRASXML, contiene <PAGE_TITLE>
 
+# Colonne che GDELT ricava dal TESTO INTEGRALE e che oggi non leggiamo.
+# Servono a `misura_colonne`, che conta quanto volume porterebbero. Non sono
+# usate dalla raccolta: prima si misura, poi eventualmente si adottano.
+COL_TEMI = 7            # V1THEMES, codici separati da ";"
+COL_ORGANIZZAZIONI = 13  # V1ORGANIZATIONS, nomi separati da ";"
+COL_NOMI = 23           # V2.1ALLNAMES, "Nome,posizione;Nome,posizione;"
+
 _TITOLO_RX = re.compile(r"<PAGE_TITLE>(.*?)</PAGE_TITLE>", re.S)
 _LINGUA_RX = re.compile(r"srclc:(\w+)")
 
@@ -372,11 +379,196 @@ def misura(quale_file: str | None) -> int:
     return 0
 
 
+# ══════════════════════════════════════════════════════════════════════════
+#  QUANTO VOLUME C'È NELLE COLONNE CHE NON LEGGIAMO
+# ══════════════════════════════════════════════════════════════════════════
+#
+# Oggi un articolo entra in archivio solo se il nome dell'asset compare nel
+# TITOLO. È una regola prudente e costosa: "Il Nasdaq chiude in rosso", che poi
+# parla di Nvidia per tre paragrafi, per noi non esiste.
+#
+# GDELT però pubblica per ogni articolo anche i temi, le organizzazioni e tutti
+# i nomi propri, estratti dal testo integrale. Il volume in più sta lì.
+#
+# Sta lì anche il modo più rapido di rovinare l'archivio, perché "nomina
+# Bitcoin" non è "parla di Bitcoin". Questa funzione non adotta niente: conta
+# quanti articoli in PIÙ porterebbe ogni colonna e stampa i titoli, così la
+# decisione si prende leggendo esempi veri invece che immaginandoli.
+
+
+def _voci(campo: str, con_posizione: bool = False) -> list[str]:
+    """
+    Spacchetta un campo a lista di GDELT.
+
+    ALLNAMES scrive "Nome,4523" e la posizione va tolta; THEMES e
+    ORGANIZATIONS scrivono la voce e basta. Entrambi chiudono con un ";"
+    finale che produce una voce vuota.
+    """
+    fuori = []
+    for v in (campo or "").split(";"):
+        v = v.strip()
+        if not v:
+            continue
+        if con_posizione and "," in v:
+            v = v.rsplit(",", 1)[0].strip()
+        if v:
+            fuori.append(v)
+    return fuori
+
+
+def _compare_in(voci: list[str], termine: str) -> bool:
+    """Confronto a parola intera, con le stesse regole del titolo."""
+    flag = 0 if termine in MAIUSCOLI else re.I
+    rx = re.compile(r"\b" + re.escape(termine) + r"\b", flag)
+    return any(rx.search(v) for v in voci)
+
+
+def misura_colonne(quale_file: str | None) -> int:
+    sys.path.insert(0, __import__("os").path.dirname(__import__("os").path.abspath(__file__)))
+    from gdelt_source import TERMINE_QUERY
+
+    print("=" * 72)
+    print("  QUANTO PORTEREBBERO LE COLONNE CHE OGGI IGNORIAMO")
+    print("=" * 72)
+
+    colonne = (("TEMI", COL_TEMI, False),
+               ("ORGANIZZAZIONI", COL_ORGANIZZAZIONI, False),
+               ("NOMI PROPRI", COL_NOMI, True))
+
+    righe_tot = 0
+    con_titolo = 0
+    presenti = Counter()
+    gia_nel_titolo = 0
+    nuovi = Counter()          # per colonna
+    nuovi_ticker = {n: Counter() for n, _, _ in colonne}
+    esempi = {n: [] for n, _, _ in colonne}
+    temi_visti = Counter()
+
+    for etichetta, elenco_url in (("INGLESE", ULTIMO_EN),
+                                  ("RESTO DEL MONDO (tradotto)", ULTIMO_TRAD)):
+        print(f"\n── Feed {etichetta} " + "─" * max(2, 48 - len(etichetta)))
+        try:
+            if quale_file:
+                suffisso = "" if etichetta == "INGLESE" else "translation."
+                url = f"{BASE}/{quale_file}.{suffisso}gkg.csv.zip"
+            else:
+                url = url_gkg(scarica_elenco(elenco_url))
+            if not url:
+                print("  Nessun file GKG nell'elenco.")
+                continue
+            print(f"  {url.split('/')[-1]}")
+            righe = leggi_gkg(url)
+        except Exception as e:
+            print(f"  ERRORE: {e}")
+            continue
+
+        righe_tot += len(righe)
+
+        for r in righe:
+            t = titolo(r)
+            if t:
+                con_titolo += 1
+            for nome, idx, con_pos in colonne:
+                if len(r) > idx and (r[idx] or "").strip():
+                    presenti[nome] += 1
+
+            # Chi entrerebbe già oggi, con la regola del titolo.
+            dal_titolo = set()
+            if t:
+                for tk, term in TERMINE_QUERY.items():
+                    flag = 0 if term in MAIUSCOLI else re.I
+                    if not re.search(r"\b" + re.escape(term) + r"\b", t, flag):
+                        continue
+                    if serve_contesto(tk, term) and not CONTESTO.search(t):
+                        continue
+                    dal_titolo.add(tk)
+            if dal_titolo:
+                gia_nel_titolo += 1
+
+            for nome, idx, con_pos in colonne:
+                if len(r) <= idx:
+                    continue
+                voci = _voci(r[idx], con_pos)
+                if not voci:
+                    continue
+                trovati = {tk for tk, term in TERMINE_QUERY.items()
+                           if _compare_in(voci, term)}
+                extra = trovati - dal_titolo
+                if not extra:
+                    continue
+                nuovi[nome] += 1
+                for tk in extra:
+                    nuovi_ticker[nome][tk] += 1
+                if len(esempi[nome]) < 6:
+                    esempi[nome].append((sorted(extra), t[:78] or "(senza titolo)"))
+                # I temi di un articolo che nomina una cripta: servono a
+                # scegliere un filtro di contesto fatto di codici veri e non
+                # inventati a memoria.
+                if nome == "NOMI PROPRI" and any(tk.endswith("-USD") for tk in extra):
+                    if len(r) > COL_TEMI:
+                        temi_visti.update(_voci(r[COL_TEMI]))
+
+    if not righe_tot:
+        print("\n  Nessuna riga letta: non c'è niente da misurare.")
+        return 1
+
+    print("\n" + "=" * 72)
+    print("  COSA C'È DAVVERO NEI FILE")
+    print("=" * 72)
+    print(f"\n  righe totali: {righe_tot}")
+    print(f"  con un titolo leggibile: {con_titolo} ({con_titolo / righe_tot:.0%})")
+    for nome, _, _ in colonne:
+        print(f"  con {nome.lower():<16} {presenti[nome]:>6} "
+              f"({presenti[nome] / righe_tot:.0%})")
+    print(f"\n  articoli che entrano OGGI (regola del titolo): {gia_nel_titolo}")
+
+    print("\n" + "=" * 72)
+    print("  QUANTI ARTICOLI IN PIÙ, PER COLONNA")
+    print("=" * 72)
+    print("\n  Sono articoli che oggi NON entrano e che entrerebbero se")
+    print("  guardassimo anche quella colonna. Il moltiplicatore è rispetto")
+    print("  ai {} di adesso.\n".format(gia_nel_titolo))
+    for nome, _, _ in colonne:
+        n = nuovi[nome]
+        molt = f"×{1 + n / gia_nel_titolo:.1f}" if gia_nel_titolo else "n/d"
+        print(f"  {nome:<16} +{n:<6} ({molt} il volume attuale)")
+
+    for nome, _, _ in colonne:
+        if not esempi[nome]:
+            continue
+        print(f"\n── Esempi da {nome} " + "─" * max(2, 44 - len(nome)))
+        print("  Da leggere chiedendosi una cosa sola: questo articolo PARLA")
+        print("  dell'asset, o lo nomina di sfuggita?\n")
+        for tks, ti in esempi[nome]:
+            print(f"    [{','.join(tks):<22}] {ti}")
+        print("\n  i titoli che guadagnerebbero di più:")
+        for tk, n in nuovi_ticker[nome].most_common(8):
+            print(f"    {tk:<11} +{n}")
+
+    if temi_visti:
+        print("\n" + "=" * 72)
+        print("  TEMI PIÙ FREQUENTI SUGLI ARTICOLI CHE NOMINANO UNA CRIPTO")
+        print("=" * 72)
+        print("\n  Se un giorno adottiamo queste colonne, il filtro di contesto")
+        print("  non potrà più essere fatto di parole nel titolo. Questi sono i")
+        print("  codici veri da cui partire, letti dai file e non ricordati.\n")
+        for tema, n in temi_visti.most_common(20):
+            print(f"    {n:>5}  {tema}")
+
+    print("\n" + "=" * 72)
+    print("  Nessuna riga è stata scritta. Questo strumento misura e basta.")
+    print("=" * 72)
+    return 0
+
+
 if __name__ == "__main__":
     logging.basicConfig(level=logging.INFO, format="%(message)s")
     ap = argparse.ArgumentParser(description=__doc__)
     ap.add_argument("--file", default=None,
                     help="timestamp preciso, es. 20260806180000. "
                          "Senza, prende l'ultimo pubblicato.")
+    ap.add_argument("--colonne", action="store_true",
+                    help="misura quanto porterebbero temi, organizzazioni e "
+                         "nomi propri invece della resa complessiva")
     args = ap.parse_args()
-    sys.exit(misura(args.file))
+    sys.exit(misura_colonne(args.file) if args.colonne else misura(args.file))

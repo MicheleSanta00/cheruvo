@@ -10,6 +10,14 @@ name: Cheruvo — Quanto rende GDELT grezzo?
 on:
   workflow_dispatch:
     inputs:
+      modo:
+        description: 'Cosa misurare'
+        required: true
+        default: 'colonne'
+        type: choice
+        options:
+          - colonne   # quanto porterebbero temi, organizzazioni e nomi propri
+          - resa      # la resa complessiva di un file (la domanda del 6 agosto)
       file:
         description: 'Timestamp preciso (es. 20260806180000). Vuoto = ultimo pubblicato'
         required: false
@@ -39,9 +47,13 @@ jobs:
       - name: Misura
         env:
           PYTHONPATH: ${{ github.workspace }}/backend
+          MODO: ${{ github.event.inputs.modo }}
+          FILE: ${{ github.event.inputs.file }}
         run: |
-          if [ -n "${{ github.event.inputs.file }}" ]; then
-            python backend/gdelt_grezzo.py --file ${{ github.event.inputs.file }}
-          else
-            python backend/gdelt_grezzo.py
-          fi
+          # Gli input passano da variabili d'ambiente e non interpolati nello
+          # script: il repository è pubblico, e un valore interpolato dentro
+          # una riga di shell è il modo classico di farci entrare un comando.
+          ARGS=""
+          [ "$MODO" = "colonne" ] && ARGS="--colonne"
+          [ -n "$FILE" ] && ARGS="$ARGS --file $FILE"
+          python backend/gdelt_grezzo.py $ARGS
