@@ -561,14 +561,175 @@ def misura_colonne(quale_file: str | None) -> int:
     return 0
 
 
+# ══════════════════════════════════════════════════════════════════════════
+#  QUANTO PORTEREBBE CERCARE ANCHE LE SIGLE
+# ══════════════════════════════════════════════════════════════════════════
+#
+# Oggi cerchiamo "Bitcoin" e non "BTC", "Nvidia" e non "NVDA". La stampa
+# specializzata però scrive spessissimo la sigla, e quei titoli oggi ci
+# sfuggono per intero.
+#
+# A differenza delle colonne estratte dal testo, questa strada resta nel
+# TITOLO, cioè non rinuncia alla precisione che il filtro di contesto ci ha
+# appena fatto guadagnare. Il rischio è un altro e va misurato per sigla, non
+# in blocco: "BTC" in un titolo è praticamente sempre Bitcoin, "LINK" non è
+# quasi mai Chainlink, e "ISP" è il fornitore di connettività molto più spesso
+# di Intesa Sanpaolo.
+#
+# Per questo la misura NON produce un sì o un no complessivo: produce una riga
+# per sigla, con quante ne porterebbe e quante di quelle hanno una parola di
+# mercato nel titolo. L'elenco delle sigle da adottare si scrive a mano
+# leggendo quella tabella, non si deduce.
+
+
+def sigla_di(ticker: str) -> str:
+    """La sigla nuda: BTC-USD -> BTC, RACE.MI -> RACE, NVDA -> NVDA."""
+    return (ticker or "").upper().split("-")[0].split(".")[0]
+
+
+def misura_sigle(quale_file: str | None) -> int:
+    sys.path.insert(0, __import__("os").path.dirname(__import__("os").path.abspath(__file__)))
+    from gdelt_source import TERMINE_QUERY
+
+    print("=" * 72)
+    print("  QUANTO PORTEREBBE CERCARE ANCHE LE SIGLE NEL TITOLO")
+    print("=" * 72)
+
+    # Le sigle che coincidono col termine che già cerchiamo non aggiungono
+    # niente: per Eni, Enel, ASML, LVMH, SAP, AMD, XRP e NEAR la sigla È il
+    # nome. Misurarle gonfierebbe il risultato con zeri travestiti.
+    sigle = {}
+    for tk, term in TERMINE_QUERY.items():
+        s = sigla_di(tk)
+        if s.lower() != term.lower():
+            sigle[tk] = s
+    saltate = len(TERMINE_QUERY) - len(sigle)
+
+    print(f"\n  sigle da misurare: {len(sigle)}")
+    print(f"  saltate perché la sigla è già il termine cercato: {saltate}")
+
+    righe_tot = 0
+    oggi_tot = 0
+    extra = Counter()           # per sigla, totale
+    extra_contesto = Counter()  # per sigla, con parola di mercato nel titolo
+    esempi = {}
+
+    rx_sigla = {tk: re.compile(r"\b" + re.escape(s) + r"\b")  # SEMPRE maiuscole
+                for tk, s in sigle.items()}
+
+    for etichetta, elenco_url in (("INGLESE", ULTIMO_EN),
+                                  ("RESTO DEL MONDO (tradotto)", ULTIMO_TRAD)):
+        print(f"\n── Feed {etichetta} " + "─" * max(2, 48 - len(etichetta)))
+        try:
+            if quale_file:
+                suffisso = "" if etichetta == "INGLESE" else "translation."
+                url = f"{BASE}/{quale_file}.{suffisso}gkg.csv.zip"
+            else:
+                url = url_gkg(scarica_elenco(elenco_url))
+            if not url:
+                print("  Nessun file GKG nell'elenco.")
+                continue
+            print(f"  {url.split('/')[-1]}")
+            righe = leggi_gkg(url)
+        except Exception as e:
+            # Il feed tradotto viaggia in ritardo e ogni tanto l'elenco lo
+            # annuncia prima che sia sul server. Misurare metà campione è
+            # meglio che non misurare.
+            print(f"  ERRORE: {e}")
+            continue
+
+        righe_tot += len(righe)
+
+        for r in righe:
+            t = titolo(r)
+            if not t:
+                continue
+            contesto = bool(CONTESTO.search(t))
+
+            oggi = set()
+            for tk, term in TERMINE_QUERY.items():
+                flag = 0 if term in MAIUSCOLI else re.I
+                if not re.search(r"\b" + re.escape(term) + r"\b", t, flag):
+                    continue
+                if serve_contesto(tk, term) and not contesto:
+                    continue
+                oggi.add(tk)
+            if oggi:
+                oggi_tot += 1
+
+            for tk, pattern in rx_sigla.items():
+                if tk in oggi or not pattern.search(t):
+                    continue
+                s = sigle[tk]
+                extra[s] += 1
+                if contesto:
+                    extra_contesto[s] += 1
+                esempi.setdefault(s, [])
+                if len(esempi[s]) < 3:
+                    esempi[s].append((contesto, t[:76]))
+
+    if not righe_tot:
+        print("\n  Nessuna riga letta: non c'è niente da misurare.")
+        return 1
+
+    print("\n" + "=" * 72)
+    print("  LA TABELLA DA CUI SI DECIDE")
+    print("=" * 72)
+    print(f"\n  righe lette: {righe_tot}")
+    print(f"  articoli che entrano oggi: {oggi_tot}\n")
+    print(f"  {'sigla':<8}{'in più':>8}{'con mercato':>13}{'senza':>8}   giudizio")
+    print("  " + "─" * 68)
+
+    for s, n in extra.most_common():
+        con = extra_contesto[s]
+        senza = n - con
+        # Il giudizio è un promemoria, non un verdetto: dice solo dove
+        # guardare per primo. La decisione si prende leggendo gli esempi.
+        if con == 0:
+            g = "nessuna di mercato, quasi certo rumore"
+        elif con / n >= 0.5:
+            g = "promettente, leggi gli esempi"
+        else:
+            g = "da tenere solo col contesto obbligatorio"
+        print(f"  {s:<8}{n:>8}{con:>13}{senza:>8}   {g}")
+
+    if not extra:
+        print("  nessuna sigla ha portato niente in questo campione")
+
+    print("\n" + "=" * 72)
+    print("  GLI ESEMPI")
+    print("=" * 72)
+    print("\n  [M] = il titolo contiene una parola di mercato\n")
+    for s, n in extra.most_common():
+        print(f"  {s} (+{n})")
+        for contesto, ti in esempi.get(s, []):
+            print(f"    {'[M]' if contesto else '[ ]'} {ti}")
+        print()
+
+    print("=" * 72)
+    print("  Nessuna riga è stata scritta. Questo strumento misura e basta.")
+    print("=" * 72)
+    return 0
+
+
 if __name__ == "__main__":
     logging.basicConfig(level=logging.INFO, format="%(message)s")
     ap = argparse.ArgumentParser(description=__doc__)
     ap.add_argument("--file", default=None,
                     help="timestamp preciso, es. 20260806180000. "
                          "Senza, prende l'ultimo pubblicato.")
+    ap.add_argument("--modo", choices=("resa", "colonne", "sigle"),
+                    default="resa",
+                    help="resa: quanto rende un file. colonne: quanto "
+                         "porterebbero temi, organizzazioni e nomi propri. "
+                         "sigle: quanto porterebbe cercare BTC oltre a Bitcoin.")
     ap.add_argument("--colonne", action="store_true",
-                    help="misura quanto porterebbero temi, organizzazioni e "
-                         "nomi propri invece della resa complessiva")
+                    help="scorciatoia per --modo colonne")
     args = ap.parse_args()
-    sys.exit(misura_colonne(args.file) if args.colonne else misura(args.file))
+
+    modo = "colonne" if args.colonne else args.modo
+    if modo == "colonne":
+        sys.exit(misura_colonne(args.file))
+    if modo == "sigle":
+        sys.exit(misura_sigle(args.file))
+    sys.exit(misura(args.file))

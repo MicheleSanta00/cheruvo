@@ -62,3 +62,20 @@ def test_le_sigle_rispettano_le_maiuscole_anche_qui():
     assert gg._compare_in(["NEAR Protocol"], "NEAR") is True
     assert gg._compare_in(["the near future"], "NEAR") is False
     assert gg._compare_in(["bitcoin foundation"], "Bitcoin") is True
+
+
+# ── La sigla ricavata dal ticker ──────────────────────────────────────────
+def test_la_sigla_perde_il_suffisso_del_mercato():
+    """
+    Cercare "BTC-USD" o "RACE.MI" dentro un titolo non troverebbe mai niente:
+    nei titoli si scrive la sigla nuda.
+    """
+    assert gg.sigla_di("BTC-USD") == "BTC"
+    assert gg.sigla_di("RACE.MI") == "RACE"
+    assert gg.sigla_di("SHEL.L") == "SHEL"
+    assert gg.sigla_di("NVDA") == "NVDA"
+
+
+def test_la_sigla_di_un_ticker_vuoto_non_esplode():
+    assert gg.sigla_di("") == ""
+    assert gg.sigla_di(None) == ""
