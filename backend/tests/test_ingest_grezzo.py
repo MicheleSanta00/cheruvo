@@ -87,8 +87,7 @@ def test_raccolta_e_misura_usano_lo_stesso_filtro():
     dalla_misura, _, _ = gg.conta_pertinenti(righe, TERMINE_QUERY)
     dalla_raccolta = {}
     for t in titoli:
-        tk = ing._quale_ticker(t, TERMINE_QUERY)
-        if tk:
+        for tk in ing._quali_ticker(t, TERMINE_QUERY):
             dalla_raccolta[tk] = dalla_raccolta.get(tk, 0) + 1
 
     assert dict(dalla_misura) == dalla_raccolta, (
@@ -97,14 +96,106 @@ def test_raccolta_e_misura_usano_lo_stesso_filtro():
 
 
 def test_la_raccolta_scarta_i_falsi_positivi():
-    assert ing._quale_ticker("Avalanche kills three skiers", TERMINE_QUERY) is None
-    assert ing._quale_ticker("Stocks near record highs today", TERMINE_QUERY) is None
-    assert ing._quale_ticker("Amazon rainforest fires spread", TERMINE_QUERY) is None
+    assert ing._quali_ticker("Avalanche kills three skiers", TERMINE_QUERY) == []
+    assert ing._quali_ticker("Stocks near record highs today", TERMINE_QUERY) == []
+    assert ing._quali_ticker("Amazon rainforest fires spread", TERMINE_QUERY) == []
 
 
 def test_la_raccolta_tiene_quelli_veri():
-    assert ing._quale_ticker("Bitcoin hits new high", TERMINE_QUERY) == "BTC-USD"
-    assert ing._quale_ticker("Avalanche token price jumps", TERMINE_QUERY) == "AVAX-USD"
+    assert ing._quali_ticker("Bitcoin hits new high", TERMINE_QUERY) == ["BTC-USD"]
+    assert ing._quali_ticker("Avalanche token price jumps", TERMINE_QUERY) == ["AVAX-USD"]
+
+
+# ── Il contesto obbligatorio per le azioni ────────────────────────────────
+def test_un_titolo_di_prodotto_non_entra_come_azione():
+    """
+    Il caso che il 7 agosto 2026 valeva 816 righe su 1.541: "Google" e
+    "Microsoft" non sono parole ambigue, ma compaiono ogni giorno in centinaia
+    di titoli che non parlano del titolo azionario.
+    """
+    for t in ("Google Maps adds a new lane guidance feature",
+              "Microsoft Teams down for thousands of users",
+              "Tesla driver rescued after crash on the A4",
+              "Nvidia releases a new driver for the RTX line"):
+        assert ing._quali_ticker(t, TERMINE_QUERY) == [], t
+
+
+def test_un_titolo_di_mercato_entra_come_azione():
+    assert ing._quali_ticker("Google shares rise after earnings beat",
+                             TERMINE_QUERY) == ["GOOGL"]
+    assert ing._quali_ticker("Microsoft stock slides as investors sell",
+                             TERMINE_QUERY) == ["MSFT"]
+    assert ing._quali_ticker("Eni sale in borsa dopo i ricavi del trimestre",
+                             TERMINE_QUERY) == ["ENI.MI"]
+
+
+def test_le_monete_non_hanno_bisogno_del_contesto():
+    """
+    E non è una svista: il nome della moneta è già un termine di mercato.
+    Chiedere il contesto anche a Bitcoin taglierebbe metà della copertura
+    cripto senza togliere un solo falso positivo.
+    """
+    assert ing._quali_ticker("Bitcoin crolla sotto i 90.000 dollari",
+                             TERMINE_QUERY) == ["BTC-USD"]
+    assert ing._quali_ticker("Ethereum completa l'aggiornamento Pectra",
+                             TERMINE_QUERY) == ["ETH-USD"]
+
+
+def test_le_monete_dal_nome_comune_restano_filtrate():
+    """
+    Solana Beach e Aptos sono località della California, Cardano è un cognome
+    italiano, Shiba è una razza di cane. Aggiunti agli ambigui il 7 agosto.
+    """
+    assert ing._quali_ticker("Solana Beach closes its pier for repairs",
+                             TERMINE_QUERY) == []
+    assert ing._quali_ticker("Gerolamo Cardano e la nascita della probabilità",
+                             TERMINE_QUERY) == []
+    assert ing._quali_ticker("Shiba wins best in show at Westminster",
+                             TERMINE_QUERY) == []
+    assert ing._quali_ticker("Solana price jumps as traders pile in",
+                             TERMINE_QUERY) == ["SOL-USD"]
+
+
+# ── Un articolo, più titoli ───────────────────────────────────────────────
+def test_un_articolo_conta_per_ogni_asset_che_nomina():
+    """
+    Il difetto trovato il 7 agosto 2026: `_quale_ticker` si fermava al primo
+    che combaciava e nel dizionario le azioni vengono prima delle monete,
+    quindi le cripto perdevano ogni articolo che le nominava insieme a
+    un'azienda. Un modo silenzioso di sottostimare proprio il prodotto.
+    """
+    trovati = ing._quali_ticker(
+        "Microsoft adds Bitcoin to its treasury, shares rise", TERMINE_QUERY)
+    assert set(trovati) == {"MSFT", "BTC-USD"}
+
+
+def test_il_conteggio_per_lingua_conta_articoli_non_assegnazioni():
+    """
+    Se contasse le assegnazioni, un pezzo che nomina tre monete varrebbe tre
+    articoli inglesi e la ripartizione per lingua direbbe una bugia.
+    """
+    righe = [_riga("Bitcoin, Ethereum and Solana price rally together")]
+    per_ticker, per_lingua, _ = gg.conta_pertinenti(righe, TERMINE_QUERY)
+    assert sum(per_ticker.values()) == 3
+    assert sum(per_lingua.values()) == 1
+
+
+def test_la_raccolta_salva_lo_stesso_articolo_sotto_entrambi_i_titoli():
+    righe = [_riga("Microsoft adds Bitcoin to its treasury, shares rise")]
+    salvati = {}
+
+    def finto_save(ticker, news):
+        salvati[ticker] = news
+        return len(news)
+
+    with patch.object(ing, "leggi_gkg", return_value=righe), \
+         patch.object(ing, "save_news", side_effect=finto_save):
+        ing.raccogli(ore=1, limite_minuti=1, solo_inglese=True)
+
+    assert set(salvati) == {"MSFT", "BTC-USD"}
+    assert salvati["MSFT"][0] is not salvati["BTC-USD"][0], (
+        "le due righe condividono lo stesso oggetto: una modifica fatta da "
+        "save_news sulla prima si ritroverebbe nella seconda")
 
 
 # ── Le date ───────────────────────────────────────────────────────────────

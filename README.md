@@ -104,6 +104,19 @@ Due canali di raccolta, che si completano invece di sovrapporsi.
    feed separato per il resto del mondo tradotto. Il punteggio lo porta il file
    stesso, calcolato da GDELT sul **testo integrale** dell'articolo.
 
+   Questi file contengono la cronaca del mondo intero, quindi il filtro conta
+   quanto la raccolta. Due regole, entrambe in `serve_contesto`:
+
+   - **le azioni pretendono una parola di mercato nel titolo**, le monete no.
+     Il nome di una moneta è già un termine finanziario, il nome di
+     un'azienda no: nella prima giornata piena di raccolta GOOGL e MSFT da
+     soli valevano 816 righe su 1.541, quasi tutte aggiornamenti di prodotto
+     e disservizi. Il prezzo di questa regola è che una notizia societaria
+     come "Eni firma un accordo in Libia" resta fuori;
+   - **un articolo vale per ogni asset che nomina.** Prima ci si fermava al
+     primo, e le azioni vengono prima delle monete nel dizionario: "Microsoft
+     mette Bitcoin in tesoreria" veniva archiviata solo come MSFT.
+
 **2. API di GDELT** — `.github/workflows/update_news.yml`, ogni 6 ore
    → `updater.py` → `backend/quick_fetch.py` → PostgreSQL
 

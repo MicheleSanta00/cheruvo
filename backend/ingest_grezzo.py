@@ -27,13 +27,21 @@ TRE SCELTE CHE VALE LA PENA CONOSCERE
    Le righe raccolte qui vengono marcate `score_source='gdelt'` e Groq le
    lascia stare, come già fa con quelle di Alpha Vantage.
 
-2. Il filtro sui termini ambigui è obbligatorio, non un abbellimento.
-   Questi file contengono meteo, sport e cronaca del mondo intero. Undici dei
-   nostri termini sono anche parole comuni: senza filtro, "Avalanche kills
-   three skiers" entrerebbe in archivio come notizia su AVAX. Nella misura ne
-   sono stati scartati diciassette su due soli file.
+2. Il filtro di contesto è obbligatorio, non un abbellimento.
+   Questi file contengono meteo, sport e cronaca del mondo intero. Senza
+   filtro, "Avalanche kills three skiers" entrerebbe in archivio come notizia
+   su AVAX. Dal 7 agosto 2026 il contesto finanziario è richiesto a TUTTI i
+   titoli azionari e non più solo alle parole ambigue: nella prima giornata
+   piena GOOGL e MSFT da soli valevano 816 righe su 1.541, quasi tutte
+   aggiornamenti di prodotto. Le monete restano libere, perché il nome della
+   moneta è già di per sé un termine di mercato.
 
-3. Si scarica all'indietro, non in avanti.
+3. Un articolo può valere per più titoli.
+   Prima ci si fermava al primo che combaciava, e le azioni vengono prima
+   delle monete nel dizionario: "Microsoft mette Bitcoin in tesoreria" veniva
+   archiviata come notizia MSFT e Bitcoin la perdeva.
+
+4. Si scarica all'indietro, non in avanti.
    I file più recenti valgono più dei vecchi, quindi se il tempo finisce si
    perde la coda e non la testa.
 
@@ -101,7 +109,7 @@ def raccogli(ore: int, limite_minuti: int, solo_inglese: bool = False) -> int:
     avvio = time.time()
     limite = limite_minuti * 60
     per_ticker: dict[str, list] = {}
-    letti = scartati_falsi = file_ok = file_ko = 0
+    letti = scartati_falsi = file_ok = file_ko = articoli_distinti = 0
 
     for ts in stamp:
         if time.time() - avvio > limite:
@@ -132,10 +140,11 @@ def raccogli(ore: int, limite_minuti: int, solo_inglese: bool = False) -> int:
                 t = titolo(riga)
                 if not t:
                     continue
-                tk = _quale_ticker(t, termini)
-                if not tk:
+                quali = _quali_ticker(t, termini)
+                if not quali:
                     continue
-                per_ticker.setdefault(tk, []).append({
+                articoli_distinti += 1
+                base = {
                     "source": f"GDELT · {riga[COL_DOMINIO] or 'n/d'}",
                     "title": t[:480],
                     "summary": "",
@@ -146,7 +155,12 @@ def raccogli(ore: int, limite_minuti: int, solo_inglese: bool = False) -> int:
                     # dal testo integrale, che è più di quanto veda lui.
                     "score_source": "gdelt",
                     "lingua": lingua(riga),
-                })
+                }
+                for tk in quali:
+                    # Una copia per ticker: passare lo stesso oggetto a più
+                    # chiamate di save_news significherebbe che una modifica
+                    # fatta dentro la prima si ritrova nelle altre.
+                    per_ticker.setdefault(tk, []).append(dict(base))
 
     salvate = 0
     for tk, news in sorted(per_ticker.items(), key=lambda x: -len(x[1])):
@@ -163,32 +177,43 @@ def raccogli(ore: int, limite_minuti: int, solo_inglese: bool = False) -> int:
     logger.info("File letti: %d (%d non disponibili)", file_ok, file_ko)
     logger.info("Righe esaminate: %d", letti)
     logger.info("Scartati come falsi positivi: %d", scartati_falsi)
-    logger.info("Articoli pertinenti: %d, salvati come nuovi: %d",
+    # Due numeri e non uno: da quando un articolo può appartenere a più titoli,
+    # le assegnazioni sono di più degli articoli. Confonderli farebbe sembrare
+    # la copertura più ampia di quanto sia.
+    logger.info("Articoli pertinenti: %d, assegnazioni: %d, salvati come nuovi: %d",
+                articoli_distinti,
                 sum(len(v) for v in per_ticker.values()), salvate)
     logger.info("Durata: %.1f minuti", durata)
     return salvate
 
 
-def _quale_ticker(titolo_art: str, termini: dict) -> str | None:
+def _quali_ticker(titolo_art: str, termini: dict) -> list[str]:
     """
-    A quale titolo appartiene questo articolo.
+    A quali titoli appartiene questo articolo. Possono essere più di uno.
 
     Usa le STESSE regole della misura, importate da gdelt_grezzo: confini di
-    parola, contesto obbligatorio per i termini ambigui, maiuscole per le
-    sigle. Riscriverle qui significherebbe avere due filtri che col tempo
-    divergono, e scoprirlo un mese dopo guardando dati sporchi.
+    parola, contesto obbligatorio dove serve, maiuscole per le sigle.
+    Riscriverle qui significherebbe avere due filtri che col tempo divergono,
+    e scoprirlo un mese dopo guardando dati sporchi.
+
+    Restituisce un elenco e non un valore solo perché un articolo che parla di
+    Microsoft e di Bitcoin parla di tutti e due. Fermarsi al primo, come
+    faceva la versione precedente, dava la precedenza a chi capitava prima nel
+    dizionario: le azioni, sempre, per come è scritto TERMINE_QUERY.
     """
-    from gdelt_grezzo import AMBIGUI, CONTESTO, MAIUSCOLI
+    from gdelt_grezzo import CONTESTO, MAIUSCOLI, serve_contesto
     import re as _re
 
+    trovati = []
+    ha_contesto = bool(CONTESTO.search(titolo_art))
     for tk, term in termini.items():
         flag = 0 if term in MAIUSCOLI else _re.IGNORECASE
         if not _re.search(r"\b" + _re.escape(term) + r"\b", titolo_art, flag):
             continue
-        if term in AMBIGUI and not CONTESTO.search(titolo_art):
+        if serve_contesto(tk, term) and not ha_contesto:
             continue
-        return tk
-    return None
+        trovati.append(tk)
+    return trovati
 
 
 def _data(riga: list[str]) -> str:

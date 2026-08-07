@@ -115,6 +115,40 @@ def test_i_termini_non_ambigui_non_chiedono_contesto():
     assert _trovati("Ethereum devs delay the upgrade again") == {"ETH-USD": 1}
 
 
+def test_la_regola_del_contesto_e_quella_dichiarata():
+    """
+    Tre casi, tre motivi diversi. Se qualcuno un giorno cambia questa regola
+    per alzare i numeri, è qui che il test deve fermarlo.
+    """
+    # Azienda: nome non ambiguo, ma "Google" compare in mezzo mondo di
+    # notizie che col titolo azionario non c'entrano niente.
+    assert gg.serve_contesto("GOOGL", "Google") is True
+    # Moneta: il nome è già di per sé un termine di mercato.
+    assert gg.serve_contesto("BTC-USD", "Bitcoin") is False
+    # Moneta con un omonimo nel mondo reale.
+    assert gg.serve_contesto("AVAX-USD", "Avalanche") is True
+
+
+def test_le_azioni_senza_contesto_finanziario_restano_fuori():
+    """
+    Il difetto misurato il 7 agosto 2026: GOOGL e MSFT facevano 816 righe su
+    1.541 raccolte in un giorno, quasi tutte aggiornamenti di prodotto.
+    """
+    assert _trovati("Google Maps adds lane guidance in Italy") == {}
+    assert _trovati("Microsoft Teams down for thousands of users") == {}
+    assert _trovati("Google shares rise after earnings beat") == {"GOOGL": 1}
+
+
+def test_un_articolo_puo_valere_per_due_titoli():
+    """
+    Prima ci si fermava al primo che combaciava, e le azioni vengono prima
+    delle monete nel dizionario: le cripto perdevano ogni articolo condiviso.
+    """
+    r = [_riga("Microsoft adds Bitcoin to its treasury, shares rise")]
+    trovati, _, _ = gg.conta_pertinenti(r, TERMINE_QUERY)
+    assert dict(trovati) == {"MSFT": 1, "BTC-USD": 1}
+
+
 def test_i_confini_di_parola_reggono():
     """Senza confini, XRP prenderebbe XRPL e ogni sigla che lo contiene."""
     assert _trovati("XRPL ledger update ships") == {}

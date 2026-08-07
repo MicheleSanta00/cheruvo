@@ -154,11 +154,18 @@ def descrivi_formato(righe: list[list[str]]) -> None:
         print(f"    lingua:  {lingua(esempio)}")
 
 
-# Undici dei nostri termini sono ANCHE parole comuni: Avalanche, Polygon,
-# Cosmos, Stellar, Optimism, NEAR fra le monete, e Apple, Amazon, Meta, Shell,
-# GE fra i titoli. Su un archivio mondiale che raccoglie tutto, "Stocks near
-# record highs" diventerebbe una notizia su NEAR e "avalanche kills three"
-# una notizia su AVAX.
+# Quindici dei nostri termini sono ANCHE parole comuni: Avalanche, Polygon,
+# Cosmos, Stellar, Optimism, NEAR, Solana, Cardano, Aptos, Shiba fra le monete,
+# e Apple, Amazon, Meta, Shell, GE fra i titoli. Su un archivio mondiale che
+# raccoglie tutto, "Stocks near record highs" diventerebbe una notizia su NEAR
+# e "avalanche kills three" una notizia su AVAX.
+#
+# Gli ultimi quattro sono stati aggiunti il 7 agosto 2026 e sono meno evidenti
+# degli altri: Solana Beach e Aptos sono due località della California,
+# Cardano è un cognome italiano diffuso (e un comune in provincia di Varese),
+# Shiba è una razza di cane. Sono monete già sottili, quindi il filtro qui
+# toglie più di quanto tolga altrove: meglio zero righe che due righe su un
+# matematico del Cinquecento.
 #
 # Sull'API il problema quasi non si vedeva, perché la query era già ristretta
 # a un contesto finanziario. Sui file grezzi, che contengono meteo, sport e
@@ -166,6 +173,7 @@ def descrivi_formato(righe: list[list[str]]) -> None:
 # conteggi con roba che non c'entra, facendo sembrare il cambio conveniente
 # quando non lo è.
 AMBIGUI = {"Avalanche", "Polygon", "Cosmos", "Stellar", "Optimism", "NEAR",
+           "Solana", "Cardano", "Aptos", "Shiba",
            "Apple", "Amazon", "Meta", "Shell", "GE"}
 
 # Due termini sono sigle scritte SEMPRE in maiuscolo quando indicano la cosa
@@ -176,13 +184,49 @@ AMBIGUI = {"Avalanche", "Polygon", "Cosmos", "Stellar", "Optimism", "NEAR",
 # affatto della moneta.
 MAIUSCOLI = {"NEAR", "GE", "XRP"}
 
-# Per quei termini il titolo deve contenere anche una parola di contesto.
-# L'elenco è volutamente corto: allargarlo troppo rimetterebbe dentro il rumore.
+# Il titolo deve contenere anche una parola di contesto finanziario.
+# L'elenco resta corto di proposito: allargarlo troppo rimette dentro il rumore
+# che serviva a togliere.
 CONTESTO = re.compile(
     r"\b(crypto|cryptocurrenc\w*|token|coin|blockchain|defi|wallet|"
     r"stock|shares?|market|trading|traders?|price|nasdaq|earnings|"
+    r"nyse|ftse|dax|investor\w*|dividend\w*|ipo|revenue|profit\w*|"
+    r"quarterly|valuation|analysts?|"
     r"borsa|azion\w+|mercat\w+|quotazion\w+|criptovalut\w+|"
-    r"prezzo|titol\w+|投資|bourse|aktie)\b", re.I)
+    r"investitor\w+|trimestral\w+|ricavi|analist\w+|"
+    r"prezzo|titol\w+|投資|bourse|aktie\w*)\b", re.I)
+
+
+def serve_contesto(ticker: str, termine: str) -> bool:
+    """
+    Se per questo titolo il contesto finanziario è obbligatorio.
+
+    Due casi diversi che finiscono nella stessa regola.
+
+    I termini in AMBIGUI sono parole comuni travestite: "avalanche", "near",
+    "shiba". Senza contesto entrerebbe la cronaca.
+
+    I nomi delle AZIENDE lo sono in un modo meno evidente e più costoso.
+    "Google" e "Microsoft" non sono parole comuni, ma compaiono ogni giorno
+    in centinaia di titoli che non parlano affatto del titolo azionario:
+    aggiornamenti di prodotto, disservizi, recensioni, cause legali. Nella
+    raccolta del 7 agosto 2026 GOOGL e MSFT da soli facevano 816 righe su
+    1.541, cioè il 53% di tutto, e finivano dritte nella media del sentiment.
+
+    Le MONETE invece no, e non è una svista: il nome della moneta è già esso
+    stesso un termine di mercato. "Bitcoin crolla" è una notizia finanziaria
+    per costruzione, mentre "Google presenta il nuovo Pixel" non lo è.
+    Chiedere il contesto anche a Bitcoin taglierebbe metà della copertura
+    cripto senza togliere un solo falso positivo.
+
+    Il costo di questa regola va detto: "Eni sigla un accordo in Libia" è
+    una notizia societaria vera e da oggi resta fuori. È una perdita
+    accettabile finché l'alternativa è calcolare il sentiment di Google sui
+    titoli di Google Maps.
+    """
+    if termine in AMBIGUI:
+        return True
+    return not (ticker or "").upper().endswith("-USD")
 
 
 def conta_pertinenti(righe: list[list[str]], termini: dict,
@@ -194,9 +238,11 @@ def conta_pertinenti(righe: list[list[str]], termini: dict,
     nel TITOLO. Cercarlo nell'URL o nel corpo porterebbe dentro ogni pezzo che
     nomina Bitcoin di sfuggita in fondo, che è rumore travestito da copertura.
 
-    Con `rigoroso`, i termini ambigui esigono anche una parola di contesto
-    finanziario. Il conteggio senza è utile solo per misurare quanto rumore
-    produrrebbe la versione ingenua.
+    Con `rigoroso`, i termini che passano da `serve_contesto` esigono anche una
+    parola di contesto finanziario nel titolo. Il conteggio senza è utile solo
+    per misurare quanto rumore produrrebbe la versione ingenua.
+
+    Un articolo può contare per più titoli: se ne nomina due, riguarda due.
     """
     per_ticker = Counter()
     per_lingua = Counter()
@@ -212,17 +258,26 @@ def conta_pertinenti(righe: list[list[str]], termini: dict,
         t = titolo(r)
         if not t:
             continue
+        # Niente `break`: un articolo che nomina due asset conta per entrambi.
+        # Prima ci si fermava al primo che combaciava, e siccome nel dizionario
+        # le azioni vengono prima delle monete, "Microsoft mette Bitcoin in
+        # tesoreria" diventava una notizia MSFT e Bitcoin la perdeva. Un modo
+        # silenzioso di sottostimare proprio la parte che ci interessa.
+        primo = True
         for tk, pattern in rx.items():
             if not pattern.search(t):
                 continue
-            if rigoroso and termini[tk] in AMBIGUI and not CONTESTO.search(t):
+            if rigoroso and serve_contesto(tk, termini[tk]) and not CONTESTO.search(t):
                 continue
             per_ticker[tk] += 1
-            per_lingua[lingua(r)] += 1
-            if len(esempi) < 8:
-                esempi.append((tk, lingua(r), tono(r), t[:64],
-                               r[COL_DOMINIO][:28]))
-            break
+            # La lingua conta l'ARTICOLO, non le sue assegnazioni: altrimenti
+            # un pezzo che nomina tre monete varrebbe tre articoli inglesi.
+            if primo:
+                per_lingua[lingua(r)] += 1
+                if len(esempi) < 8:
+                    esempi.append((tk, lingua(r), tono(r), t[:64],
+                                   r[COL_DOMINIO][:28]))
+                primo = False
     return per_ticker, per_lingua, esempi
 
 
