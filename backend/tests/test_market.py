@@ -63,6 +63,45 @@ class TestMarketToday:
         assert data == sentinel
         pool.getconn.assert_not_called()
 
+    def test_la_soglia_e_nella_query_e_non_e_piu_due(self, app):
+        """
+        La riga che il 7 agosto 2026 apriva la home: "PIÙ RIALZISTI: 1. ADA
+        +0,34 con 3 news". Con tre articoli l'incertezza sulla media è più
+        grande dell'intera scala della classifica, quindi il primo posto era
+        sorteggiato. Se qualcuno riabbassa questa soglia per riempire la
+        pagina, questo test lo ferma.
+        """
+        import market
+        assert market.MIN_NEWS >= 5
+
+        pool = _make_pool([("BTC-USD", 0.10, 30, 0.05)])
+        with patch("market.cache_get", return_value=None), \
+             patch("market.cache_set"), \
+             patch("market.get_pool", return_value=pool):
+            with TestClient(app, raise_server_exceptions=False) as c:
+                c.get("/api/market/today")
+
+        cur = pool.getconn.return_value.cursor.return_value
+        sql, params = cur.execute.call_args[0]
+        assert "r.n_now >= %s" in sql, "il filtro non è più nella query"
+        assert params[0] == market.MIN_NEWS, (
+            "la query usa un valore diverso dalla costante: la soglia è stata "
+            "scritta due volte e le due copie sono già divergenti")
+
+    def test_la_soglia_viaggia_col_dato(self, app):
+        """
+        L'interfaccia scrive "almeno N notizie" leggendo questo campo. Se
+        sparisse, la frase mostrata all'utente resterebbe ferma su un numero
+        vecchio mentre il filtro ne usa un altro.
+        """
+        import market
+        with patch("market.cache_get", return_value=None), \
+             patch("market.cache_set"), \
+             patch("market.get_pool", return_value=_make_pool()):
+            with TestClient(app, raise_server_exceptions=False) as c:
+                data = c.get("/api/market/today").json()
+        assert data["min_news"] == market.MIN_NEWS
+
     def test_errore_db_restituisce_lista_vuota(self, app):
         broken = MagicMock()
         broken.getconn.side_effect = RuntimeError("db down")

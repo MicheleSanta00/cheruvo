@@ -4,7 +4,9 @@ market.py — Screener pubblico "Mercato oggi".
 Classifica i ticker per sentiment recente calcolato dalle news già in DB:
 - finestra "oggi": ultime 48 ore (le news finanziarie non escono di notte/weekend)
 - delta: differenza rispetto alla media dei 7 giorni precedenti
-- almeno 2 news nella finestra per entrare in classifica (meno rumore)
+- almeno MIN_NEWS news nella finestra per entrare in classifica: sotto quella
+  soglia la media è più incerta della scala su cui viene mostrata, e il primo
+  posto è sorteggiato. Le motivazioni coi numeri stanno accanto alla costante.
 
 Endpoint PUBBLICO (niente login): alimenta la sezione live della landing e la
 vista "Mercato" nell'app. Risposta in cache 15 minuti (Redis o in-memory),
@@ -39,8 +41,32 @@ def _finestra(secondi: int) -> int:
 MARKET_TTL = 15 * 60      # 15 minuti
 WINDOW_HOURS = 48         # finestra "oggi"
 BASELINE_DAYS = 7         # confronto per il delta
-MIN_NEWS = 2              # news minime in finestra per entrare in classifica
 MAX_ROWS = 20
+
+# News minime per entrare in classifica.
+#
+# Era 2, ed è stato il difetto più visibile del prodotto: il 7 agosto 2026 la
+# home apriva con "PIÙ RIALZISTI: 1. ADA +0,34 con 3 news, 2. BCH +0,25 con 2".
+# Un utente legge quella riga come "ADA è la moneta col sentiment migliore".
+# Non lo è: è la moneta su cui abbiamo raccolto due articoli.
+#
+# I conti, con la variabilità dei punteggi misurata sull'archivio (σ ≈ 0,45).
+# L'errore standard di una media è σ/√n:
+#
+#     n = 2  →  ±0,32     n = 5  →  ±0,20
+#     n = 3  →  ±0,26     n = 10 →  ±0,14
+#
+# In classifica i punteggi stanno fra -0,10 e +0,35, quindi con due articoli
+# l'incertezza è più grande di tutta la scala: il primo posto è sorteggiato.
+#
+# Cinque non rende il numero affidabile, rende la classifica non ridicola, ed
+# è la stessa soglia che `verifica_segnale.py` pretende per considerare un
+# giorno utilizzabile. Dieci sarebbe più difendibile ma oggi lascerebbe in
+# classifica una moneta sola, e una classifica di uno non è una classifica.
+#
+# Da rivedere quando il volume cresce: se un giorno dieci monete superano
+# dieci news, questa soglia va alzata invece che lasciata lì per inerzia.
+MIN_NEWS = 5
 
 
 def _fetch_market() -> list[dict]:
@@ -143,6 +169,10 @@ def market_today():
     payload = {
         "updated_at": datetime.now(timezone.utc).isoformat(),
         "window_hours": WINDOW_HOURS,
+        # La soglia viaggia col dato invece di essere riscritta a mano
+        # nell'interfaccia: così quando cambia qui, cambia anche la frase che
+        # l'utente legge, e le due non possono contraddirsi.
+        "min_news": MIN_NEWS,
         "rows": rows,
     }
     # cache anche il risultato vuoto (60s) per non martellare il DB in caso di errori

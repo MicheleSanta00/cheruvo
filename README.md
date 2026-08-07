@@ -24,7 +24,11 @@ so" quando i giorni disponibili sono pochi.
 **Non è affidabile su tutte le monete allo stesso modo.** Il numero vale quanto
 le notizie che lo sostengono: su Bitcoin ce ne sono a sufficienza, su una
 alt-coin con tre articoli al giorno una media è rumore. Il conteggio è sempre
-mostrato accanto al punteggio, apposta.
+mostrato accanto al punteggio, apposta, e in classifica una moneta entra solo
+con almeno `MIN_NEWS` notizie nelle 48 ore (`backend/market.py`). Era 2, ed è
+il difetto che il 7 agosto 2026 apriva la home con "ADA +0,34 su 3 news": con
+tre articoli l'incertezza sulla media è ±0,26, cioè più larga di tutta la scala
+della classifica, e il primo posto era sorteggiato.
 
 **Non è consulenza finanziaria.**
 

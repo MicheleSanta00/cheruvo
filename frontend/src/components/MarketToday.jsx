@@ -19,6 +19,7 @@ const TXT = {
     days: 'giorni', tomorrow: 'domani', today: 'oggi', trendUp: 'in salita', trendDown: 'in calo',
     lockLine: 'Il sentiment pre-earnings è una funzione Pro',
     lockCta: 'Sblocca con Pro — €9/mese',
+    soglia: 'In classifica entrano solo le monete con almeno {n} notizie nelle 48 ore. Sotto quella soglia la media dice più sul caso che sul mercato.',
   },
   en: {
     title: 'Market today', sub: 'Sentiment ranking of the last 48 hours, from AI-analyzed news. Covers the {n} stocks Cheruvo currently tracks, not the entire market.',
@@ -29,6 +30,7 @@ const TXT = {
     days: 'days', tomorrow: 'tomorrow', today: 'today', trendUp: 'rising', trendDown: 'falling',
     lockLine: 'Pre-earnings sentiment is a Pro feature',
     lockCta: 'Unlock with Pro — €9/month',
+    soglia: 'Only coins with at least {n} news in the last 48 hours make the ranking. Below that, the average says more about chance than about the market.',
   },
 }
 
@@ -116,6 +118,12 @@ export default function MarketToday({ onExit, onPick, onUpgrade }) {
               </div>
             </div>
           </div>
+        )}
+
+        {rows.length > 0 && data?.min_news > 1 && (
+          <p style={{ color: 'var(--muted)', fontSize: 12, margin: '16px 0 0', lineHeight: 1.5 }}>
+            {s.soglia.replace('{n}', data.min_news)}
+          </p>
         )}
 
         {earn && earn.rows && earn.rows.length > 0 && (
