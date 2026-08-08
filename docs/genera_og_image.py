@@ -9,7 +9,11 @@ sono state cancellate dall'archivio proprio per quel motivo.
 Qui dentro ogni numero e' quello che il sito mostra adesso, e la fonte
 dichiarata e' GDELT, che e' l'unica.
 """
+import os
+
 from PIL import Image, ImageDraw, ImageFont
+
+QUI = os.path.dirname(os.path.abspath(__file__))
 
 L = 1200
 A = 630
@@ -37,10 +41,24 @@ def pannello(x, y, w, h, r=14, sfondo=PANNELLO):
     d.rounded_rectangle([x, y, x + w, y + h], radius=r, fill=sfondo, outline=BORDO, width=1)
 
 # ── intestazione ─────────────────────────────────────────────────────────
-d.ellipse([56, 46, 88, 78], fill=AZZURRO)
-d.ellipse([64, 52, 84, 72], fill=SFONDO)
-d.text((100, 48), "Cheruvo", font=f(28, True), fill=TESTO)
-d.text((100, 82), "cheruvo.com", font=f(15), fill=FIOCO)
+#
+# Il marchio vero, non un cerchio disegnato a mano.
+#
+# Si usa `logo-v2.png`, che sono le due lune bianche su trasparente, e non
+# `favicon.png`, che le ha dentro un cerchio NERO: su questo fondo scuro quel
+# cerchio diventerebbe un buco. Su sfondo scuro un marchio si mette in bianco
+# e senza pastiglia, che e' anche come lo mostra l'app.
+LATO_LOGO = 46
+try:
+    logo = Image.open(os.path.join(QUI, "logo-v2.png")).convert("RGBA")
+    logo = logo.resize((LATO_LOGO, LATO_LOGO), Image.LANCZOS)
+    img.paste(logo, (56, 44), logo)      # il terzo argomento e' la maschera
+    x_testo = 56 + LATO_LOGO + 18
+except FileNotFoundError:
+    x_testo = 56                          # senza file si scrive solo il nome
+
+d.text((x_testo, 48), "Cheruvo", font=f(28, True), fill=TESTO)
+d.text((x_testo, 82), "cheruvo.com", font=f(15), fill=FIOCO)
 
 d.text((L - 56, 52), "Il sentiment delle criptovalute,", font=f(17), fill=FIOCO, anchor="ra")
 d.text((L - 56, 78), "letto dalle notizie", font=f(17), fill=FIOCO, anchor="ra")
@@ -84,8 +102,7 @@ d.text((56, 540), "Non prevede il prezzo, e non lo promette.",
 d.text((56, 568), "Gratis, senza pubblicit\u00e0, senza account per guardare.",
        font=f(16), fill=FIOCO)
 
-import os
-img.save(os.path.join(os.path.dirname(os.path.abspath(__file__)), "og-image.png"), optimize=True)
+img.save(os.path.join(QUI, "og-image.png"), optimize=True)
 print("creata docs/og-image.png", img.size)
 print("\nI numeri qui dentro sono scritti a mano: vanno riletti da")
 print("/api/market/today e /api/market/stats prima di rigenerare,")
