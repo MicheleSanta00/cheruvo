@@ -141,6 +141,37 @@ def test_le_monete_non_hanno_bisogno_del_contesto():
                              TERMINE_QUERY) == ["ETH-USD"]
 
 
+def test_market_da_solo_non_e_un_contesto_finanziario():
+    """
+    Trovato l'8 agosto 2026 guardando uno screenshot del sito. Questa riga era
+    archiviata come notizia su Optimism con punteggio +0,20:
+
+        "New York Shoe Market Week August 2026: Fashion Styles Spur Optimism"
+
+    Un articolo di moda. Il filtro chiedeva una parola di mercato, la trovava
+    in "Shoe Market Week" e lasciava passare.
+    """
+    fuori = [
+        "New York Shoe Market Week August 2026: Fashion Styles Spur Optimism",
+        "Housing market cools while optimism returns among buyers",
+        "Farmers market brings new optimism to the village",
+    ]
+    for t in fuori:
+        assert ing._quali_ticker(t, TERMINE_QUERY) == [], t
+
+
+def test_il_mercato_finanziario_invece_passa_ancora():
+    """La correzione non deve buttare via i titoli veri insieme a quelli falsi."""
+    dentro = {
+        "Optimism token leads layer-2 gains": "OP-USD",
+        "Solana price jumps as traders pile in": "SOL-USD",
+        "Avalanche rallies as crypto markets recover": "AVAX-USD",
+        "Cosmos gains after stock market rally": "ATOM-USD",
+    }
+    for t, atteso in dentro.items():
+        assert ing._quali_ticker(t, TERMINE_QUERY) == [atteso], t
+
+
 def test_le_monete_dal_nome_comune_restano_filtrate():
     """
     Solana Beach e Aptos sono località della California, Cardano è un cognome

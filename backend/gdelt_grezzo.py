@@ -260,12 +260,43 @@ MAIUSCOLI = {"NEAR", "GE", "XRP"}
 # che serviva a togliere.
 CONTESTO = re.compile(
     r"\b(crypto|cryptocurrenc\w*|token|coin|blockchain|defi|wallet|"
-    r"stock|shares?|market|trading|traders?|price|nasdaq|earnings|"
+    r"stock|shares?|trading|traders?|price|nasdaq|earnings|"
     r"nyse|ftse|dax|investor\w*|dividend\w*|ipo|revenue|profit\w*|"
     r"quarterly|valuation|analysts?|etf\w*|futures|"
-    r"borsa|azion\w+|mercat\w+|quotazion\w+|criptovalut\w+|"
+    # "market" al singolare e da solo NON basta: vedi la nota qui sotto.
+    r"markets|(?:stock|crypto|bear|bull|equity|financial|currency)\s+market|"
+    r"market\s+(?:cap|close|open|rally|selloff|sell-off)|"
+    r"borsa|azion\w+|quotazion\w+|criptovalut\w+|"
+    r"mercati|mercato\s+(?:azionario|crypto|obbligazionario|valutario)|"
     r"investitor\w+|trimestral\w+|ricavi|analist\w+|"
     r"prezzo|titol\w+|投資|bourse|aktie\w*)\b", re.I)
+
+# PERCHÉ "market" DA SOLO È STATO TOLTO
+#
+# L'8 agosto 2026 Michele mi ha mandato uno screenshot del sito e dentro c'era
+# questa riga, archiviata come notizia su Optimism con punteggio +0,20:
+#
+#     "New York Shoe Market Week August 2026: Fashion Styles Spur Optimism"
+#
+# Un articolo di moda. "Optimism" sta fra i termini ambigui e quindi pretende
+# una parola di mercato, ma la trovava in "Shoe Market Week": il filtro faceva
+# esattamente il suo lavoro e la parola era quella sbagliata.
+#
+# "market" al singolare compare in shoe market, housing market, job market,
+# farmers market, art market. Al plurale quasi mai: "markets fell" è
+# finanziario per costruzione. Stessa cosa in italiano fra "mercato" e
+# "mercati".
+#
+# Da qui la regola: si accetta il plurale, oppure il singolare quando è
+# qualificato (stock market, market cap). Le altre parole dell'elenco restano
+# perché il loro uso non finanziario è raro o comunque non si accompagna al
+# nome di una moneta.
+#
+# Nota su cosa NON è stato tolto: "shares" è ambiguo in inglese (shares his
+# photo) ma nei titoli finanziari vale troppo per rinunciarci, e per creare un
+# falso positivo dovrebbe capitare nella stessa riga del nome di un asset
+# ambiguo. Se un giorno succede, si toglie anche quello, con l'esempio scritto
+# qui accanto come è stato fatto adesso.
 
 
 # Le sole due sigle promosse dalla misura del 7 agosto 2026, su 31 provate.

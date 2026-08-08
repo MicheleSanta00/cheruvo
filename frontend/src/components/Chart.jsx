@@ -58,14 +58,14 @@ function CustomTooltip({ active, payload, label, compact }) {
           <div style={{ color: '#475569', fontSize: 10, letterSpacing: '0.06em', marginBottom: 5 }}>PREZZO</div>
           <div style={{ display: 'grid', gridTemplateColumns: compact ? '68px 1fr' : '80px 1fr', gap: '4px 0' }}>
             <span style={{ color: '#64748b' }}>Chiusura</span>
-            <span style={{ color: '#60a5fa', fontWeight: 600 }}>${close?.toFixed(2)}</span>
-            {open  != null && <><span style={{ color: '#64748b' }}>Apertura</span><span style={{ color: '#e2e8f0' }}>${open?.toFixed(2)}</span></>}
-            {high  != null && <><span style={{ color: '#64748b' }}>Massimo</span><span style={{ color: '#4ade80' }}>${high?.toFixed(2)}</span></>}
-            {low   != null && <><span style={{ color: '#64748b' }}>Minimo</span><span style={{ color: '#f87171' }}>${low?.toFixed(2)}</span></>}
+            <span style={{ color: '#60a5fa', fontWeight: 600 }}>${formattaPrezzo(close)}</span>
+            {open  != null && <><span style={{ color: '#64748b' }}>Apertura</span><span style={{ color: '#e2e8f0' }}>${formattaPrezzo(open)}</span></>}
+            {high  != null && <><span style={{ color: '#64748b' }}>Massimo</span><span style={{ color: '#4ade80' }}>${formattaPrezzo(high)}</span></>}
+            {low   != null && <><span style={{ color: '#64748b' }}>Minimo</span><span style={{ color: '#f87171' }}>${formattaPrezzo(low)}</span></>}
             {open  != null && <>
               <span style={{ color: '#64748b' }}>Variazione</span>
               <span style={{ color: close >= open ? '#4ade80' : '#f87171' }}>
-                {close >= open ? '+' : ''}{(close - open).toFixed(2)} ({((close - open) / open * 100).toFixed(2)}%)
+                {close >= open ? '+' : ''}{formattaPrezzo(close - open)} ({((close - open) / open * 100).toFixed(2)}%)
               </span>
             </>}
             {vol   != null && <><span style={{ color: '#64748b' }}>Volume</span><span style={{ color: '#94a3b8' }}>{fmtVol(vol)}</span></>}
@@ -229,7 +229,7 @@ function DataPanel({ prices, sentiment, stats, correlation }) {
         <Icon name="analyzer" size={12} /> Prezzi
       </div>
       <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(130px, 1fr))', gap: 1, background: 'var(--border)', marginBottom: 16 }}>
-        <Block label="Ultimo prezzo" value={`$${last.Close?.toFixed(2)}`} big
+        <Block label="Ultimo prezzo" value={`$${formattaPrezzo(last.Close)}`} big
           sub={<span style={{ color: isUp ? '#4ade80' : '#f87171' }}>
             {isUp ? '+' : ''}{change.toFixed(2)} ({isUp ? '+' : ''}{pct.toFixed(2)}%) sul periodo
           </span>}
@@ -1063,7 +1063,7 @@ export default function Chart({ prices, sentiment, ticker, stats, intraday = fal
           <XAxis dataKey="date" tickFormatter={fmtDate} interval="preserveStartEnd" minTickGap={isMobile ? 44 : 60}
             tick={{ fontSize: 10, fill: '#475569' }} axisLine={false} tickLine={false}/>
           <YAxis yAxisId="price" orientation="right" domain={[minP, maxP]}
-            tickFormatter={v => `$${v.toFixed(0)}`}
+            tickFormatter={v => `$${formattaPrezzo(v)}`}
             tick={{ fontSize: 10, fill: '#475569' }} axisLine={false} tickLine={false} width={yW}/>
           {hasVolume && (
             <YAxis yAxisId="vol" orientation="left" domain={[0, maxVol * 4]}
