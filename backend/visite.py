@@ -139,8 +139,8 @@ def riepilogo(giorni: int = 14) -> list[dict]:
             for g, s, r in righe]
 
 
-def main() -> int:
-    righe = riepilogo()
+def main(giorni: int = 14) -> int:
+    righe = riepilogo(giorni)
     print("=" * 52)
     print(f"  VISITE — {datetime.now(timezone.utc):%d/%m/%Y}")
     print("=" * 52)
@@ -164,12 +164,19 @@ def main() -> int:
 
 
 if __name__ == "__main__":
-    logging.basicConfig(level=logging.INFO, format="%(message)s")
+    import argparse
     import os
+
+    logging.basicConfig(level=logging.INFO, format="%(message)s")
     sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
     try:
         from dotenv import load_dotenv
         load_dotenv(os.path.join(os.path.dirname(os.path.abspath(__file__)), ".env"))
     except ImportError:
         pass
-    sys.exit(main())
+
+    ap = argparse.ArgumentParser(description="Quante sessioni distinte al giorno")
+    ap.add_argument("--giorni", type=int, default=14,
+                    help="quanti giorni indietro guardare (default 14)")
+    args = ap.parse_args()
+    sys.exit(main(args.giorni))

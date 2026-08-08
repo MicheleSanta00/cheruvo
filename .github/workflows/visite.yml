@@ -1,0 +1,48 @@
+name: Cheruvo — Quante visite
+
+# Il numero che PostHog non ti dà.
+#
+# PostHog non parte senza il consenso ai cookie, rispetta il Do Not Track ed è
+# bloccato da ogni ad blocker: tre filtri in fila, e ne basta uno perché un
+# visitatore vero sparisca. Qui si guarda il conteggio lato server, dove i
+# blocchi non arrivano.
+#
+# Non modifica niente, si può lanciare quante volte si vuole.
+
+on:
+  workflow_dispatch:
+    inputs:
+      giorni:
+        description: 'Quanti giorni indietro guardare'
+        required: false
+        default: '14'
+        type: string
+  schedule:
+    # Ogni lunedì alle 8:00 UTC: il riepilogo della settimana arriva da solo
+    # nei log, così non serve ricordarsi di chiederlo.
+    - cron: '0 8 * * 1'
+
+jobs:
+  visite:
+    name: visite
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+          cache: 'pip'
+          cache-dependency-path: requirements-actions.txt
+
+      - name: Installa dipendenze
+        run: pip install -r requirements-actions.txt
+
+      - name: Conta
+        env:
+          DATABASE_URL: ${{ secrets.DATABASE_URL }}
+          PYTHONPATH:   ${{ github.workspace }}/backend
+          GIORNI:       ${{ github.event.inputs.giorni }}
+        run: python backend/visite.py --giorni "${GIORNI:-14}"
