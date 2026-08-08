@@ -857,7 +857,7 @@ export default function App() {
         )}
         </div>
 
-        <StatusBar stats={mktStats} updatedAt={mercato?.updated_at} isPro={isPro} />
+        <StatusBar stats={mktStats} updatedAt={mercato?.updated_at} />
       </main>
     </div>
   )

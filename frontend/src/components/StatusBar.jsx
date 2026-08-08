@@ -7,7 +7,7 @@ import { useLang } from '../LangContext.jsx'
  * aggiornati. È il dettaglio che distingue uno strumento professionale, che
  * lavora anche mentre non lo guardi, da una pagina che aspetta un comando.
  */
-export default function StatusBar({ stats, updatedAt, isPro }) {
+export default function StatusBar({ stats, updatedAt }) {
   const { lang } = useLang()
   const it = lang === 'it'
 
@@ -40,8 +40,15 @@ export default function StatusBar({ stats, updatedAt, isPro }) {
       {ora && <>{sep}<span style={cella}>{it ? 'agg.' : 'upd.'} {ora}</span></>}
       {sep}
       <span style={{ ...cella, color: 'var(--green)' }}>● {it ? 'connesso' : 'online'}</span>
+      {/*
+        Diceva "Cheruvo · Pro". Un residuo del muro a pagamento, spento il 6
+        agosto 2026: da allora `isPro` sta fisso a true per tutti, quindi
+        quella scritta comparve a chiunque e annunciava un piano che non
+        esiste. Compare in ogni screenshot che si manda in giro, ed è
+        esattamente il tipo di contraddizione che qualcuno nota prima di te.
+      */}
       <span style={{ marginLeft: 'auto', opacity: .75 }} className="hide-mobile">
-        Cheruvo · {isPro ? 'Pro' : 'Free'}
+        Cheruvo
       </span>
     </div>
   )
