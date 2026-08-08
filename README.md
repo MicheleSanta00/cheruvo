@@ -130,13 +130,21 @@ Su GitHub Actions: aggiungi i segreti in **Settings → Secrets and variables �
 
 Due canali di raccolta, che si completano invece di sovrapporsi.
 
-**1. File grezzi di GDELT** — `.github/workflows/ingest_grezzo.yml`, ogni 6 ore
+**1. File grezzi di GDELT** — `.github/workflows/ingest_grezzo.yml`, **ogni ora**
    → `backend/ingest_grezzo.py` → PostgreSQL
 
    È il canale principale per volume. GDELT pubblica un file ogni 15 minuti su
    un server statico: niente rate limit, niente tetto di 250 risultati, e un
    feed separato per il resto del mondo tradotto. Il punteggio lo porta il file
    stesso, calcolato da GDELT sul **testo integrale** dell'articolo.
+
+   Girava ogni sei ore fino all'8 agosto 2026, quando un utente su Reddit ha
+   fatto l'unica domanda seria arrivata sul prodotto: "il sentiment crypto
+   cambia in secondi, curiosa la frequenza dei vostri aggiornamenti". Aveva
+   ragione: una notizia delle 09:05 compariva alle 15:00. Ora gira ogni ora e
+   copre due ore, così un giro saltato viene recuperato dal successivo. È
+   possibile perché il repository è pubblico e i minuti di Actions sono
+   illimitati.
 
    Questi file contengono la cronaca del mondo intero, quindi il filtro conta
    quanto la raccolta. Due regole, entrambe in `serve_contesto`:

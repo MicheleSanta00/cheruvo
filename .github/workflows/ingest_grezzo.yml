@@ -10,21 +10,37 @@ name: Cheruvo — Raccolta dai file GDELT
 # Gli orari sono sfalsati di tre ore rispetto all'updater (che gira a 0, 6, 12
 # e 18 UTC) così i due non si contendono né i minuti né il database.
 #
-# BUDGET. Il piano gratuito dà 2000 minuti al mese e l'updater ne consuma già
-# circa 1200. Questa raccolta, a quattro giri al giorno, dovrebbe stare sui
-# 400-500. Il margine non è enorme: se il consumo cresce, la prima cosa da
-# fare è portare la pianificazione da quattro a due giri al giorno, non
-# ridurre le ore coperte.
+# OGNI ORA, NON OGNI SEI.
+#
+# L'8 agosto 2026 un utente su Reddit ha fatto l'unica domanda seria che sia
+# arrivata sul prodotto: "il sentiment crypto cambia in secondi, curiosa la
+# frequenza dei vostri aggiornamenti". Aveva ragione. Con quattro giri al
+# giorno, una notizia uscita alle 09:05 compariva sul sito alle 15:00: sei ore
+# di ritardo su un mercato che si muove in minuti.
+#
+# Ogni giro ora copre UN'ORA invece di sei, quindi scarica 8 file invece di 48
+# e dura una ventina di secondi invece di un minuto. Ventiquattro giri brevi
+# costano più o meno come quattro lunghi, e il ritardo massimo passa da sei ore
+# a una.
+#
+# BUDGET. Il repository è pubblico dal 6 agosto 2026, quindi i minuti di
+# GitHub Actions sono illimitati e il vecchio tetto di 2000 al mese non vale
+# più. È quella scelta a rendere possibile questa: su un repository privato
+# ventiquattro giri al giorno sarebbero stati impagabili.
+#
+# La finestra resta di 2 ore contro un cron orario, di proposito: se un giro
+# salta, quello dopo recupera da solo il buco invece di lasciarlo lì per
+# sempre. Le righe doppie non sono un problema, save_news le scarta.
 
 on:
   schedule:
-    - cron: '0 3,9,15,21 * * *'
+    - cron: '7 * * * *'
   workflow_dispatch:
     inputs:
       ore:
         description: 'Quante ore indietro raccogliere'
         required: true
-        default: '6'
+        default: '2'
         type: string
       solo_inglese:
         description: 'Salta il feed tradotto (dimezza il traffico)'
@@ -56,7 +72,7 @@ jobs:
           PYTHONPATH:   ${{ github.workspace }}/backend
         run: |
           ORE="${{ github.event.inputs.ore }}"
-          ORE="${ORE:-6}"
+          ORE="${ORE:-2}"
           ARGS="--ore $ORE --limite-minuti 15"
           if [ "${{ github.event.inputs.solo_inglese }}" = "true" ]; then
             ARGS="$ARGS --solo-inglese"
@@ -69,6 +85,6 @@ jobs:
         run: |
           echo "Esito: ${{ job.status }}"
           echo ""
-          echo "Se il consumo di minuti Actions diventa un problema, riduci la"
-          echo "frequenza nel cron invece delle ore coperte: perdere metà dei"
-          echo "giri costa meno che perdere metà delle notizie di ogni giro."
+          echo "Gira ogni ora e copre 2 ore: la sovrapposizione serve a"
+          echo "recuperare da solo un giro saltato. Le righe doppie le scarta"
+          echo "save_news."
