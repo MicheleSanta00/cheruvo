@@ -69,6 +69,36 @@ function avvisa(lento) {
 
 const pausa = (ms) => new Promise((r) => setTimeout(r, ms))
 
+// ── Il gettone di sessione ────────────────────────────────────────────────
+//
+// Un numero casuale per la singola sessione del browser, mandato al backend
+// perché possa contare quante sessioni distinte arrivano in un giorno.
+//
+// Serve perché PostHog non vede quasi nessuno: non parte senza il consenso ai
+// cookie, rispetta il Do Not Track e viene bloccato da ogni ad blocker. Il
+// risultato era non avere idea di quanta gente passasse, proprio mentre si
+// cercavano i primi utenti.
+//
+// Sta in `sessionStorage` e non in `localStorage`: muore quando si chiude la
+// scheda. È un gettone per il turno, non un braccialetto. Non identifica
+// nessuno, non attraversa i giorni, non è ricavato dal dispositivo, e per
+// questo non ha bisogno di un consenso: contare quanti sono passati non è
+// seguire chi è passato.
+const CHIAVE_SESSIONE = 'cheruvo-sessione'
+
+function gettoneSessione() {
+  try {
+    let g = sessionStorage.getItem(CHIAVE_SESSIONE)
+    if (!g) {
+      g = (crypto?.randomUUID?.() ?? String(Math.random()).slice(2) + Date.now())
+      sessionStorage.setItem(CHIAVE_SESSIONE, g)
+    }
+    return g
+  } catch {
+    return ''   // navigazione privata o storage negato: si rinuncia al conteggio
+  }
+}
+
 async function _getToken() {
   const { data: { session } } = await supabase.auth.getSession()
   return session?.access_token ?? null
@@ -141,6 +171,7 @@ export default async function apiFetch(path, options = {}, _isRetry = false) {
     headers: {
       ...(isForm ? {} : { 'Content-Type': 'application/json' }),
       'Authorization': `Bearer ${token}`,
+      'X-Sessione': gettoneSessione(),
       ...(options.headers || {}),
     },
   })

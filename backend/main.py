@@ -115,7 +115,42 @@ class SecurityHeadersMiddleware(BaseHTTPMiddleware):
         response.headers["Referrer-Policy"] = "strict-origin-when-cross-origin"
         return response
 
+class ConteggioVisiteMiddleware(BaseHTTPMiddleware):
+    """
+    Conta quante sessioni distinte arrivano ogni giorno.
+
+    Esiste perché l'8 agosto 2026 una persona ha scritto di aver provato il
+    sito e non compariva da nessuna parte: PostHog non parte senza il consenso
+    ai cookie, rispetta il Do Not Track e viene bloccato dagli ad blocker, e su
+    Supabase finisce solo chi si registra. Tre filtri in fila, e ne basta uno.
+
+    Qui invece si conta lato server, dove nessun blocco arriva. Non perché
+    aggirare i blocchi sia furbo, ma perché queste sono richieste FUNZIONALI:
+    contarle non è tracciare una persona, è sapere quante ne sono passate.
+
+    Il dettaglio che rende la cosa lecita e onesta insieme: l'identificativo è
+    un numero casuale generato dal browser per la singola sessione, che muore
+    quando si chiude la scheda. Non segue nessuno da un giorno all'altro, non
+    è legato a un account, non è ricavato dal dispositivo. Non salviamo IP,
+    user agent, referrer né pagine viste.
+
+    E non deve MAI far fallire una richiesta vera: se il conteggio si rompe,
+    l'utente non se ne accorge.
+    """
+    async def dispatch(self, request, call_next):
+        response = await call_next(request)
+        try:
+            import visite
+            sessione = request.headers.get(visite.INTESTAZIONE)
+            if sessione and not visite.e_bot(request.headers.get("user-agent", "")):
+                visite.registra(sessione, request.url.path)
+        except Exception:
+            pass
+        return response
+
+
 app.add_middleware(SecurityHeadersMiddleware)
+app.add_middleware(ConteggioVisiteMiddleware)
 app.add_middleware(GZipMiddleware, minimum_size=500)  # comprime risposte > 500 bytes
 app.include_router(stripe_router, prefix="/api")
 app.include_router(market_router, prefix="/api")
