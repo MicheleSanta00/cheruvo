@@ -172,6 +172,67 @@ def test_il_mercato_finanziario_invece_passa_ancora():
         assert ing._quali_ticker(t, TERMINE_QUERY) == [atteso], t
 
 
+def test_i_giudizi_degli_analisti_entrano_in_tutte_le_lingue():
+    """
+    Il difetto trovato il 10 agosto 2026 con `--modo lingue`. Lo stesso
+    declassamento di Jefferies su Apple era uscito in italiano, francese e
+    tedesco, e il filtro l'aveva perso tutte e tre le volte.
+
+    Il motivo non era la lingua: mancava il vocabolario dei rating in TUTTE
+    le lingue, inglese compreso. Un downgrade è un evento di mercato, non un
+    commento, e sposta un titolo nella stessa giornata.
+    """
+    casi = {
+        'Apple, Jefferies declassa a "underperform" su prospettive iPhone': "AAPL",
+        "Apple attendu en repli après une dégradation de Jefferies": "AAPL",
+        "Analysten sprechen Klartext: Apple vor Absturz? Was Anleger wissen": "AAPL",
+        "Nvidia: Kursziel angehoben, Anleger reagieren": "NVDA",
+        "Amazon rebaja de calificación tras los beneficios": "AMZN",
+        "Microsoft ações sobem após o lucro trimestral": "MSFT",
+        "Tesla shares get a downgrade from Morgan Stanley": "TSLA",
+    }
+    for t, atteso in casi.items():
+        assert ing._quali_ticker(t, TERMINE_QUERY) == [atteso], t
+
+
+def test_gli_accenti_non_decidono_se_una_notizia_entra():
+    """
+    Alcune fonti perdono gli accenti per strada. Un filtro che dipende da un
+    accento è un filtro che salta a caso, e la stessa notizia entrerebbe o no
+    a seconda di chi l'ha pubblicata.
+    """
+    coppie = [
+        ("Apple attendu en repli après une dégradation de Jefferies",
+         "Apple attendu en repli apres une degradation de Jefferies"),
+        ("Nvidia: Kursziel angehoben an der Börse",
+         "Nvidia: Kursziel angehoben an der Borse"),
+        ("Amazon cotización sube tras los beneficios",
+         "Amazon cotizacion sube tras los beneficios"),
+    ]
+    for con, senza in coppie:
+        a = ing._quali_ticker(con, TERMINE_QUERY)
+        b = ing._quali_ticker(senza, TERMINE_QUERY)
+        assert a == b and a, f"{con}  ->  {a} / {b}"
+
+
+def test_il_vocabolario_nuovo_non_riapre_la_porta_alla_spazzatura():
+    """
+    Le righe scartate che la misura ha mostrato erano quasi tutte giuste: una
+    scheda madre, un portatile, la Formula 1, aggiornamenti di Windows.
+    Allargare il vocabolario non deve farle rientrare.
+    """
+    fuori = [
+        "MSI PRO B550M PRO-VDH WIFI Micro ATX AMD Motherboard",
+        "Zuckerberg pushes open-source AI approach as Meta unveils latest model",
+        "Windows 11 non avrà il Liquid Glass di Apple: ecco perché",
+        "Ferrari sfida Mercedes: fondo in Olanda, Aduo-2 atteso a Monza",
+        "ASUS VivoBook 16 OLED: SSD 1 To, Intel Core 9, 24 Go de RAM",
+        "Google Earth suspendió la función para crear fotos con IA",
+    ]
+    for t in fuori:
+        assert ing._quali_ticker(t, TERMINE_QUERY) == [], t
+
+
 def test_le_monete_dal_nome_comune_restano_filtrate():
     """
     Solana Beach e Aptos sono località della California, Cardano è un cognome

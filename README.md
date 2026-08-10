@@ -159,6 +159,17 @@ Due canali di raccolta, che si completano invece di sovrapporsi.
      primo, e le azioni vengono prima delle monete nel dizionario: "Microsoft
      mette Bitcoin in tesoreria" veniva archiviata solo come MSFT.
 
+   Il filtro di contesto parla sei lingue, e non per completezza: la misura
+   del 10 agosto 2026 (`gdelt_grezzo.py --modo lingue`) ha in gran parte
+   **assolto** il filtro. L'80% di titoli scartati in inglese erano schede
+   madri che prendevano AMD, portatili che prendevano Intel, la Formula 1 che
+   prendeva Ferrari. Ma in mezzo c'era lo stesso declassamento di Jefferies su
+   Apple, uscito in italiano, francese e tedesco e perso tutte e tre le volte,
+   perché mancava il vocabolario dei rating **in ogni lingua, inglese
+   compreso**. Le parole aggiunte sono scelte per precisione e non per
+   copertura, e reggono anche senza accenti: una notizia non deve entrare o
+   restare fuori a seconda di come la codifica chi la pubblica.
+
    Le sigle sono state provate e quasi tutte bocciate. Su 98.243 righe ne
    avrebbero portate 61 in più, ma DOGE è il Department of Government
    Efficiency (12 su 12), OP è l'operazione chirurgica in tedesco, SOL è il

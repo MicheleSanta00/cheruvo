@@ -266,10 +266,55 @@ CONTESTO = re.compile(
     # "market" al singolare e da solo NON basta: vedi la nota qui sotto.
     r"markets|(?:stock|crypto|bear|bull|equity|financial|currency)\s+market|"
     r"market\s+(?:cap|close|open|rally|selloff|sell-off)|"
+    # I giudizi degli analisti: vedi la nota "IL DECLASSAMENTO DI JEFFERIES".
+    r"downgrade\w*|upgrade[sd]?|rating|outperform|underperform|"
+    r"overweight|underweight|price\s+target|target\s+price|"
     r"borsa|azion\w+|quotazion\w+|criptovalut\w+|"
     r"mercati|mercato\s+(?:azionario|crypto|obbligazionario|valutario)|"
     r"investitor\w+|trimestral\w+|ricavi|analist\w+|"
-    r"prezzo|titol\w+|投資|bourse|aktie\w*)\b", re.I)
+    r"declass\w+|promuov\w+|giudizio|rendiment\w+|utile\s+netto|"
+    r"prezzo|titol\w+|投資|bourse|aktie\w*|"
+    # tedesco
+    r"anleger\w*|analysten|b[öo]rse|kursziel|herabgestuft|hochgestuft|"
+    r"quartalszahlen|umsatz|gewinn\w*|"
+    # spagnolo e portoghese
+    r"bolsa|acciones|inversor\w+|cotizaci[óo]n|criptomoneda\w*|"
+    r"mercados|beneficios|ganancias|rebaja\s+de\s+calificaci[óo]n|"
+    r"a[çc][õo]es|investidor\w+|cripto\w*|lucro\w*|"
+    # francese
+    r"actions?\s+(?:cot[ée]e?s?|du\s+groupe)|d[ée]gradation|rel[èe]vement|"
+    r"analystes?|investisseur\w+|r[ée]sultats\s+trimestriels|"
+    r"objectif\s+de\s+cours|cryptomonnaie\w*)\b", re.I)
+
+# IL DECLASSAMENTO DI JEFFERIES
+#
+# La misura del 10 agosto 2026 (`--modo lingue`) ha fatto una cosa che non mi
+# aspettavo: ha in gran parte ASSOLTO il filtro. Le notizie scartate erano una
+# scheda madre MSI che prendeva AMD, un portatile Asus che prendeva Intel, la
+# Formula 1 che prendeva Ferrari, aggiornamenti di Windows che prendevano
+# Microsoft. Quell'80% di perse sull'inglese non era roba buona buttata via.
+#
+# In mezzo pero' c'era questo, in tre lingue diverse e perso tutte e tre le
+# volte:
+#
+#   ita  Apple, Jefferies declassa a "underperform" su prospettive iPhone
+#   fra  Apple : Apple attendu en repli apres une degradation de Jefferies
+#   deu  Analysten sprechen Klartext: Apple vor Absturz? ... Anleger ...
+#
+# Lo stesso declassamento di una banca d'affari su Apple. Un downgrade e' un
+# evento di mercato puro, non un commento, ed e' il genere di notizia che
+# sposta un titolo nella stessa giornata.
+#
+# Il motivo per cui sfuggiva non era la lingua: nel nostro elenco mancava il
+# vocabolario dei rating in TUTTE le lingue, inglese compreso. Non c'erano
+# downgrade, upgrade, outperform, price target. C'era solo "analysts", e per
+# questo qualche titolo inglese passava e i suoi equivalenti tedeschi no.
+#
+# Le parole aggiunte sono scelte per PRECISIONE, non per copertura: sono tutte
+# termini che in quella lingua non hanno un uso comune fuori dalla finanza.
+# Per questo "azioni" in francese e' scritto come "actions cotees" e non da
+# solo, e per questo non c'e' il tedesco "Kurs", che vuol dire anche "corso"
+# nel senso di lezione.
 
 # PERCHÉ "market" DA SOLO È STATO TOLTO
 #
