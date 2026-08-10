@@ -819,17 +819,161 @@ def misura_sigle(quale_file: str | None, ore: int = 6) -> int:
     return 0
 
 
+# ══════════════════════════════════════════════════════════════════════════
+#  QUALI MONETE NUOVE VALE LA PENA SEGUIRE
+# ══════════════════════════════════════════════════════════════════════════
+#
+# La tentazione, quando si vuole "coprire di più", è copiare le prime cinquanta
+# per capitalizzazione e aggiungerle tutte. Sarebbe un errore per due motivi.
+#
+# Il primo è che una moneta che fa due notizie al giorno non entrerà mai in
+# classifica, perché la soglia è cinque: si aggiunge una voce che mostra un
+# conteggio e nient'altro.
+#
+# Il secondo l'abbiamo pagato il 10 agosto 2026, quando in mezzo alle notizie
+# su Optimism è comparso un articolo sulla settimana della calzatura di New
+# York. I nomi delle monete collidono con l'italiano e con l'inglese molto più
+# di quanto sembri: Sui e Sei sono parole italiane, Maker, Compound, Render,
+# Cake, Stacks e Immutable sono parole inglesi comuni, Tron è un film.
+#
+# Qui accanto a ogni candidato c'è la mia PREVISIONE su quanto sia ambiguo. La
+# misura serve a confermarla o a smentirla: un pronostico scritto prima di
+# guardare i dati vale molto più di una spiegazione trovata dopo.
+
+CANDIDATI = {
+    # ticker        nome cercato      previsione
+    "XMR-USD":      ("Monero",        "sicuro"),
+    "ALGO-USD":     ("Algorand",      "sicuro"),
+    "VET-USD":      ("VeChain",       "sicuro"),
+    "FIL-USD":      ("Filecoin",      "sicuro"),
+    "HBAR-USD":     ("Hedera",        "sicuro"),
+    "TIA-USD":      ("Celestia",      "sicuro"),
+    "INJ-USD":      ("Injective",     "sicuro"),
+    "KAS-USD":      ("Kaspa",         "sicuro"),
+    "XTZ-USD":      ("Tezos",         "sicuro"),
+    "CHZ-USD":      ("Chiliz",        "sicuro"),
+    "TAO-USD":      ("Bittensor",     "sicuro"),
+    "STRK-USD":     ("Starknet",      "sicuro"),
+    "AR-USD":       ("Arweave",       "sicuro"),
+    "ENA-USD":      ("Ethena",        "sicuro"),
+    "PENDLE-USD":   ("Pendle",        "sicuro"),
+    "WLD-USD":      ("Worldcoin",     "sicuro"),
+    "CRO-USD":      ("Cronos",        "dubbio: divinita' greca"),
+    "TON-USD":      ("Toncoin",       "sicuro se si cerca Toncoin e non TON"),
+    "TRX-USD":      ("Tron",          "ambiguo: film"),
+    "SUI-USD":      ("Sui",           "ambiguo: preposizione italiana"),
+    "SEI-USD":      ("Sei",           "ambiguo: verbo e numero in italiano"),
+    "MKR-USD":      ("Maker",         "ambiguo: parola inglese comune"),
+    "COMP-USD":     ("Compound",      "ambiguo: parola inglese comune"),
+    "RENDER-USD":   ("Render",        "ambiguo: verbo inglese"),
+    "IMX-USD":      ("Immutable",     "ambiguo: aggettivo inglese"),
+    "STX-USD":      ("Stacks",        "ambiguo: sostantivo inglese"),
+    "THETA-USD":    ("Theta",         "ambiguo: lettera greca"),
+    "HNT-USD":      ("Helium",        "ambiguo: elemento chimico"),
+    "JUP-USD":      ("Jupiter",       "ambiguo: pianeta"),
+    "PEPE-USD":     ("Pepe",          "ambiguo: nome proprio e meme"),
+}
+
+
+def misura_candidati(quale_file: str | None, ore: int = 6) -> int:
+    """
+    Quante notizie porterebbe ogni moneta candidata, e quante sarebbero false.
+
+    Non scrive niente e non modifica TERMINE_QUERY: produce la tabella da cui
+    decidere a mano quali adottare.
+    """
+    print("=" * 76)
+    print("  QUANTO PORTEREBBE OGNI MONETA CANDIDATA")
+    print("=" * 76)
+    print(f"\n  {len(CANDIDATI)} candidate, {ore} ore di file, entrambi i feed.\n")
+
+    righe, file_ok, file_ko = righe_della_finestra(ore, quale_file)
+    if not righe:
+        print("  Nessuna riga letta.")
+        return 1
+
+    # Stesse regole della raccolta vera: confine di parola, e per le ambigue
+    # anche una parola di mercato nel titolo.
+    rx = {tk: re.compile(r"\b" + re.escape(nome) + r"\b", re.I)
+          for tk, (nome, _) in CANDIDATI.items()}
+
+    con_contesto = Counter()
+    senza_contesto = Counter()
+    esempi: dict = {}
+
+    for r in righe:
+        t = titolo(r)
+        if not t:
+            continue
+        contesto = bool(CONTESTO.search(t))
+        for tk, pattern in rx.items():
+            if not pattern.search(t):
+                continue
+            (con_contesto if contesto else senza_contesto)[tk] += 1
+            esempi.setdefault(tk, [])
+            if len(esempi[tk]) < 3:
+                esempi[tk].append((contesto, t[:74]))
+
+    print(f"  file letti: {file_ok} ({file_ko} non disponibili), "
+          f"righe: {len(righe)}\n")
+    print(f"  {'moneta':<12}{'con mercato':>12}{'senza':>8}{'al giorno':>11}   previsione")
+    print("  " + "-" * 72)
+
+    fattore = 24 / max(ore, 1)
+    trovate = sorted(CANDIDATI, key=lambda t: -(con_contesto[t] + senza_contesto[t]))
+    for tk in trovate:
+        c, s = con_contesto[tk], senza_contesto[tk]
+        if not (c or s):
+            continue
+        nome, previsione = CANDIDATI[tk]
+        print(f"  {nome:<12}{c:>12}{s:>8}{c * fattore:>10.0f}   {previsione}")
+
+    mute = [CANDIDATI[t][0] for t in CANDIDATI if not (con_contesto[t] or senza_contesto[t])]
+    if mute:
+        print(f"\n  nessuna notizia in questa finestra: {', '.join(mute)}")
+
+    print("\n" + "=" * 76)
+    print("  GLI ESEMPI, per capire se sono notizie vere")
+    print("=" * 76)
+    print("\n  [M] = il titolo contiene una parola di mercato\n")
+    for tk in trovate:
+        if tk not in esempi:
+            continue
+        nome, previsione = CANDIDATI[tk]
+        print(f"  {nome}  ({previsione})")
+        for contesto, t in esempi[tk]:
+            print(f"    {'[M]' if contesto else '[ ]'} {t}")
+        print()
+
+    print("=" * 76)
+    print("  COME SI LEGGE")
+    print("=" * 76)
+    print("\n  La colonna 'al giorno' conta solo i titoli con una parola di")
+    print("  mercato, perche' sono gli unici che entrerebbero davvero.")
+    print("\n  Sotto 5 al giorno la moneta non entrera' MAI in classifica")
+    print("  (backend/market.py, MIN_NEWS): si aggiunge una voce che mostra un")
+    print("  conteggio e nient'altro. Puo' avere senso lo stesso, ma per la")
+    print("  ricerca, non per la classifica.")
+    print("\n  Le monete con molte righe SENZA parola di mercato vanno messe")
+    print("  fra gli AMBIGUI se le adottiamo, come Optimism e Avalanche.")
+    print("\n  Nessuna riga e' stata scritta.")
+    return 0
+
+
 if __name__ == "__main__":
     logging.basicConfig(level=logging.INFO, format="%(message)s")
     ap = argparse.ArgumentParser(description=__doc__)
     ap.add_argument("--file", default=None,
                     help="timestamp preciso, es. 20260806180000. "
                          "Senza, prende l'ultimo pubblicato.")
-    ap.add_argument("--modo", choices=("resa", "colonne", "sigle"),
+    ap.add_argument("--modo",
+                    choices=("resa", "colonne", "sigle", "candidati"),
                     default="resa",
                     help="resa: quanto rende un file. colonne: quanto "
                          "porterebbero temi, organizzazioni e nomi propri. "
-                         "sigle: quanto porterebbe cercare BTC oltre a Bitcoin.")
+                         "sigle: quanto porterebbe cercare BTC oltre a "
+                         "Bitcoin. candidati: quante notizie porterebbe ogni "
+                         "moneta nuova che stiamo valutando.")
     ap.add_argument("--colonne", action="store_true",
                     help="scorciatoia per --modo colonne")
     ap.add_argument("--ore", type=int, default=6,
@@ -843,4 +987,6 @@ if __name__ == "__main__":
         sys.exit(misura_colonne(args.file, args.ore))
     if modo == "sigle":
         sys.exit(misura_sigle(args.file, args.ore))
+    if modo == "candidati":
+        sys.exit(misura_candidati(args.file, args.ore))
     sys.exit(misura(args.file))
