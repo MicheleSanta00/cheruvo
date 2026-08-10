@@ -13,6 +13,28 @@ import Icon from './Icon.jsx'
 const PAGINA = 12
 const LIBERE = 5   // quante ne vede un utente Free prima dell'invito a Pro
 
+// La nota di licenza per le fonti regolatorie.
+//
+// Non è cortesia: BCE ed ESMA permettono il riuso a condizione che la fonte
+// sia citata e che le modifiche siano DICHIARATE, ed ESMA detta pure il
+// contenuto della dichiarazione ("il materiale è stato usato per redigere
+// questo documento" e "l'autorità non avalla la pubblicazione"). Calcolare un
+// punteggio di sentiment su un comunicato è una modifica a tutti gli effetti.
+//
+// Compare solo quando in elenco c'è almeno una riga istituzionale, per due
+// motivi. Il primo è che GDELT non chiede niente del genere e appiccicare la
+// nota ovunque la renderebbe arredamento che nessuno legge. Il secondo è che
+// una nota che compare quando serve è una nota che qualcuno nota.
+const NOTA_LICENZA = {
+  it: 'Le notizie di Federal Reserve, BCE ed ESMA sono riprodotte citando la ' +
+      'fonte. Il punteggio è un\'elaborazione di Cheruvo sul titolo: le ' +
+      'autorità non lo avallano e non rispondono di questa pubblicazione.',
+  en: 'News from the Federal Reserve, ECB and ESMA is reproduced with the ' +
+      'source acknowledged. The score is Cheruvo\'s own processing of the ' +
+      'headline: the authorities do not endorse it and are not liable for ' +
+      'this publication.',
+}
+
 const numStyle = { fontFamily: 'var(--mono)', fontVariantNumeric: 'tabular-nums', fontWeight: 700 }
 const colore = (v) => (v > 0.08 ? 'var(--green)' : v < -0.08 ? 'var(--red)' : 'var(--muted)')
 const fmt = (v) => `${v > 0 ? '+' : v < 0 ? '−' : ''}${Math.abs(Number(v)).toFixed(2)}`
@@ -32,6 +54,10 @@ export default function TopNews({ news, isPro, onUpgrade }) {
   const limite = isPro ? quante : LIBERE
   const visibili = elenco.slice(0, limite)
   const nascoste = elenco.length - visibili.length
+
+  // Si guarda cosa è VISIBILE, non cosa esiste: la nota deve riferirsi alle
+  // righe che l'utente ha davanti agli occhi in questo momento.
+  const conIstituzionali = visibili.some((n) => n.score_source === 'istituzionale')
 
   const ora = (d) => {
     if (!d) return '—'
@@ -125,6 +151,16 @@ export default function TopNews({ news, isPro, onUpgrade }) {
             })}
           </tbody>
         </table>
+
+        {conIstituzionali && (
+          <p style={{
+            color: 'var(--muted)', fontSize: 11, lineHeight: 1.5,
+            margin: '10px 0 0', paddingTop: 8,
+            borderTop: '1px solid rgba(var(--rgb-contrasto), 0.06)',
+          }}>
+            {NOTA_LICENZA[it ? 'it' : 'en']}
+          </p>
+        )}
 
         {/* Free: invito a Pro. Pro: carica altre. */}
         {!isPro && nascoste > 0 && (

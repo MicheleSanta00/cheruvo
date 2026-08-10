@@ -220,6 +220,41 @@ def serie_prezzi(ticker: str, giorni: int) -> dict[date, float]:
     return serie
 
 
+# ══════════════════════════════════════════════════════════════════════════
+#  I TRE CONSIGLI DI LUCA TUTINO — 10 agosto 2026
+# ══════════════════════════════════════════════════════════════════════════
+#
+# Luca Maria Tutino (Universita' di Firenze / Perugia), coautore di "From fear
+# to greed: Analyzing sentiment indicators in bitcoin price prediction", ha
+# guardato questo file e ha detto tre cose. Sono scritte qui perche' cambiano
+# il disegno del test, non solo il codice.
+#
+# 1. BLOCK BOOTSTRAP, MA SENZA ILLUSIONI.
+#    Permutare i singoli giorni distrugge la dipendenza temporale, e su questo
+#    aveva ragione il dubbio. Il block bootstrap ne preserva una parte, ma con
+#    30-60 osservazioni Luca resta "molto prudente per la scarsita' dei dati".
+#    E soprattutto: NON fissare la lunghezza dei blocchi. Farla variare e
+#    guardare come cambia il risultato. Se il risultato regge solo per una
+#    lunghezza precisa, non e' un risultato: e' una scelta.
+#
+# 2. LA DIREZIONE POTREBBE ESSERE L'OPPOSTA.
+#    "Anche nel nostro lavoro troviamo che la direzione della relazione
+#    sentiment-prezzo cambia nel tempo e che, soprattutto nel breve periodo,
+#    il sentiment puo' SEGUIRE il prezzo anziche' anticiparlo."
+#    Va quindi testata anche la direzione inversa: rendimenti -> sentiment
+#    successivo. Se vince quella, la domanda "il sentiment anticipa?" era mal
+#    posta per una fonte fatta di notizie, e la cosa onesta e' scriverlo in
+#    home invece di cercare un orizzonte in cui il numero venga bello.
+#
+# 3. NON BUTTARE L'ORA.
+#    "Manterrei il timestamp intraday delle notizie anziche' aggregare subito
+#    per data: e' importante per distinguere una notizia che anticipa un
+#    movimento da una che semplicemente lo commenta."
+#    L'archivio l'ora ce l'ha gia', arriva da GDELT e viene salvata. Era questo
+#    file a buttarla via alla prima riga. E' l'errore che brucia di piu':
+#    rinunciare a un'informazione che si aveva gia' in mano.
+
+
 def allinea(sent: dict, prezzi: dict, orizzonte: int
             ) -> tuple[list[float], list[float]]:
     """
