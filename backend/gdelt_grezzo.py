@@ -960,6 +960,119 @@ def misura_candidati(quale_file: str | None, ore: int = 6) -> int:
     return 0
 
 
+# ══════════════════════════════════════════════════════════════════════════
+#  QUANTO MONDO STIAMO BUTTANDO VIA
+# ══════════════════════════════════════════════════════════════════════════
+#
+# Il feed tradotto di GDELT copre decine di lingue, ed è metà del motivo per
+# cui l'abbiamo aggiunto. Ma le parole di CONTESTO sono quasi tutte inglesi e
+# italiane, con appena "bourse" e "aktie" a rappresentare il resto.
+#
+# Quindi un titolo spagnolo perfetto tipo "Bitcoin sube tras la decisión de la
+# Fed" contiene il nome della moneta, parla chiaramente di mercato, e viene
+# scartato: nessuna delle nostre parole compare. Non è un problema di fonti,
+# è un problema di vocabolario, e si risolve con una riga invece che con una
+# fonte nuova.
+#
+# Questa misura separa le due cose che finora erano confuse:
+#
+#   TROVATE   il titolo contiene il nome di un asset
+#   PASSATE   ...e supera anche il filtro di contesto
+#   PERSE     la differenza, cioè quello che stiamo buttando via
+#
+# Se lo spagnolo trova ottanta titoli e ne passa sei, sappiamo esattamente
+# cosa aggiungere e quanto vale. Gli esempi delle perse sono la parte
+# importante: servono a capire se sono notizie vere o rumore.
+
+
+def misura_lingue(quale_file: str | None, ore: int = 6) -> int:
+    sys.path.insert(0, __import__("os").path.dirname(__import__("os").path.abspath(__file__)))
+    from gdelt_source import TERMINE_QUERY
+
+    print("=" * 76)
+    print("  QUANTE NOTIZIE PERDIAMO PER LINGUA")
+    print("=" * 76)
+    print(f"\n  Leggo {ore} ore di file da entrambi i feed.\n")
+
+    righe, file_ok, file_ko = righe_della_finestra(ore, quale_file)
+    if not righe:
+        print("  Nessuna riga letta.")
+        return 1
+
+    rx = {tk: re.compile(r"\b" + re.escape(term) + r"\b",
+                         0 if term in MAIUSCOLI else re.I)
+          for tk, term in TERMINE_QUERY.items()}
+
+    totali = Counter()      # righe per lingua
+    trovate = Counter()     # ...con il nome di un asset nel titolo
+    passate = Counter()     # ...che superano anche il contesto
+    perse_esempi: dict = {}
+
+    for r in righe:
+        t = titolo(r)
+        if not t:
+            continue
+        lg = lingua(r)
+        totali[lg] += 1
+
+        colpito = False
+        con_contesto = bool(CONTESTO.search(t))
+        for tk, pattern in rx.items():
+            if not pattern.search(t):
+                continue
+            colpito = True
+            if not serve_contesto(tk, TERMINE_QUERY[tk]) or con_contesto:
+                passate[lg] += 1
+                break
+        else:
+            if colpito:
+                perse_esempi.setdefault(lg, [])
+                if len(perse_esempi[lg]) < 4:
+                    perse_esempi[lg].append(t[:76])
+        if colpito:
+            trovate[lg] += 1
+
+    print(f"  file letti: {file_ok} ({file_ko} non disponibili), "
+          f"righe con titolo: {sum(totali.values())}\n")
+    print(f"  {'lingua':<9}{'righe':>9}{'trovate':>10}{'passate':>10}"
+          f"{'perse':>8}{'  perse %':>10}")
+    print("  " + "-" * 62)
+
+    perse_tot = 0
+    for lg, n in totali.most_common(14):
+        tr, pa = trovate[lg], passate[lg]
+        pe = tr - pa
+        perse_tot += pe
+        quota = f"{pe / tr:.0%}" if tr else "-"
+        print(f"  {lg:<9}{n:>9}{tr:>10}{pa:>10}{pe:>8}{quota:>10}")
+
+    print(f"\n  perse in totale: {perse_tot} titoli che nominano un asset e")
+    print("  che il filtro di contesto ha buttato via.")
+
+    print("\n" + "=" * 76)
+    print("  COSA STIAMO BUTTANDO VIA, per lingua")
+    print("=" * 76)
+    print("\n  Da leggere chiedendosi: e' una notizia di mercato vera?")
+    print("  Se si', ci manca il vocabolario. Se no, il filtro ha ragione.\n")
+    for lg, esempi in sorted(perse_esempi.items(),
+                             key=lambda x: -(trovate[x[0]] - passate[x[0]])):
+        pe = trovate[lg] - passate[lg]
+        if not pe:
+            continue
+        print(f"  {lg}  ({pe} perse)")
+        for t in esempi:
+            print(f"    {t}")
+        print()
+
+    print("=" * 76)
+    print("  Le parole di contesto che abbiamo oggi sono quasi tutte inglesi e")
+    print("  italiane: fuori da quelle due lingue ci sono solo 'bourse' e")
+    print("  'aktie'. Se le perse sopra sono notizie vere, aggiungere il")
+    print("  vocabolario di una lingua costa una riga e vale piu' di una fonte")
+    print("  nuova. Nessuna riga e' stata scritta.")
+    return 0
+
+
 if __name__ == "__main__":
     logging.basicConfig(level=logging.INFO, format="%(message)s")
     ap = argparse.ArgumentParser(description=__doc__)
@@ -967,13 +1080,14 @@ if __name__ == "__main__":
                     help="timestamp preciso, es. 20260806180000. "
                          "Senza, prende l'ultimo pubblicato.")
     ap.add_argument("--modo",
-                    choices=("resa", "colonne", "sigle", "candidati"),
+                    choices=("resa", "colonne", "sigle", "candidati", "lingue"),
                     default="resa",
                     help="resa: quanto rende un file. colonne: quanto "
                          "porterebbero temi, organizzazioni e nomi propri. "
                          "sigle: quanto porterebbe cercare BTC oltre a "
                          "Bitcoin. candidati: quante notizie porterebbe ogni "
-                         "moneta nuova che stiamo valutando.")
+                         "moneta nuova che stiamo valutando. lingue: quante "
+                         "notizie il filtro butta via, lingua per lingua.")
     ap.add_argument("--colonne", action="store_true",
                     help="scorciatoia per --modo colonne")
     ap.add_argument("--ore", type=int, default=6,
@@ -989,4 +1103,6 @@ if __name__ == "__main__":
         sys.exit(misura_sigle(args.file, args.ore))
     if modo == "candidati":
         sys.exit(misura_candidati(args.file, args.ore))
+    if modo == "lingue":
+        sys.exit(misura_lingue(args.file, args.ore))
     sys.exit(misura(args.file))

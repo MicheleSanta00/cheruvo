@@ -13,9 +13,10 @@ on:
       modo:
         description: 'Cosa misurare'
         required: true
-        default: 'candidati'
+        default: 'lingue'
         type: choice
         options:
+          - lingue    # quante notizie il filtro butta via, lingua per lingua
           - candidati # quante notizie porterebbe ogni moneta nuova
           - sigle     # quanto porterebbe cercare BTC oltre a Bitcoin
           - colonne   # quanto porterebbero temi, organizzazioni e nomi propri
@@ -61,6 +62,6 @@ jobs:
           # Gli input passano da variabili d'ambiente e non interpolati nello
           # script: il repository è pubblico, e un valore interpolato dentro
           # una riga di shell è il modo classico di farci entrare un comando.
-          ARGS="--modo ${MODO:-candidati} --ore ${ORE:-6}"
+          ARGS="--modo ${MODO:-lingue} --ore ${ORE:-6}"
           [ -n "$FILE" ] && ARGS="$ARGS --file $FILE"
           python backend/gdelt_grezzo.py $ARGS
