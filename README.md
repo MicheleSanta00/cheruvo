@@ -17,9 +17,29 @@ questo di solito mentono.
 **Non prevede il prezzo.** Nessuno ha ancora dimostrato che il sentiment delle
 notizie anticipi il mercato, e finché non è dimostrato qui dentro non viene
 promesso. `backend/verifica_segnale.py` è lo strumento che serve a rispondere a
-quella domanda in modo onesto: usa un test di permutazione, soglie fissate
-prima di guardare i dati e un confronto con compra-e-tieni, e sa dire "non lo
-so" quando i giorni disponibili sono pochi.
+quella domanda in modo onesto: soglie fissate prima di guardare i dati, un
+confronto con compra-e-tieni, e la capacità di dire "non lo so" quando i giorni
+disponibili sono pochi.
+
+Il 10 agosto 2026 **Luca Maria Tutino**, coautore di *"From fear to greed:
+Analyzing sentiment indicators in bitcoin price prediction"*, ha letto quel
+file e ha suggerito tre cose, tutte adottate.
+
+Il test di permutazione da solo è **ottimista**, perché mescolando i singoli
+giorni distrugge la dipendenza temporale della serie. Misurato: su 150 coppie
+di serie senza alcun legame vero ma autocorrelate, la permutazione semplice
+gridava al segnale **il 67% delle volte**; il block bootstrap il 23%. Adesso
+girano entrambi e viene riportato il peggiore, non il migliore.
+
+La lunghezza dei blocchi **non è scelta**: se ne provano cinque e si guarda
+come cambia il risultato. Se un legame regge solo con blocchi da cinque giorni,
+non è un legame, è quella scelta. Il programma lo dice a voce.
+
+E si prova anche la **direzione opposta**, cioè se sia il prezzo ad anticipare
+il sentiment. Nel lavoro di Tutino la relazione cambia segno nel tempo e nel
+breve periodo il sentiment tende a seguire il prezzo. Se qui succedesse lo
+stesso, la domanda che Cheruvo si fa sarebbe mal posta, e finirebbe scritto in
+home.
 
 **Non è affidabile su tutte le monete allo stesso modo.** Il numero vale quanto
 le notizie che lo sostengono: su Bitcoin ce ne sono a sufficienza, su una

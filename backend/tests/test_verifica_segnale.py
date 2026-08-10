@@ -260,3 +260,82 @@ def test_il_periodo_copre_anche_l_orizzonte_piu_lungo():
 
     coperti = giorni_per_etichetta[visti[0]]
     assert coperti >= 90 + max(v.ORIZZONTI)
+
+
+# ── I tre cambi suggeriti da Luca Tutino, 10 agosto 2026 ──────────────────
+def test_il_block_bootstrap_mente_meno_della_permutazione_semplice():
+    """
+    La misura che ha giustificato il cambio.
+
+    Si generano coppie di serie SENZA alcun legame vero ma con dipendenza
+    temporale (passeggiate casuali). Un test onesto dovrebbe trovarci qualcosa
+    nel 5% dei casi. La permutazione semplice, che rompe la dipendenza, ne
+    trova molto di piu': e' esattamente il p-value ottimista di cui parlava
+    Luca.
+
+    Nota di onesta' sul test stesso: due passeggiate casuali sono il caso
+    PEGGIORE possibile, perche' sono massimamente autocorrelate. I rendimenti
+    veri lo sono molto meno, quindi qui il difetto appare piu' grave di quanto
+    sia in produzione. La direzione pero' e' quella, e il rimedio funziona.
+    """
+    import random
+    import verifica_segnale as v
+
+    random.seed(4)
+
+    def passeggiata(n):
+        x, s = [], 0.0
+        for _ in range(n):
+            s += random.gauss(0, 1)
+            x.append(s)
+        return x
+
+    giri, falsi_perm, falsi_bb = 25, 0, 0
+    for _ in range(giri):
+        x, y = passeggiata(40), passeggiata(40)
+        if v.permutazione(x, y, 120) < 0.05:
+            falsi_perm += 1
+        sens = v.sensibilita_blocchi(x, y, 120)
+        if sens and max(sens.values()) < 0.05:
+            falsi_bb += 1
+
+    assert falsi_bb < falsi_perm, (
+        f"il block bootstrap non migliora niente: {falsi_bb} falsi contro "
+        f"{falsi_perm} della permutazione semplice")
+
+
+def test_la_sensibilita_prova_piu_lunghezze_di_blocco():
+    """
+    Il consiglio di Luca era di NON fissare la lunghezza. Se un giorno
+    qualcuno ne sceglie una sola, questo test lo ferma.
+    """
+    import verifica_segnale as v
+    x = [float(i % 7) for i in range(60)]
+    y = [float((i * 3) % 5) for i in range(60)]
+    sens = v.sensibilita_blocchi(x, y, 60)
+    assert len(sens) >= 3, "si sta usando una lunghezza di blocco sola"
+    assert all(0 < p <= 1 for p in sens.values())
+
+
+def test_la_direzione_inversa_guarda_il_passato_e_non_il_futuro():
+    """
+    `allinea_inverso` deve accoppiare il movimento GIA' avvenuto col sentiment
+    che arriva DOPO. Se sbagliasse verso, misurerebbe la stessa cosa di
+    `allinea` e la domanda di Luca resterebbe senza risposta.
+    """
+    from datetime import date, timedelta
+    import verifica_segnale as v
+
+    giorni = [date(2026, 8, 1) + timedelta(days=i) for i in range(10)]
+    # il prezzo sale sempre; il sentiment e' alto solo DOPO la salita
+    prezzi = {g: 100.0 + i for i, g in enumerate(giorni)}
+    sent = {g: (float(i), 10) for i, g in enumerate(giorni)}
+
+    xs, ys = v.allinea_inverso(sent, prezzi, 1)
+    assert xs and ys
+    # xs sono rendimenti (piccoli), ys sono sentiment (0..9)
+    assert all(abs(x) < 0.5 for x in xs), "xs non sono rendimenti"
+    assert max(ys) > 1, "ys non sono punteggi di sentiment"
+    # e la corrispondenza deve essere sfasata rispetto ad allinea()
+    xd, yd = v.allinea(sent, prezzi, 1)
+    assert (xs, ys) != (xd, yd), "le due direzioni misurano la stessa cosa"

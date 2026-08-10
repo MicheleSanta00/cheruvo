@@ -105,14 +105,21 @@ def spearman(x: list[float], y: list[float]) -> float:
     return pearson(_ranghi(x), _ranghi(y))
 
 
-def permutazione(x: list[float], y: list[float], giri: int = GIRI_PERMUTAZIONE) -> float:
+def permutazione(x: list[float], y: list[float], giri: int | None = None) -> float:
     """
     Probabilità che il caso, da solo, produca un legame forte quanto il nostro.
 
     Mescolo x mille e mille volte: così ogni punteggio di sentiment finisce su
     un giorno a caso e qualunque legame vero sparisce. Se anche il caos
     produce spesso quello che abbiamo trovato, non abbiamo trovato niente.
+
+    ATTENZIONE, ed è il limite che Luca Tutino ha confermato il 10 agosto 2026:
+    mescolare i singoli giorni distrugge anche la DIPENDENZA TEMPORALE della
+    serie. Il mondo finto che ne esce è più disordinato di quello vero, quindi
+    la distribuzione nulla è troppo stretta e il p-value esce ottimista. Per
+    questo accanto c'è `block_bootstrap`, e i due vengono riportati insieme.
     """
+    giri = GIRI_PERMUTAZIONE if giri is None else giri
     vero = abs(spearman(x, y))
     mescolato = list(x)
     almeno_quanto = 0
@@ -124,6 +131,59 @@ def permutazione(x: list[float], y: list[float], giri: int = GIRI_PERMUTAZIONE) 
     # riporterebbe p = 0, cioè "impossibile per caso", che nessun test
     # empirico può affermare.
     return (almeno_quanto + 1) / (giri + 1)
+
+
+# Lunghezze di blocco da provare. NON se ne sceglie una: si guarda come cambia
+# il risultato al variare della lunghezza.
+#
+# È il consiglio di Luca Tutino, ed è più profondo di quanto sembri. Scegliere
+# una lunghezza e riportare quel p-value vuol dire aver fatto una scelta e
+# averla nascosta dentro un numero. Se il legame regge solo con blocchi da 5
+# giorni e sparisce con blocchi da 3 e da 10, non è un legame: è quella scelta.
+BLOCCHI = (2, 3, 5, 7, 10)
+
+
+def block_bootstrap(x: list[float], y: list[float], blocco: int,
+                    giri: int | None = None) -> float:
+    """
+    Come la permutazione, ma mescolando BLOCCHI di giorni consecutivi.
+
+    La differenza è tutta qui: spostando pezzi interi di serie invece di
+    giorni singoli, il mondo finto conserva una parte della dipendenza
+    temporale di quello vero. Il confronto diventa più onesto e il p-value
+    più alto, cioè più difficile da superare.
+
+    Si spezza x in pezzi lunghi `blocco`, se ne rimescola l'ordine e si
+    riattacca. y resta fermo: è la corrispondenza fra i due a essere
+    distrutta, che è l'ipotesi nulla che ci interessa.
+    """
+    giri = GIRI_PERMUTAZIONE if giri is None else giri
+    n = len(x)
+    if blocco < 1 or blocco >= n:
+        return float("nan")
+
+    vero = abs(spearman(x, y))
+    pezzi = [x[i:i + blocco] for i in range(0, n, blocco)]
+    almeno_quanto = 0
+    for _ in range(giri):
+        random.shuffle(pezzi)
+        finto = [v for p in pezzi for v in p][:n]
+        if abs(spearman(finto, y)) >= vero:
+            almeno_quanto += 1
+    return (almeno_quanto + 1) / (giri + 1)
+
+
+def sensibilita_blocchi(x: list[float], y: list[float],
+                        giri: int | None = None) -> dict[int, float]:
+    """
+    Il p-value per ogni lunghezza di blocco, invece di uno solo.
+
+    Un risultato che regge su tutte le lunghezze è un risultato. Uno che
+    compare solo per una lunghezza è un artefatto, e va visto per quello che
+    è invece di essere riportato come una scoperta.
+    """
+    return {b: block_bootstrap(x, y, b, giri)
+            for b in BLOCCHI if b < len(x)}
 
 
 # ── Dati ──────────────────────────────────────────────────────────────────
@@ -281,6 +341,44 @@ def allinea(sent: dict, prezzi: dict, orizzonte: int
     return xs, ys
 
 
+def allinea_inverso(sent: dict, prezzi: dict, orizzonte: int
+                    ) -> tuple[list[float], list[float]]:
+    """
+    La domanda al contrario: il PREZZO anticipa il SENTIMENT?
+
+    Accoppia il rendimento fra T-orizzonte e T col sentiment del giorno T.
+    Cioè: il mercato si è mosso, e le notizie che escono dopo ne parlano?
+
+    Perché questa funzione esiste. Il 10 agosto 2026 Luca Tutino ha scritto
+    che nel loro lavoro "la direzione della relazione sentiment-prezzo cambia
+    nel tempo e, soprattutto nel breve periodo, il sentiment può SEGUIRE il
+    prezzo anziché anticiparlo".
+
+    Se questa direzione risulta più forte di quella diretta, la domanda che
+    Cheruvo si faceva era mal posta: le notizie commentano il mercato invece
+    di precederlo, e sarebbe scorretto continuare a chiedersi "anticipa?"
+    finché il dato dice il contrario. Non toglie utilità allo strumento (che
+    su una moneta si stia parlando molto resta un fatto), ma cambia ciò che
+    si può promettere, e va scritto in home.
+
+    Il modo peggiore di usarla sarebbe provarle entrambe e riportare solo
+    quella che viene meglio. Per questo vengono stampate tutte e due, sempre.
+    """
+    xs, ys = [], []
+    for giorno, (media, quante) in sorted(sent.items()):
+        if quante < MINIMO_NOTIZIE:
+            continue
+        prima = giorno - timedelta(days=orizzonte)
+        if giorno not in prezzi or prima not in prezzi:
+            continue
+        p0, p1 = prezzi[prima], prezzi[giorno]
+        if not p0:
+            continue
+        xs.append((p1 - p0) / p0)   # il movimento GIÀ avvenuto
+        ys.append(media)            # il sentiment che arriva dopo
+    return xs, ys
+
+
 def confronto_strategia(xs, ys, soglia):
     """
     Rendimento cumulato comprando solo dopo un sentiment sopra soglia, contro
@@ -352,13 +450,44 @@ def analizza(ticker: str, giorni: int) -> int:
             continue
         rho = spearman(xs, ys)
         p = permutazione(xs, ys)
-        vinto = p < soglia_p
-        risultati.append((h, rho, p, vinto, len(xs)))
+
+        # Il p-value che conta è il PEGGIORE fra quelli dei vari blocchi, non
+        # il migliore. Prendere il migliore vorrebbe dire scegliere la
+        # lunghezza che fa vincere, cioè fare la cosa che questo intero file
+        # esiste per non fare.
+        sens = sensibilita_blocchi(xs, ys)
+        p_bb = max(sens.values()) if sens else float("nan")
+        vinto = p_bb < soglia_p if sens else p < soglia_p
+        risultati.append((h, rho, p_bb if sens else p, vinto, len(xs)))
 
         print(f"\n── T+{h} giorni  ({len(xs)} osservazioni)")
         print(f"   correlazione di rango  rho = {rho:+.3f}")
-        print(f"   probabilità che sia caso   p = {p:.4f}   "
-              f"{'SOTTO la soglia' if vinto else 'sopra la soglia: compatibile col caso'}")
+        print(f"   permutazione semplice      p = {p:.4f}   (ottimista: rompe")
+        print("                                  la dipendenza temporale)")
+        if sens:
+            print("   block bootstrap, per lunghezza di blocco:")
+            for b, pb in sorted(sens.items()):
+                print(f"     blocchi da {b:>2} giorni        p = {pb:.4f}")
+            print(f"   il PEGGIORE dei blocchi     p = {p_bb:.4f}   "
+                  f"{'SOTTO la soglia' if vinto else 'sopra la soglia: compatibile col caso'}")
+            if max(sens.values()) - min(sens.values()) > 0.05:
+                print("   ATTENZIONE: il risultato cambia parecchio a seconda della")
+                print("   lunghezza del blocco. Vuol dire che dipende da quella scelta")
+                print("   piu' che dai dati, e non va riportato come una scoperta.")
+        else:
+            print("   (troppi pochi giorni per il block bootstrap)")
+
+        # La direzione opposta, sempre, anche quando la prima vince.
+        xi, yi = allinea_inverso(sent, prezzi, h)
+        if len(xi) >= MINIMO_GIORNI:
+            rho_inv = spearman(xi, yi)
+            p_inv = permutazione(xi, yi)
+            print("   DIREZIONE INVERSA (il prezzo anticipa il sentiment):")
+            print(f"     rho = {rho_inv:+.3f}   p = {p_inv:.4f}")
+            if abs(rho_inv) > abs(rho) + 0.05:
+                print("     La direzione inversa e' PIU' FORTE di quella diretta.")
+                print("     Le notizie commentano il movimento invece di precederlo,")
+                print("     e la domanda 'il sentiment anticipa?' e' mal posta.")
 
         for s in SOGLIE:
             c = confronto_strategia(xs, ys, s)
