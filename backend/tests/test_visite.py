@@ -64,3 +64,50 @@ def test_un_database_irraggiungibile_non_propaga_l_errore():
     from unittest.mock import patch
     with patch("database.get_pool", side_effect=RuntimeError("db giù")):
         visite.registra("sessione-finta", "/api/market/today")   # non deve sollevare
+        visite.scarica_su_database()
+
+
+# ── Il difetto che ha fatto morire il backend ─────────────────────────────
+def test_registrare_non_tocca_il_database():
+    """
+    La prima versione, dell'8 agosto 2026, apriva una connessione a OGNI
+    richiesta e ci eseguiva pure un CREATE TABLE IF NOT EXISTS. Il pool ne ha
+    da 2 a 10: bastavano poche richieste ravvicinate perché finissero e il
+    backend smettesse di rispondere. E' morto a intermittenza per due giorni.
+
+    Adesso `registra` deve limitarsi a sommare in memoria.
+    """
+    from unittest.mock import patch
+    with patch("database.get_pool") as pool:
+        for i in range(300):
+            visite.registra(f"sessione-{i % 20}", "/api/market/today")
+        assert not pool.called, (
+            "registra() ha chiesto una connessione: e' tornato il difetto "
+            "che svuotava il pool a ogni richiesta")
+
+
+def test_il_conteggio_si_accumula_invece_di_scrivere_ogni_volta():
+    visite._conteggio.clear()
+    for _ in range(50):
+        visite.registra("una-sessione", "/api/market/today")
+    assert visite._conteggio[("una-sessione", "/api/market/today")] == 50
+    assert len(visite._conteggio) == 1, "50 richieste, una sola riga da scrivere"
+    visite._conteggio.clear()
+
+
+def test_se_la_scrittura_fallisce_i_conteggi_non_si_perdono():
+    """
+    Uno scarico fallito non deve buttare via quello che aveva in mano: al
+    giro dopo si riprova.
+    """
+    from unittest.mock import patch
+    visite._conteggio.clear()
+    for _ in range(7):
+        visite.registra("sessione-x", "/api/market/today")
+
+    with patch("database.get_pool", side_effect=RuntimeError("db giù")):
+        assert visite.scarica_su_database() == 0
+
+    assert visite._conteggio.get(("sessione-x", "/api/market/today")) == 7, (
+        "i conteggi sono stati persi invece di essere rimessi in coda")
+    visite._conteggio.clear()

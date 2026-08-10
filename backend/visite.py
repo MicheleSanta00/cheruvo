@@ -51,6 +51,8 @@ dire che la gente ci clicca dentro.
 """
 import logging
 import sys
+import threading
+import time
 from datetime import datetime, timezone
 
 logger = logging.getLogger(__name__)
@@ -82,32 +84,112 @@ def _tabella(cur) -> None:
     """)
 
 
+# ══════════════════════════════════════════════════════════════════════════
+#  SCRIVERE SENZA AMMAZZARE IL SERVER
+# ══════════════════════════════════════════════════════════════════════════
+#
+# La prima versione di questo file, dell'8 agosto 2026, faceva a OGNI singola
+# richiesta: prendi una connessione dal pool, esegui un CREATE TABLE IF NOT
+# EXISTS, scrivi, fai commit, restituisci la connessione.
+#
+# Il pool ne ha da 2 a 10. Quindi bastavano poche richieste ravvicinate perché
+# le connessioni finissero e le richieste successive restassero in attesa: il
+# backend sembrava morto, si riprendeva, e tornava a morire. Michele l'ha
+# visto succedere per due giorni.
+#
+# Ci sono tre errori sovrapposti, e vale la pena nominarli tutti perché sono
+# tre errori diversi.
+#
+#   1. DDL nel percorso di una richiesta. `CREATE TABLE IF NOT EXISTS` sembra
+#      gratis perché di solito non fa niente, ma e' pur sempre una richiesta
+#      di lock sullo schema, mille volte al giorno, per creare una tabella che
+#      esiste gia' dal primo minuto.
+#   2. Una scrittura sincrona per ogni lettura. Perfino le risposte servite
+#      dalla cache, che non toccavano il database, sono diventate scritture.
+#   3. I/O bloccante dentro un middleware asincrono: mentre quella connessione
+#      aspetta il database, il ciclo di eventi non serve nessun altro.
+#
+# Adesso `registra` non tocca il database: somma in memoria e basta, dura
+# microsecondi. Ogni tanto un thread separato svuota il conto accumulato con
+# UNA connessione e UNA scrittura sola.
+#
+# Il prezzo, detto chiaro: se il servizio si spegne fra due scaricamenti, i
+# conteggi di quei secondi si perdono. Per un contatore di visite e' un prezzo
+# accettabile; per i dati veri non lo sarebbe mai.
+
+_conteggio: dict = {}
+_serratura = threading.Lock()
+_ultimo_scarico = time.monotonic()
+_tabella_creata = False
+
+INTERVALLO_SCARICO = 60      # secondi fra uno svuotamento e l'altro
+MASSIMO_IN_MEMORIA = 500     # oltre questo si svuota subito, per non gonfiare
+
+
 def registra(sessione: str, percorso: str) -> None:
     """
-    Segna una richiesta. Non deve mai far fallire la richiesta vera: se il
-    conteggio si rompe, l'utente non se ne deve accorgere.
+    Segna una richiesta. Non tocca il database e non puo' far aspettare
+    nessuno: incrementa un numero in memoria.
     """
     if not sessione or any(percorso.startswith(p) for p in IGNORA):
         return
+
+    global _ultimo_scarico
+    chiave = (sessione[:64], percorso[:120])
+    scarica = False
+
+    with _serratura:
+        _conteggio[chiave] = _conteggio.get(chiave, 0) + 1
+        scaduto = time.monotonic() - _ultimo_scarico > INTERVALLO_SCARICO
+        if scaduto or len(_conteggio) >= MASSIMO_IN_MEMORIA:
+            _ultimo_scarico = time.monotonic()
+            scarica = True
+
+    if scarica:
+        # In un thread suo: se il database e' lento, a rallentare e' lui e non
+        # la persona che sta guardando il sito.
+        threading.Thread(target=scarica_su_database, daemon=True).start()
+
+
+def scarica_su_database() -> int:
+    """Svuota il conto accumulato. Una connessione, una scrittura sola."""
+    global _tabella_creata
+
+    with _serratura:
+        if not _conteggio:
+            return 0
+        da_scrivere = list(_conteggio.items())
+        _conteggio.clear()
+
     try:
         from database import get_pool
         pool = get_pool()
         conn = pool.getconn()
         try:
             cur = conn.cursor()
-            _tabella(cur)
-            cur.execute("""
-                INSERT INTO visite (giorno, sessione, percorso)
-                VALUES (CURRENT_DATE, %s, %s)
+            if not _tabella_creata:
+                _tabella(cur)
+                _tabella_creata = True
+            cur.executemany("""
+                INSERT INTO visite (giorno, sessione, percorso, quante)
+                VALUES (CURRENT_DATE, %s, %s, %s)
                 ON CONFLICT (giorno, sessione, percorso)
-                DO UPDATE SET quante = visite.quante + 1
-            """, (sessione[:64], percorso[:120]))
+                DO UPDATE SET quante = visite.quante + EXCLUDED.quante
+            """, [(s, p, n) for (s, p), n in da_scrivere])
             conn.commit()
             cur.close()
         finally:
             pool.putconn(conn)
+        return len(da_scrivere)
     except Exception as e:
-        logger.debug("conteggio visite non riuscito: %s", e)
+        # Rimettere dentro quello che non è stato scritto: al prossimo giro si
+        # riprova, invece di perdere il conteggio per un singhiozzo del
+        # database.
+        with _serratura:
+            for chiave, n in da_scrivere:
+                _conteggio[chiave] = _conteggio.get(chiave, 0) + n
+        logger.debug("scarico visite non riuscito: %s", e)
+        return 0
 
 
 def e_bot(user_agent: str) -> bool:
