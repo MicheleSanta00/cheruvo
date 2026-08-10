@@ -1,0 +1,64 @@
+name: Cheruvo — Fonti regolatorie
+
+# Fed, BCE ed ESMA. Volume basso ma segnale altissimo: per le criptovalute un
+# annuncio di un regolatore sposta il mercato piu' di cento articoli di
+# cronaca, e MiCA riguarda l'intero settore.
+#
+# Le licenze sono state lette dai testi originali il 10 agosto 2026 e sono
+# scritte in cima a backend/istituzionali.py. La Fed e' pubblico dominio; BCE
+# ed ESMA permettono il riuso a condizione che la fonte sia citata e che le
+# modifiche siano dichiarate. Calcolare un sentiment E' una modifica, e per
+# questo ogni riga porta score_source='istituzionale'.
+#
+# Due volte al giorno bastano: questi enti non pubblicano di continuo, e
+# leggerli piu' spesso vorrebbe dire solo rileggere le stesse righe.
+
+on:
+  schedule:
+    - cron: '25 7,17 * * *'
+  workflow_dispatch:
+    inputs:
+      giorni:
+        description: 'Quanti giorni indietro leggere'
+        required: false
+        default: '3'
+        type: string
+      salva:
+        description: 'Scrivere in archivio (senza, mostra solo cosa entrerebbe)'
+        required: true
+        default: false
+        type: boolean
+
+jobs:
+  regolatori:
+    name: regolatori
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+          cache: 'pip'
+          cache-dependency-path: requirements-actions.txt
+
+      - name: Installa dipendenze
+        run: pip install -r requirements-actions.txt
+
+      - name: Leggi i comunicati
+        env:
+          DATABASE_URL: ${{ secrets.DATABASE_URL }}
+          PYTHONPATH:   ${{ github.workspace }}/backend
+          GIORNI:       ${{ github.event.inputs.giorni }}
+          SALVA:        ${{ github.event.inputs.salva }}
+        run: |
+          # Sul cron gli input sono vuoti: si salva, che e' il comportamento
+          # normale. A mano invece si parte in sola lettura, cosi' si vede
+          # cosa entrerebbe prima di lasciarlo entrare.
+          ARGS="--giorni ${GIORNI:-3}"
+          if [ -z "$SALVA" ] || [ "$SALVA" = "true" ]; then
+            ARGS="$ARGS --salva"
+          fi
+          python backend/istituzionali.py $ARGS

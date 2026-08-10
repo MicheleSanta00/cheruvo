@@ -70,8 +70,26 @@ Solo fonti con diritto d'uso commerciale verificato:
 |---|---|---|
 | **GDELT** (API + file grezzi ogni 15 min) | libera, anche commerciale, con ridistribuzione | fonte principale |
 | **SEC EDGAR** | pubblico dominio (atti USA) | depositi societari |
+| **Federal Reserve** | pubblico dominio, con citazione della fonte | comunicati |
+| **BCE** | riuso libero, citando la fonte e dichiarando le modifiche | comunicati |
+| **ESMA** | riproduzione autorizzata, citando la fonte | comunicati, MiCA |
 | **Alpha Vantage** | autorizzazione scritta del supporto | opzionale, dietro interruttore |
 | **alternative.me** | libera per uso commerciale | indice paura e avidità |
+
+Le licenze delle tre autorità sono state lette **dai testi originali** il 10
+agosto 2026, non da riassunti: è la disciplina che a luglio è mancata con
+NewsAPI, dove ci si era fidati della sintesi di un blog. I passaggi rilevanti
+sono citati in cima a `backend/istituzionali.py`.
+
+Due condizioni cambiano il codice e non solo la documentazione. BCE ed ESMA
+chiedono che **le modifiche siano dichiarate**, e calcolare un punteggio di
+sentiment è una modifica: per questo quelle righe portano
+`score_source='istituzionale'`, così la nota di licenza si mostra dove è
+dovuta invece che su tutto il sito. E se un giorno il muro a pagamento torna,
+va aggiunto che quel materiale è ottenibile gratis dai siti delle autorità.
+
+I Working Papers della BCE restano **fuori**: sono l'eccezione dichiarata
+nella loro licenza e richiedono autorizzazione scritta.
 
 NewsAPI, Google News RSS e i feed Yahoo sono stati **staccati**: nessuno dei tre
 consente l'uso in produzione. Il codice che li chiamava resta come riferimento,
