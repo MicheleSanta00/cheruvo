@@ -36,6 +36,33 @@ di una sintesi trovata altrove.
 
   SEC EDGAR — atti pubblici USA, pubblico dominio. Già usata da sec_source.py.
 
+CHI È RIMASTO FUORI, E PERCHÉ
+
+  BANCA D'ITALIA — NO, e lo dice a chiare lettere (bancaditalia.it/footer/copyright):
+    "La stampa e il salvataggio dei contenuti di questo sito sono consentiti
+     per solo uso personale, con esclusione di ogni utilizzo per fini di lucro
+     o per trarne qualsivoglia utilità economica... neppure è consentita la
+     riproduzione di questo sito o di parti di esso su altri siti Internet o
+     su qualunque sistema informativo pubblico o privato, senza preventiva
+     autorizzazione scritta della Banca."
+    Cheruvo è esattamente "un altro sito Internet". Senza autorizzazione
+    scritta non si tocca.
+    Unica eccezione: i loro open data su dati.gov.it, rilasciati in CC-BY 4.0
+    e quindi riutilizzabili anche a fini commerciali citando la fonte. Sono
+    dati statistici, non comunicati: un'altra cosa, ma legale.
+
+  CONSOB — forse, e "forse" non basta (consob.it/web/consob/informazioni-legali):
+    "È consentita la consultazione, la stampa, il download e il riutilizzo dei
+     contenuti per finalità di studio, ricerca, informazione e documentazione,
+     con obbligo di citarne la fonte."
+    Il permesso c'è ma è legato a delle FINALITÀ, e fra quelle non compare
+    l'uso commerciale. Oggi Cheruvo è gratuito e sta comodamente dentro
+    "informazione"; il giorno in cui tornasse un piano a pagamento, non è
+    ovvio. Aggiungerla adesso vorrebbe dire costruire su una frase che va
+    interpretata, ed è precisamente il modo in cui a luglio sono entrate in
+    archivio 32.675 righe da cancellare.
+    Chiesto chiarimento scritto il 10 agosto 2026. Fino alla risposta, fuori.
+
 LA CONSEGUENZA CHE CAMBIA IL CODICE
 
 Calcolare un punteggio di sentiment su un comunicato È una modifica. Sia la
