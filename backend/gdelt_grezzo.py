@@ -255,6 +255,18 @@ AMBIGUI = {"Avalanche", "Polygon", "Cosmos", "Stellar", "Optimism", "NEAR",
 # affatto della moneta.
 MAIUSCOLI = {"NEAR", "GE", "XRP"}
 
+# I nomi di societa' a cui il contesto finanziario NON viene chiesto.
+#
+# Vuoto di proposito. Si riempie SOLO con quello che esce da
+# `--modo contesto`, che conta nome per nome quante righe vere il filtro sta
+# buttando via e ne mostra tre esempi a testa. Un nome si aggiunge qui quando
+# gli esempi scartati sono notizie societarie (accordi, acquisizioni,
+# inchieste, risultati) e non cronaca o recensioni.
+#
+# Finche' resta vuoto il comportamento e' identico a prima: la lista e' il
+# meccanismo, non la decisione.
+NOMI_NETTI: set[str] = set()
+
 # Il titolo deve contenere anche una parola di contesto finanziario.
 # L'elenco resta corto di proposito: allargarlo troppo rimette dentro il rumore
 # che serviva a togliere.
@@ -390,9 +402,43 @@ def serve_contesto(ticker: str, termine: str) -> bool:
     una notizia societaria vera e da oggi resta fuori. È una perdita
     accettabile finché l'alternativa è calcolare il sentiment di Google sui
     titoli di Google Maps.
+
+    L'ECCEZIONE, E PERCHÉ ESISTE
+
+    L'11 agosto 2026, misurando le azioni candidate, è saltato fuori che
+    quella perdita non è distribuita in modo uniforme. TSMC in sei ore: zero
+    righe utilizzabili e trentaquattro scartate, fra cui "Sony, TSMC confirm
+    deal to set up smartphone camera chip venture in Japan". Stessa storia per
+    "Airbus joins probe into Air India flight plunge" e per l'acquisizione di
+    Wisk Aero da parte di Boeing.
+
+    Il punto è che la regola qui sopra usa il suffisso "-USD" come se fosse
+    una misura di ambiguità, e non lo è: "TSMC" o "AstraZeneca" o "Broadcom"
+    sono inequivocabili esattamente quanto "Bitcoin". Chi paga davvero il
+    filtro non sono i nomi ambigui, sono i nomi netti di aziende di cui la
+    stampa parla in modo tecnico invece che borsistico.
+
+    NOMI_NETTI è la lista di quelli a cui il contesto NON viene chiesto. Si
+    riempie solo con le prove di `--modo contesto`, mai a intuito, perché è
+    esattamente allentando questo filtro che il 7 agosto sono entrate 816
+    righe di spazzatura su 1.541.
+
+    Tre classi, e solo la seconda va qui dentro:
+
+      nome ambiguo                    Visa, Leonardo, Terna
+      nome netto, stampa finanziaria  TSMC, Broadcom, Micron      <- qui
+      nome netto ma famoso per altro  Netflix, Disney, Uber
+
+    La terza classe è la meno ovvia e la più pericolosa: "Netflix" non è
+    ambiguo, ma in sei ore ha prodotto ottantadue titoli su Mindhunter e Squid
+    Game e zero sul titolo azionario. Il nome è netto, la cronaca no.
     """
+    # AMBIGUI vince sempre. Se un nome finisce per sbaglio in tutti e due gli
+    # elenchi, la scelta prudente deve essere quella che sopravvive.
     if termine in AMBIGUI:
         return True
+    if termine in NOMI_NETTI:
+        return False
     return not (ticker or "").upper().endswith("-USD")
 
 
@@ -920,6 +966,122 @@ CANDIDATI = {
 }
 
 
+def misura_contesto(quale_file: str | None, ore: int = 6) -> int:
+    """
+    Quanto costa il filtro di contesto, titolo per titolo, su quelli che
+    seguiamo GIÀ.
+
+    PERCHÉ SERVE
+
+    La misura delle azioni candidate dell'11 agosto 2026 ha mostrato una cosa
+    che non si stava cercando. Fra le righe scartate dal filtro c'erano:
+
+        "Sony, TSMC confirm deal to set up smartphone camera chip venture"
+        "Airbus joins probe into Air India flight plunge"
+        "Archer moves to acquire Boeing's Wisk Aero"
+
+    Una joint venture, un'inchiesta su un incidente, un'acquisizione. Sono le
+    notizie che muovono un titolo, e sono state buttate perché nel titolo non
+    compariva una parola tipo "stock" o "shares". TSMC in sei ore: zero righe
+    utilizzabili e trentaquattro scartate.
+
+    Il filtro serve, e su Visa lo dimostra: una riga buona contro sessantatré
+    di permessi di soggiorno. Ma `serve_contesto` lo impone a TUTTI i titoli
+    azionari solo perché non finiscono in "-USD", e "TSMC" o "AstraZeneca"
+    sono inequivocabili quanto "Bitcoin".
+
+    Questa misura non riguarda i candidati: riguarda i titoli già in archivio,
+    e risponde alla domanda che serve prima di toccare il filtro, cioè quanto
+    ci sta costando adesso, nome per nome.
+
+    NON CAMBIA NIENTE. Conta e mostra, e i nomi vanno letti a mano: un titolo
+    con molte righe scartate può essere uno a cui il filtro ruba notizie vere
+    (TSMC) oppure uno famoso per ragioni non finanziarie a cui il filtro sta
+    salvando la vita (Netflix, Disney). La differenza sta negli esempi, non
+    nel numero.
+    """
+    from gdelt_source import TERMINE_QUERY
+
+    print("=" * 76)
+    print("  QUANTO COSTA IL FILTRO DI CONTESTO, SUI TITOLI CHE SEGUIAMO GIÀ")
+    print("=" * 76)
+    print(f"\n  {len(TERMINE_QUERY)} titoli, {ore} ore di file, entrambi i feed.\n")
+
+    righe, file_ok, file_ko = righe_della_finestra(ore, quale_file)
+    if not righe:
+        print("  Nessuna riga letta.")
+        return 1
+
+    passa = Counter()
+    bocciate = Counter()
+    esempi: dict = {}
+
+    for r in righe:
+        t = titolo(r)
+        if not t:
+            continue
+        contesto = bool(CONTESTO.search(t))
+        for tk, termine in TERMINE_QUERY.items():
+            flag = 0 if termine in MAIUSCOLI else re.I
+            if not re.search(r"\b" + re.escape(termine) + r"\b", t, flag):
+                continue
+            if contesto or not serve_contesto(tk, termine):
+                passa[tk] += 1
+            else:
+                bocciate[tk] += 1
+                esempi.setdefault(tk, [])
+                if len(esempi[tk]) < 3:
+                    esempi[tk].append(t[:74])
+
+    print(f"  file letti: {file_ok} ({file_ko} non disponibili), "
+          f"righe: {len(righe)}\n")
+    print(f"  {'titolo':<12}{'entrano':>9}{'bocciate':>10}{'costo':>8}   termine")
+    print("  " + "-" * 72)
+
+    ordine = sorted(TERMINE_QUERY, key=lambda t: -bocciate[t])
+    tot_passa = tot_bocciate = 0
+    for tk in ordine:
+        p, b = passa[tk], bocciate[tk]
+        tot_passa += p
+        tot_bocciate += b
+        if not (p or b):
+            continue
+        costo = f"{100 * b / (p + b):.0f}%" if (p + b) else "-"
+        print(f"  {tk:<12}{p:>9}{b:>10}{costo:>8}   {TERMINE_QUERY[tk]}")
+
+    complessivo = (100 * tot_bocciate / (tot_passa + tot_bocciate)
+                   if (tot_passa + tot_bocciate) else 0)
+    print(f"\n  In totale: {tot_passa} entrano, {tot_bocciate} bocciate "
+          f"({complessivo:.0f}% del combaciato).")
+
+    print("\n" + "=" * 76)
+    print("  COSA IL FILTRO STA BUTTANDO VIA")
+    print("=" * 76)
+    print("\n  Da leggere a mano: se sono notizie vere il filtro sta sbagliando,")
+    print("  se sono cronaca e recensioni sta facendo il suo mestiere.\n")
+    for tk in ordine:
+        if tk not in esempi:
+            continue
+        print(f"  {tk}  ({TERMINE_QUERY[tk]}, {bocciate[tk]} bocciate)")
+        for t in esempi[tk]:
+            print(f"    - {t}")
+        print()
+
+    print("=" * 76)
+    print("  COME SI DECIDE")
+    print("=" * 76)
+    print("\n  Tre classi, e solo la seconda va toccata:")
+    print("\n    nome ambiguo            Visa, Leonardo, Terna")
+    print("      -> contesto obbligatorio, non si discute")
+    print("\n    nome netto, stampa finanziaria    TSMC, Broadcom, Micron")
+    print("      -> il contesto si puo' togliere, sono queste che perdono")
+    print("\n    nome netto ma famoso per altro    Netflix, Disney, Uber")
+    print("      -> contesto obbligatorio lo stesso: il nome non e' ambiguo,")
+    print("         ma la cronaca su di loro non parla di mercati\n")
+    print("  Nessuna riga e' stata scritta.\n")
+    return 0
+
+
 # ── Le azioni candidate ───────────────────────────────────────────────────
 #
 # L'11 agosto 2026 è venuto fuori che l'interfaccia offre 302 titoli mentre su
@@ -1199,7 +1361,7 @@ if __name__ == "__main__":
                          "Senza, prende l'ultimo pubblicato.")
     ap.add_argument("--modo",
                     choices=("resa", "colonne", "sigle", "candidati",
-                             "candidati-azioni", "lingue"),
+                             "candidati-azioni", "contesto", "lingue"),
                     default="resa",
                     help="resa: quanto rende un file. colonne: quanto "
                          "porterebbero temi, organizzazioni e nomi propri. "
@@ -1208,6 +1370,8 @@ if __name__ == "__main__":
                          "moneta nuova che stiamo valutando. "
                          "candidati-azioni: lo stesso per le societa, che e' "
                          "il buco vero (302 titoli offerti, 41 cercati). "
+                         "contesto: quanto costa il filtro di contesto sui "
+                         "titoli che seguiamo gia'. "
                          "lingue: quante "
                          "notizie il filtro butta via, lingua per lingua.")
     ap.add_argument("--colonne", action="store_true",
@@ -1227,6 +1391,8 @@ if __name__ == "__main__":
         sys.exit(misura_candidati(args.file, args.ore))
     if modo == "candidati-azioni":
         sys.exit(misura_candidati(args.file, args.ore, azioni=True))
+    if modo == "contesto":
+        sys.exit(misura_contesto(args.file, args.ore))
     if modo == "lingue":
         sys.exit(misura_lingue(args.file, args.ore))
     sys.exit(misura(args.file))

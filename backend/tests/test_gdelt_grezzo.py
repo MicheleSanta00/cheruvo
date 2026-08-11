@@ -211,3 +211,49 @@ def test_la_misura_sceglie_l_elenco_giusto():
     import inspect
     sorgente = inspect.getsource(gg.misura_candidati)
     assert "CANDIDATI_AZIONI if azioni else CANDIDATI" in sorgente
+
+
+# ── L'eccezione al filtro di contesto ─────────────────────────────────────
+#
+# Misurando le azioni candidate l'11 agosto 2026 e' saltato fuori che il filtro
+# non colpisce a caso: TSMC in sei ore aveva zero righe utilizzabili e
+# trentaquattro scartate, fra cui "Sony, TSMC confirm deal to set up smartphone
+# camera chip venture in Japan". Il suffisso "-USD" veniva usato come se fosse
+# una misura di ambiguita', e non lo e'.
+def test_finche_l_elenco_e_vuoto_non_cambia_niente():
+    """
+    Il meccanismo si aggiunge prima della decisione. Se questo test si accende
+    vuol dire che qualcuno ha riempito NOMI_NETTI senza aggiornare i test che
+    documentano perche'.
+    """
+    assert gg.NOMI_NETTI == set(), (
+        "NOMI_NETTI non e' piu' vuoto: aggiorna i test con le prove di "
+        "--modo contesto che hanno giustificato ogni nome aggiunto"
+    )
+
+
+def test_un_nome_netto_non_chiede_piu_il_contesto(monkeypatch):
+    monkeypatch.setattr(gg, "NOMI_NETTI", {"TSMC"})
+    assert gg.serve_contesto("TSM", "TSMC") is False
+
+
+def test_gli_altri_titoli_continuano_a_chiederlo(monkeypatch):
+    monkeypatch.setattr(gg, "NOMI_NETTI", {"TSMC"})
+    assert gg.serve_contesto("NVDA", "Nvidia") is True
+    assert gg.serve_contesto("MSFT", "Microsoft") is True
+
+
+def test_le_monete_restano_libere_come_prima(monkeypatch):
+    monkeypatch.setattr(gg, "NOMI_NETTI", {"TSMC"})
+    assert gg.serve_contesto("BTC-USD", "Bitcoin") is False
+
+
+def test_ambigui_vince_su_nomi_netti(monkeypatch):
+    """
+    Se un nome finisce per sbaglio in tutti e due gli elenchi, deve
+    sopravvivere la scelta prudente. Allentare questo filtro e' esattamente
+    come il 7 agosto sono entrate 816 righe di spazzatura su 1.541.
+    """
+    monkeypatch.setattr(gg, "NOMI_NETTI", {"Apple", "Avalanche"})
+    assert gg.serve_contesto("AAPL", "Apple") is True
+    assert gg.serve_contesto("AVAX-USD", "Avalanche") is True

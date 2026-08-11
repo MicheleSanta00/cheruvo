@@ -19,6 +19,7 @@ on:
           - lingue    # quante notizie il filtro butta via, lingua per lingua
           - candidati # quante notizie porterebbe ogni moneta nuova
           - candidati-azioni # lo stesso per le societa: 302 offerte, 41 cercate
+          - contesto  # quanto costa il filtro di contesto sui titoli gia' seguiti
           - sigle     # quanto porterebbe cercare BTC oltre a Bitcoin
           - colonne   # quanto porterebbero temi, organizzazioni e nomi propri
           - resa      # la resa complessiva di un file (la domanda del 6 agosto)
