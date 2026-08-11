@@ -736,11 +736,19 @@ export default function App() {
               {/* Grafico dentro un pannello con intestazione a barra, come
                   nel resto dell'interfaccia: etichetta in maiuscoletto a
                   sinistra, contesto a destra, bordi netti da un pixel. */}
+              {/* Niente `overflow: hidden` su questo pannello.
+                  C'era, e serviva solo a far rispettare gli angoli arrotondati
+                  alla barra d'intestazione, che ha un fondo pieno. Però
+                  tagliava anche il tooltip del grafico sentiment: quel grafico
+                  è alto 120px e sta in fondo al pannello, quindi qualunque
+                  tooltip più alto di così finiva mozzato a metà frase.
+                  L'arrotondamento adesso se lo fa la barra da sola. */}
               {(prices.length > 0 || news.length > 0) && (
-                <div style={{ border: '1px solid var(--border-br)', borderRadius: 8, overflow: 'hidden' }}>
+                <div style={{ border: '1px solid var(--border-br)', borderRadius: 8 }}>
                   <div style={{
                     display: 'flex', alignItems: 'center', gap: 10, padding: '7px 12px',
                     background: 'var(--near-black)', borderBottom: '1px solid var(--border)',
+                    borderRadius: '7px 7px 0 0',
                   }}>
                     <span style={{ fontSize: 10, letterSpacing: '.12em', textTransform: 'uppercase', color: 'var(--muted)', fontWeight: 700 }}>
                       {/* Prima qui c'era "· {days} giorni", che però è la finestra

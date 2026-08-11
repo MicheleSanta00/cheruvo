@@ -105,8 +105,15 @@ function CustomTooltip({ active, payload, label, compact }) {
               sembrava un tranquillo +0.21. */}
           {sent != null && n != null && (
             <div style={{ fontSize: 11, color: '#64748b', marginTop: 5, lineHeight: 1.6 }}>
-              <div>{n} {n === 1 ? 'notizia' : 'notizie'}{err != null && ` · media ±${(1.96 * err).toFixed(2)}`}</div>
-              {dev != null && (
+              <div>
+                {n} {n === 1 ? 'notizia' : 'notizie'}
+                {err != null && ` · media ±${(1.96 * err).toFixed(2)}`}
+                {/* Su schermo piccolo il disaccordo sta sulla stessa riga: due
+                    righe in più su un tooltip già alto lo spingono fuori dallo
+                    schermo, e lì non c'è overflow da togliere che tenga. */}
+                {compact && dev != null && ` · disacc. ${dev.toFixed(2)}`}
+              </div>
+              {!compact && dev != null && (
                 <div>
                   disaccordo fra le notizie: {dev.toFixed(2)}
                   {dev > 0.42 && <span style={{ color: 'var(--giallo)' }}> (alto)</span>}
@@ -1179,7 +1186,13 @@ export default function Chart({ prices, sentiment, ticker, stats, intraday = fal
           <ReferenceLine yAxisId="sent" y={0} stroke="rgba(var(--rgb-contrasto), 0.12)" strokeDasharray="3 4"/>
           <ReferenceLine yAxisId="sent" y={0.1}  stroke="rgba(74,222,128,0.1)"  strokeDasharray="2 4"/>
           <ReferenceLine yAxisId="sent" y={-0.1} stroke="rgba(248,113,113,0.1)" strokeDasharray="2 4"/>
-          <Tooltip content={<CustomTooltip compact={isMobile} />}/>
+          {/* Questo grafico è alto 120px e il tooltip è più alto di lui, quindi
+              deve poter uscire dal riquadro: senza allowEscapeViewBox recharts
+              lo comprime dentro l'area e le ultime righe spariscono. Lo
+              zIndex lo tiene sopra al pannello delle notizie che sta sotto. */}
+          <Tooltip content={<CustomTooltip compact={isMobile} />}
+            allowEscapeViewBox={{ x: false, y: true }}
+            wrapperStyle={{ zIndex: 30 }}/>
 
           <Bar yAxisId="sent" dataKey="sentiment" radius={[2,2,0,0]} maxBarSize={12} isAnimationActive={false}>
             {display.map((d, i) => (
