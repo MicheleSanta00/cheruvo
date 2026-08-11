@@ -281,6 +281,16 @@ CONTESTO = re.compile(
     # I giudizi degli analisti: vedi la nota "IL DECLASSAMENTO DI JEFFERIES".
     r"downgrade\w*|upgrade[sd]?|rating|outperform|underperform|"
     r"overweight|underweight|price\s+target|target\s+price|"
+    # Italiano. "Piazza Affari" mancava, ed e' il modo piu' comune con cui la
+    # stampa italiana chiama la Borsa di Milano: la misura delle 24 ore dell'11
+    # agosto 2026 ha scartato "Comparto chip tonico, a Piazza Affari gli
+    # acquisti premiano Prysmian +2,8%", che e' un resoconto di seduta.
+    # Nessuna di queste puo' creare falsi positivi: non hanno un secondo
+    # significato fuori dai mercati, al contrario di "seduta" da sola (che e'
+    # anche quella parlamentare) o "listino" (che e' anche il listino prezzi
+    # di un negozio), lasciate fuori apposta.
+    r"piazza\s+affari|seduta\s+(?:borsistica|di\s+borsa)|"
+    r"capitalizzazion\w+|obbligazion\w+|riacquisto\s+di\s+azioni|buyback|"
     r"borsa|azion\w+|quotazion\w+|criptovalut\w+|"
     r"mercati|mercato\s+(?:azionario|crypto|obbligazionario|valutario)|"
     r"investitor\w+|trimestral\w+|ricavi|analist\w+|"

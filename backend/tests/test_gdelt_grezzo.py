@@ -257,3 +257,34 @@ def test_ambigui_vince_su_nomi_netti(monkeypatch):
     monkeypatch.setattr(gg, "NOMI_NETTI", {"Apple", "Avalanche"})
     assert gg.serve_contesto("AAPL", "Apple") is True
     assert gg.serve_contesto("AVAX-USD", "Avalanche") is True
+
+
+# ── Il vocabolario italiano di mercato ────────────────────────────────────
+#
+# La misura da 24 ore dell'11 agosto 2026 ha scartato dei resoconti di seduta
+# italiani perche' CONTESTO non conosceva "Piazza Affari", cioe' il modo piu'
+# comune con cui la stampa italiana chiama la Borsa di Milano.
+def test_piazza_affari_e_un_contesto_finanziario():
+    assert gg.CONTESTO.search(
+        "Comparto chip tonico, a Piazza Affari gli acquisti premiano Prysmian +2,8%")
+
+
+def test_le_altre_parole_aggiunte_funzionano():
+    for t in ("Seduta borsistica in rialzo per Eni",
+              "Enel annuncia un buyback da 2 miliardi",
+              "Intesa Sanpaolo, riacquisto di azioni proprie",
+              "Ferrari supera i 90 miliardi di capitalizzazione",
+              "Eni colloca un'obbligazione da un miliardo"):
+        assert gg.CONTESTO.search(t), t
+
+
+def test_le_parole_ambigue_sono_state_lasciate_fuori():
+    """
+    "seduta" da sola e' anche quella parlamentare, "listino" e' anche il
+    listino prezzi di un negozio. Allentare CONTESTO e' il modo piu' rapido di
+    riempire l'archivio: nella raccolta del 7 agosto 2026 bastavano due nomi
+    per portare dentro 816 righe di spazzatura su 1.541.
+    """
+    for t in ("Seduta fiume in consiglio comunale a Bergamo",
+              "Il nuovo listino prezzi del ristorante fa discutere"):
+        assert not gg.CONTESTO.search(t), t

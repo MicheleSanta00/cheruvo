@@ -60,8 +60,84 @@ News to score:
 {items}
 """
 
+# ── La versione bilanciata, in prova ──────────────────────────────────────
+#
+# L'11 agosto 2026, mettendo a confronto Llama e il tono GDELT su 300 articoli
+# valutati da entrambi, è venuto fuori questo:
+#
+#     media Llama      +0.254
+#     media GDELT      -0.008
+#     media assoluta    0.378 contro 0.168, cioè 2,2 volte più estremo
+#     concordi sul verso   39%
+#
+# Su trecento titoli finanziari presi a caso una media di +0.25 sta dicendo che
+# le notizie sono sistematicamente buone, e non è vero. È uno spostamento
+# sistematico, non rumore: nella lista dei venti disaccordi peggiori, diciotto
+# erano GDELT negativo e Llama positivo.
+#
+# Nel prompt qui sopra ci sono tre cause plausibili:
+#
+#   1. "Use the full range, not just extremes" spinge ATTIVAMENTE via dallo
+#      zero. È probabilmente la causa principale sia dello spostamento sia
+#      dell'eccesso di ampiezza.
+#   2. Gli esempi positivi coprono eventi comunissimi ("partnership", "new
+#      product launch"), quelli molto negativi eventi rari ("bankruptcy",
+#      "fraud"). A parità di numero di righe, in pratica combaciano più spesso
+#      quelle positive.
+#   3. Non si dice da nessuna parte che la maggior parte delle notizie è
+#      neutra, quindi niente ancora il valore di riposo.
+#
+# Questo prompt NON è collegato a niente in produzione. Serve solo a
+# `calibra.py --rivaluta`, che ripunteggia gli stessi trecento articoli in una
+# terza colonna. Il bersaglio è misurabile e non dipende da GDELT: se la media
+# si sposta da +0.254 verso lo zero senza appiattire tutto, allora è meglio.
+PROMPT_BILANCIATO = """You are a financial news analyst.
+Score each headline from -1.0 to +1.0 from the perspective of an investor
+holding the asset mentioned.
 
-def score_batch(articles: list[dict]) -> list | None:
+Start from 0 and move away from it only when the headline gives you a reason.
+
+Most financial headlines are NOT strongly positive or negative. Routine
+coverage, analyst chatter, product news, interviews, sector commentary and
+descriptions of price moves that already happened all sit between -0.2 and
++0.2. If you are unsure, the answer is near 0.
+
+Scores beyond +0.5 or -0.5 are rare and need a concrete, material fact in the
+headline itself. Do not infer facts that are not written there.
+
+Calibration, matched pairs:
+  earnings beat, raised guidance          +0.3 to +0.6
+  earnings miss, cut guidance             -0.3 to -0.6
+  major contract won, large order         +0.3 to +0.6
+  major contract lost, order cancelled    -0.3 to -0.6
+  regulatory approval, favourable ruling  +0.3 to +0.6
+  regulatory ban, fine, investigation     -0.3 to -0.6
+  acquisition at a premium (for target)   +0.5 to +0.8
+  bankruptcy, fraud proven, delisting     -0.7 to -1.0
+
+Cases that are commonly scored wrong:
+  - A large share sale or capital raise DILUTES existing holders: negative for
+    them, even though the company gets money.
+  - "Stock jumps after X" is positive news about X, not merely a description.
+  - A regulator ALLOWING an asset to trade is positive for that asset.
+  - Coverage of a company for non-business reasons (entertainment, sport,
+    crime, an executive's private life) is 0.
+
+Headlines may be in any language, including machine-translated ones: score
+them all on the same scale.
+
+CRITICAL: every item must be scored and must carry back its own number "n".
+Never skip an item, never renumber, never reorder.
+
+Respond ONLY with a JSON object of this exact shape (no text, no markdown):
+{{"scores": [{{"n": 1, "s": 0.4}}, {{"n": 2, "s": -0.2}}, ...]}}
+
+News to score:
+{items}
+"""
+
+
+def score_batch(articles: list[dict], prompt: str | None = None) -> list | None:
     """
     Invia un batch di articoli a Groq e restituisce gli score.
 
@@ -91,7 +167,7 @@ def score_batch(articles: list[dict]) -> list | None:
         f"{i+1}. {_titolo(a['title'])} — {(a.get('summary') or '')[:120]}"
         for i, a in enumerate(articles)
     )
-    prompt = BATCH_PROMPT.format(items=items_text)
+    prompt = (prompt or BATCH_PROMPT).format(items=items_text)
 
     try:
         response = _get_groq().chat.completions.create(
