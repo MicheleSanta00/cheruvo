@@ -243,6 +243,27 @@ export default function App() {
     return () => clearInterval(timer)
   }, [loadedTicker, days, period, load])
 
+  // Un titolo mai visto da nessuno si riempie da solo, la prima volta.
+  //
+  // L'11 agosto 2026 è saltato fuori che l'interfaccia offre 302 titoli mentre
+  // la raccolta automatica oraria ne insegue 41. Gli altri 261 non sono morti,
+  // perché `_termine_query` ricava il nome da Yahoo e il tasto "Aggiorna
+  // notizie" funziona anche per loro. Il punto è che nessuno lo preme: chi
+  // cerca JPM trova il grafico dei prezzi, un riquadro vuoto e un consiglio di
+  // premere un bottone, e se ne va.
+  //
+  // Quindi lo si preme da soli. Una volta per titolo e per sessione, con
+  // `giaProvati` a fare da guardia: se torna vuoto anche dopo il fetch vuol
+  // dire che di quel titolo non si parla, e insistere sarebbe una richiesta
+  // ogni dieci minuti per sempre.
+  const giaProvati = useRef(new Set())
+  useEffect(() => {
+    if (!loadedTicker || loading || error) return
+    if (news.length || giaProvati.current.has(loadedTicker)) return
+    giaProvati.current.add(loadedTicker)
+    handleFetch(loadedTicker)
+  }, [loadedTicker, news.length, loading, error])
+
   // Vista "Oggi": il grafico si compone da solo, un punto ogni minuto.
   //
   // Aggiorna SOLO a borsa aperta. Fuori orario e nel fine settimana il
@@ -809,10 +830,24 @@ export default function App() {
                   background: 'rgba(96,165,250,0.06)', border: '1px solid rgba(96,165,250,0.15)',
                   borderRadius: 12, padding: '24px', textAlign: 'center',
                 }}>
-                  <div style={{ fontSize: 14, color: 'var(--azure)', marginBottom: 8 }}>{t.main.noNews}</div>
-                  <div style={{ fontSize: 12, color: 'var(--muted)' }}>
-                    {t.main.noNewsHint} <b style={{ color: 'var(--white)' }}>{t.main.refreshNews}</b> {t.main.noNewsHint2}
-                  </div>
+                  {/* Se la ricerca automatica è appena partita si dice quello,
+                      invece di consigliare un bottone che si sta già premendo
+                      da solo. Il consiglio resta per il secondo giro, quando
+                      vuol dire che di questo titolo non si è trovato niente. */}
+                  {giaProvati.current.has(loadedTicker) ? (
+                    <>
+                      <div style={{ fontSize: 14, color: 'var(--azure)', marginBottom: 8 }}>{t.main.noNews}</div>
+                      <div style={{ fontSize: 12, color: 'var(--muted)' }}>
+                        {t.main.noNewsHint} <b style={{ color: 'var(--white)' }}>{t.main.refreshNews}</b> {t.main.noNewsHint2}
+                      </div>
+                    </>
+                  ) : (
+                    <div style={{ fontSize: 14, color: 'var(--azure)' }}>
+                      {lang === 'it'
+                        ? 'Sto cercando le notizie su questo titolo…'
+                        : 'Looking for news on this ticker…'}
+                    </div>
+                  )}
                 </div>
               )}
 

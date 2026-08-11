@@ -45,7 +45,21 @@ scheda aperta tutto il giorno conta una volta sola. È una stima, non un censime
 
 `richieste` è sempre più grande e serve solo a capire se qualcuno sta usando
 davvero il sito o l'ha solo aperto: molte richieste per poche sessioni vuol
-dire che la gente ci clicca dentro.
+dire che la gente ci clicca dentro. Nelle prime quattro giornate raccolte il
+rapporto era 46, 6, 37 e 30: solo la seconda è un rimbalzo, le altre sono
+qualcuno che ha cambiato titolo più volte.
+
+CHI SVILUPPA NON DEVE CONTARSI
+
+Per i primi giorni il conteggio comprendeva anche Michele, che apre il sito
+venti volte al giorno per controllare una cosa. Non si poteva separare: qui non
+si sa chi sia nessuno, ed è voluto.
+
+La soluzione sta nel frontend (`apiFetch.js`): aprendo una volta
+`app.cheruvo.com/?noncontarmi=1` quel browser smette di mandare il gettone e
+sparisce dal conteggio, in modo permanente e senza spedire niente in più.
+Non passa da una variabile d'ambiente perché il repo è pubblico e finirebbe in
+chiaro nel bundle. Si annulla con `?noncontarmi=0`.
 
     python backend/visite.py            # stampa gli ultimi 14 giorni
 """

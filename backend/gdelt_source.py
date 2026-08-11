@@ -145,7 +145,7 @@ TERMINE_QUERY = {
     "GOOGL": "Google", "META": "Meta", "AMD": "AMD", "AMZN": "Amazon",
     "MU": "Micron", "INTC": "Intel", "GE": "GE",
     "ENI.MI": "Eni", "ENEL.MI": "Enel", "ISP.MI": "Intesa",
-    "UCG.MI": "UniCredit", "STM.MI": "STMicroelectronics", "RACE.MI": "Ferrari",
+    "UCG.MI": "UniCredit", "STMMI.MI": "STMicroelectronics", "RACE.MI": "Ferrari",
     "LVMH.PA": "LVMH", "SAP.DE": "SAP", "ASML.AS": "ASML", "SHEL.L": "Shell",
     # Criptovalute. Misurato il 4 agosto 2026: la query "Bitcoin" su un solo
     # giorno rende 8 articoli di mercato veri su 15, contro 1 su 20 di "Eni".

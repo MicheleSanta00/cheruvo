@@ -33,3 +33,11 @@ strong { color:var(--white); }
 .related a { display:block; margin-bottom:8px; font-size:14.5px; }
 footer { border-top:1px solid var(--border); padding:26px 24px; text-align:center; color:var(--muted); font-size:13px; }
 footer a { color:var(--muted); }
+
+/* Citazione in blocco. Serve per riportare un pezzo di un altro articolo del
+   blog senza che sembri testo nuovo: nel pezzo dell'11 agosto 2026 la citazione
+   e' la regola che avevo scritto io e poi violato nel prodotto, quindi deve
+   staccarsi dal resto o si perde il senso. */
+blockquote { margin:20px 0; padding:12px 20px; border-left:3px solid var(--azure);
+             background:var(--card); border-radius:0 10px 10px 0; }
+blockquote p { margin:0; color:var(--white); font-size:15.5px; font-style:italic; }

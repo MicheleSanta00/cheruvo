@@ -171,3 +171,43 @@ def test_la_versione_ingenua_conta_di_piu():
 def test_descrivi_formato_regge_un_file_vuoto(capsys):
     gg.descrivi_formato([])
     assert "vuoto" in capsys.readouterr().out
+
+
+# ── Le azioni candidate ───────────────────────────────────────────────────
+#
+# L'11 agosto 2026: l'interfaccia offre 302 titoli, su GDELT se ne cercano 41.
+# Gli altri hanno il grafico dei prezzi e nessuna notizia, per sempre.
+def test_le_candidate_azioni_non_sono_gia_seguite():
+    """Misurare una che si raccoglie gia' non dice niente di nuovo."""
+    gia = set(TERMINE_QUERY) & set(gg.CANDIDATI_AZIONI)
+    assert not gia, f"gia' seguite, vanno tolte dalle candidate: {sorted(gia)}"
+
+
+def test_ogni_candidata_dichiara_una_previsione():
+    """
+    La previsione si scrive PRIMA della misura. Se una data per sicura si
+    rivela sporca, l'errore deve restare scritto invece di essere riscritto
+    dopo aver visto i numeri.
+    """
+    for tk, (nome, previsione) in gg.CANDIDATI_AZIONI.items():
+        assert nome and previsione, tk
+        assert len(previsione) > 5, f"{tk}: previsione troppo vaga"
+
+
+def test_le_ambigue_sono_dichiarate_tali():
+    """
+    Questi nomi sono parole comuni o persone famose: Visa e' il visto
+    d'ingresso, Leonardo e' da Vinci e DiCaprio, Generali in italiano vuol dire
+    generals, Oracle e' l'oracolo di Omaha. Se qualcuno le promuove a "sicuro"
+    senza misurarle, il test si accende.
+    """
+    for tk in ("V", "LDO.MI", "G.MI", "ORCL"):
+        _, previsione = gg.CANDIDATI_AZIONI[tk]
+        assert "ambiguo" in previsione.lower(), f"{tk} non e' dichiarata ambigua"
+
+
+def test_la_misura_sceglie_l_elenco_giusto():
+    """Il flag azioni deve cambiare l'insieme misurato, non solo il titolo."""
+    import inspect
+    sorgente = inspect.getsource(gg.misura_candidati)
+    assert "CANDIDATI_AZIONI if azioni else CANDIDATI" in sorgente

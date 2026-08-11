@@ -86,7 +86,43 @@ const pausa = (ms) => new Promise((r) => setTimeout(r, ms))
 // seguire chi è passato.
 const CHIAVE_SESSIONE = 'cheruvo-sessione'
 
+// Chi sviluppa il sito lo apre venti volte al giorno per controllare una cosa,
+// e ogni volta finiva nel conteggio. Nelle prime quattordici sessioni raccolte
+// una parte era Michele e non c'era modo di sapere quale, quindi il numero non
+// rispondeva alla sola domanda per cui esiste: quanti sono venuti che non sono
+// io.
+//
+// L'esclusione NON passa da una variabile d'ambiente. Il repo è pubblico e
+// .env.production è tracciato, quindi un indirizzo o un id utente messo lì
+// finirebbe in chiaro dentro il JavaScript servito a tutti. Invece si apre una
+// volta sola, su ogni browser che si usa per provare:
+//
+//     app.cheruvo.com/?noncontarmi=1
+//
+// Da quel momento quel browser non manda più il gettone e sparisce dal
+// conteggio. Sta in `localStorage` e non in `sessionStorage` proprio perché
+// deve sopravvivere alla chiusura della scheda, al contrario del gettone.
+// Si disattiva con ?noncontarmi=0. Vale anche per chi ci aiuta a provare.
+const CHIAVE_ESCLUSO = 'cheruvo-non-contarmi'
+
+function escluso() {
+  try {
+    const scelta = new URLSearchParams(window.location.search).get('noncontarmi')
+    if (scelta === '1') {
+      localStorage.setItem(CHIAVE_ESCLUSO, '1')
+      console.info('Cheruvo: questo browser non viene più conteggiato fra le visite.')
+    } else if (scelta === '0') {
+      localStorage.removeItem(CHIAVE_ESCLUSO)
+      console.info('Cheruvo: questo browser torna nel conteggio delle visite.')
+    }
+    return localStorage.getItem(CHIAVE_ESCLUSO) === '1'
+  } catch {
+    return false   // storage negato: si conta, che è il comportamento di prima
+  }
+}
+
 function gettoneSessione() {
+  if (escluso()) return ''
   try {
     let g = sessionStorage.getItem(CHIAVE_SESSIONE)
     if (!g) {

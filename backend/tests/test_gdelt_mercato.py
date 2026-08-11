@@ -62,7 +62,7 @@ def test_una_chiamata_copre_tutto_il_mercato():
         return _risposta(ARTICOLI_ITALIANI if "sourcelang:italian" in q else [])
 
     with patch.object(g.requests, "get", side_effect=finto):
-        for tk in ["ENI.MI", "ENEL.MI", "UCG.MI", "ISP.MI", "RACE.MI", "STM.MI"]:
+        for tk in ["ENI.MI", "ENEL.MI", "UCG.MI", "ISP.MI", "RACE.MI", "STMMI.MI"]:
             g.fetch_gdelt(tk)
 
     assert len(chiamate) == 2, f"attese 2 chiamate, fatte {len(chiamate)}"

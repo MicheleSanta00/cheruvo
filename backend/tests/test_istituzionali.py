@@ -87,3 +87,48 @@ def test_il_disclaimer_dice_le_due_cose_che_esma_impone():
     testo = ist.DISCLAIMER.lower()
     assert "elaborazione" in testo, "manca la dichiarazione di modifica"
     assert "non avalla" in testo, "manca il mancato avallo dell'autorità"
+
+
+# ── Uno zero deve dire quale zero è ───────────────────────────────────────
+#
+# I primi tre giri del workflow hanno stampato "0 comunicati pertinenti" per
+# tutte e tre le fonti, e quella riga non distingueva fra "il feed aveva
+# cinquanta comunicati e nessuno parlava di cripto" e "il feed non ha
+# risposto". Sono due situazioni opposte: la prima si aspetta, la seconda si
+# aggiusta.
+class _Feed:
+    def __init__(self, entries, bozo=False, eccezione=""):
+        self.entries = entries
+        self.bozo = bozo
+        self.bozo_exception = eccezione
+
+
+def _voce(titolo, quando):
+    import time as _t
+    return type("V", (), {"title": titolo, "link": "https://esempio/x",
+                          "published_parsed": _t.gmtime(quando)})()
+
+
+def test_un_feed_vuoto_grida_invece_di_tacere(monkeypatch, caplog):
+    import feedparser
+    monkeypatch.setattr(feedparser, "parse", lambda *_a, **_k: _Feed([]))
+    with caplog.at_level("WARNING"):
+        assert ist.leggi("BCE", 3) == []
+    # getMessage() applica gli argomenti al template: `record.msg` da solo
+    # sarebbe ancora "%-18s NESSUNA VOCE...".
+    assert any("NESSUNA VOCE" in r.getMessage() for r in caplog.records), \
+        "un feed muto deve lasciare un avviso"
+
+
+def test_un_feed_pieno_ma_senza_cripto_non_e_un_guasto(monkeypatch, caplog):
+    import time
+    import feedparser
+    adesso = time.time()
+    voci = [_voce("ECB appoints new Director General", adesso),
+            _voce("Vacancy notice: Senior Legal Officer", adesso),
+            _voce("Banking supervision: 2026 stress test calendar", adesso)]
+    monkeypatch.setattr(feedparser, "parse", lambda *_a, **_k: _Feed(voci))
+    with caplog.at_level("WARNING"):
+        assert ist.leggi("BCE", 3) == []
+    assert not [r for r in caplog.records if r.levelname == "WARNING"], \
+        "un feed che risponde non deve produrre avvisi solo perche' non c'e' cripto"

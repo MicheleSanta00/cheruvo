@@ -14,7 +14,7 @@ const NOMI_BREVI = {
   NVDA:'NVIDIA', AAPL:'Apple', TSLA:'Tesla', MSFT:'Microsoft', GOOGL:'Alphabet',
   META:'Meta', AMD:'AMD', AMZN:'Amazon', MU:'Micron', INTC:'Intel', NFLX:'Netflix',
   GE:'GE', 'ENI.MI':'Eni', 'ENEL.MI':'Enel', 'ISP.MI':'Intesa', 'UCG.MI':'UniCredit',
-  'STM.MI':'STMicro', 'RACE.MI':'Ferrari', 'LVMH.PA':'LVMH', 'SAP.DE':'SAP',
+  'STMMI.MI':'STMicro', 'RACE.MI':'Ferrari', 'LVMH.PA':'LVMH', 'SAP.DE':'SAP',
   'ASML.AS':'ASML', 'SHEL.L':'Shell',
 }
 

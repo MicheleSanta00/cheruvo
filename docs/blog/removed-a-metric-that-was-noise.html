@@ -1,0 +1,122 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>My blog said 30 data points minimum. My product was showing five. | Cheruvo</title>
+<meta name="description" content="A user asked why one article scored -0.9. Looking for the answer, I found that the correlation my app displayed was computed on five days, and removing one flipped its sign. Here is what I removed and why.">
+<link rel="canonical" href="https://cheruvo.com/blog/removed-a-metric-that-was-noise.html">
+<meta property="og:title" content="My blog said 30 data points minimum. My product was showing five.">
+<meta property="og:description" content="The correlation my app displayed was computed on five days. Removing one flipped its sign.">
+<meta property="og:type" content="article">
+<meta property="og:url" content="https://cheruvo.com/blog/removed-a-metric-that-was-noise.html">
+<meta property="og:image" content="https://cheruvo.com/post_1_correlazione.png">
+<meta name="twitter:card" content="summary_large_image">
+<link rel="icon" href="../favicon.png">
+<link rel="stylesheet" href="style.css">
+<script type="application/ld+json">
+{
+  "@context": "https://schema.org",
+  "@type": "Article",
+  "headline": "My blog said 30 data points minimum. My product was showing five.",
+  "description": "A user asked why one article scored -0.9. Looking for the answer, I found the correlation my app displayed was computed on five days.",
+  "datePublished": "2026-08-11",
+  "inLanguage": "en",
+  "author": { "@type": "Organization", "name": "Cheruvo" },
+  "publisher": { "@type": "Organization", "name": "Cheruvo", "url": "https://cheruvo.com" }
+}
+</script>
+</head>
+<body>
+<header>
+  <a class="logo" href="../index.html"><img src="../logo-v2.png" alt=""/>Cheruvo</a>
+  <div style="display:flex;gap:8px">
+    <a class="hbtn" href="index.html">Blog</a>
+    <a class="hbtn primary" href="https://app.cheruvo.com">Open Cheruvo</a>
+  </div>
+</header>
+
+<main>
+<div class="kicker">Build log</div>
+<h1>My blog said 30 data points minimum. My product was showing five.</h1>
+<div class="meta">Cheruvo blog · 11 August 2026 · 6 minute read</div>
+
+<p>I build Cheruvo alone. It reads financial news, scores the sentiment, and shows it next to the price. It is free, it has almost no users, and this week it got its first one who actually pushed on it.</p>
+
+<p>He registered, tested the stocks section, and asked a specific question: why did this one article about NVDA score −0.9? That answer turned out to be long, and while I was digging for it I found something worse that had nothing to do with his question.</p>
+
+<h2>The number that was not a measurement</h2>
+
+<p>One panel showed the correlation between daily sentiment and price. For NVDA it read <strong>−0.712</strong>. Three decimals, large type, red, with the words <em>Strong negative</em> underneath.</p>
+
+<p>I went to count how many days it was computed on. Five.</p>
+
+<p>So I ran the obvious check, dropping one day at a time:</p>
+
+<img src="../post_1_correlazione.png" alt="Leave-one-out on the five days: with all five r is -0.737, without 3 August it becomes +0.244" style="width:100%;border-radius:12px;margin:22px 0" />
+
+<p>Removing a single day out of five, 3 August, takes the correlation from −0.74 to <strong>+0.24</strong>. It changes sign. One observation was carrying the entire result.</p>
+
+<p>Then I checked how easy that number is to get by accident. I generated 200,000 pairs of random series of length five and computed r for each. An absolute value of 0.737 or higher came up in <strong>15.5%</strong> of them. You do not need a relationship to exist to see that number on your screen. You need to be unlucky about one day in seven.</p>
+
+<div class="box">The width of the 95% band around r = 0 is ± 0.88 at five pairs, ± 0.63 at ten, ± 0.44 at twenty, ± 0.36 at thirty. Below twenty pairs the band is wider than any effect between news sentiment and price that would be worth claiming. Whatever you print in there is noise wearing a lab coat.</div>
+
+<h2>The part that stings</h2>
+
+<p>A month earlier I had published an article on this same blog explaining how to measure the sentiment/price relationship yourself. It contains this sentence:</p>
+
+<blockquote><p>With fewer than 30 data points, any r is more noise than signal.</p></blockquote>
+
+<p>And a few lines above, about high values: <em>above 0.6 it is strong, and suspicious: check how many days it is computed on.</em></p>
+
+<p>I wrote that. Then I shipped a component that printed r at n = 5 and labelled it <em>Strong negative</em>. The minimum threshold in the code was five pairs, and I had typed it myself months earlier without thinking about it for even a second.</p>
+
+<p>Knowing the rule and enforcing the rule turn out to be entirely different pieces of work, and only one of them is in the repository.</p>
+
+<h2>Looking for the same disease elsewhere</h2>
+
+<p>Once you find one, you go looking. The correlation formula turned out to be written in three different files with three different minimum thresholds: 5, 5 and 10. Three copies of the same mistake, so removing it from one would have left it in the other two.</p>
+
+<p>Then there were two more panels, and one of them had been behind what used to be the paid plan. They said <em>average return after bullish days</em> and the same for bearish days, coloured green or red. They read like a trading rule.</p>
+
+<p>I measured them across six tickers:</p>
+
+<img src="../post_2_medie.png" alt="Seven average returns with their 95% bands, all crossing zero" style="width:100%;border-radius:12px;margin:22px 0" />
+
+<p>Seven computable averages out of seven include zero. Not one of them distinguishes an effect from chance. And two of the numbers on screen were not averages at all: NVDA <em>bearish</em> was a single day, MSFT <em>bullish</em> was a single day. One trading session, printed with a plus sign and a colour, described as an average.</p>
+
+<h2>What I removed</h2>
+
+<ul>
+  <li>The correlation coefficient does not appear below 20 pairs. When it appears, it always carries its 95% band.</li>
+  <li>If the band contains zero, the interface says so in words instead of turning red. Colour now means <em>distinguishable from zero</em>, not <em>large number</em>.</li>
+  <li>The words <em>strong</em> and <em>moderate</em> are gone. They assigned an intensity judgement to numbers that were often indistinguishable from chance, which is worse than the number itself.</li>
+  <li>The average-return panels do not appear below 30 days, and carry their band.</li>
+  <li>The regression line in the scatter plot is only drawn when the correlation excludes zero. A diagonal through a cloud of eight points asserts more than the number printed beside it, and removing the number while keeping the line would have been fixing the window and leaving the door open.</li>
+  <li>The daily sentiment average now travels with the number of articles behind it and how much they disagree. On 7 August, NVDA had 61 articles averaging +0.21, with individual scores from −0.9 to +0.8. The average was precise and the articles were in total disagreement, both at once. One number could not say that.</li>
+</ul>
+
+<p>The result is that the product now shows less than it did, and in several places says <em>I do not know</em>.</p>
+
+<h2>Why bother, at 14 sessions</h2>
+
+<p>I should be honest about the scale here, because it is the part people usually leave out. Over the four days I have been counting, the site had 14 sessions. One of them was a real engaged user. Some of the rest were me.</p>
+
+<p>So this was not a decision taken under pressure from a user base. It was taken because that same user offered to discuss the project publicly, and if I leave a number that does not hold, the first person who checks takes it apart. At that point nothing I got right counts for anything.</p>
+
+<p>The thing I want to remember: that five-pair threshold was never covered by a test, and there was a reason. It was not a computation, it was a display choice. Formulas get tested. Presentation does not. And the lie was entirely in the presentation, because the arithmetic behind −0.712 was perfectly correct.</p>
+
+<p>The correlation now lives in one file, with the measurement table written in the comment above the threshold, so that the next person who wants to lower it has to read why it is there first. That person is probably me.</p>
+
+<div class="cta">
+  <h3>See it for yourself</h3>
+  <p>Cheruvo is free, no card, no locked features. On most tickers the correlation panel currently says there is not enough data yet, which is the point.</p>
+  <a class="btn" href="https://app.cheruvo.com">Open Cheruvo →</a>
+</div>
+
+<p class="disclaimer">This article is for information and education only and is not financial advice. Past performance and historical correlations do not guarantee future results.</p>
+</main>
+
+<footer>© 2026 Cheruvo · <a href="../index.html">cheruvo.com</a> · <a href="index.html">Blog</a> · <a href="../privacy.html">Privacy</a></footer>
+</body>
+</html>

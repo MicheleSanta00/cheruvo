@@ -920,17 +920,90 @@ CANDIDATI = {
 }
 
 
-def misura_candidati(quale_file: str | None, ore: int = 6) -> int:
+# ── Le azioni candidate ───────────────────────────────────────────────────
+#
+# L'11 agosto 2026 è venuto fuori che l'interfaccia offre 302 titoli mentre su
+# GDELT se ne cercano 41. Gli altri 261 hanno il grafico dei prezzi e nessuna
+# notizia, per sempre, e il suggeritore della ricerca li propone lo stesso.
+#
+# Questa lista è la parte di quel buco che vale la pena chiudere: i nomi che
+# uno cerca davvero, con dentro le italiane e le europee perché è lì che sta
+# chi ci legge. Non sono tutti e 261 apposta: allargare senza misurare è come
+# sono entrate 816 righe di spazzatura su 1541 quando si erano adottate GOOGL
+# e MSFT.
+#
+# La colonna della previsione è scritta PRIMA di far girare la misura. Serve a
+# non riscrivere la storia dopo: se una che avevo dato per sicura si rivela
+# sporca, l'errore resta scritto qui.
+CANDIDATI_AZIONI = {
+    # ticker         nome cercato          previsione
+    "JPM":          ("JPMorgan",          "sicuro"),
+    "NFLX":         ("Netflix",           "sicuro, ma molta cronaca di spettacolo"),
+    "COIN":         ("Coinbase",          "sicuro"),
+    "PLTR":         ("Palantir",          "sicuro"),
+    "AVGO":         ("Broadcom",          "sicuro"),
+    "TSM":          ("TSMC",              "sicuro"),
+    "BABA":         ("Alibaba",           "sicuro"),
+    "BA":           ("Boeing",            "sicuro"),
+    "PFE":          ("Pfizer",            "sicuro"),
+    "XOM":          ("Exxon",             "sicuro"),
+    "WMT":          ("Walmart",           "sicuro"),
+    "SMCI":         ("Super Micro",       "sicuro"),
+    "HOOD":         ("Robinhood",         "sicuro"),
+    "ABNB":         ("Airbnb",            "sicuro"),
+    "SHOP":         ("Shopify",           "sicuro"),
+    "UBER":         ("Uber",              "dubbio: tantissima cronaca non finanziaria"),
+    "DIS":          ("Disney",            "dubbio: quasi tutto intrattenimento"),
+    "ORCL":         ("Oracle",            "ambiguo: l'oracolo di Omaha e' Buffett"),
+    "V":            ("Visa",              "ambiguo: il visto d'ingresso, e vince lui"),
+    "ARM":          ("Arm Holdings",      "sicuro col nome intero, mortale col solo Arm"),
+
+    # Italia, che e' il pubblico vero
+    "STLAM.MI":     ("Stellantis",        "sicuro"),
+    "NEXI.MI":      ("Nexi",              "sicuro"),
+    "MONC.MI":      ("Moncler",           "sicuro"),
+    "PRY.MI":       ("Prysmian",          "sicuro"),
+    "BMPS.MI":      ("Monte dei Paschi",  "sicuro"),
+    "PST.MI":       ("Poste Italiane",    "sicuro"),
+    "CNHI.MI":      ("CNH Industrial",    "sicuro"),
+    "FBK.MI":       ("FinecoBank",        "sicuro"),
+    "TRN.MI":       ("Terna",             "dubbio: nome comune in altre lingue"),
+    "LDO.MI":       ("Leonardo",          "ambiguo: da Vinci, DiCaprio, mezzo mondo"),
+    "G.MI":         ("Generali",          "ambiguo: in italiano vuol dire generals"),
+
+    # Europa
+    "SIE.DE":       ("Siemens",           "sicuro"),
+    "VOW3.DE":      ("Volkswagen",        "sicuro"),
+    "BAYN.DE":      ("Bayer",             "sicuro"),
+    "NESN.SW":      ("Nestle",            "sicuro, ma l'accento puo' far perdere righe"),
+    "NOVN.SW":      ("Novartis",          "sicuro"),
+    "AZN.L":        ("AstraZeneca",       "sicuro"),
+    "HSBA.L":       ("HSBC",              "sicuro"),
+    "SAN.MC":       ("Santander",         "sicuro"),
+    "TTE.PA":       ("TotalEnergies",     "sicuro"),
+    "AIR.PA":       ("Airbus",            "sicuro"),
+}
+
+
+def misura_candidati(quale_file: str | None, ore: int = 6,
+                     azioni: bool = False) -> int:
     """
-    Quante notizie porterebbe ogni moneta candidata, e quante sarebbero false.
+    Quante notizie porterebbe ogni candidata, e quante sarebbero false.
 
     Non scrive niente e non modifica TERMINE_QUERY: produce la tabella da cui
     decidere a mano quali adottare.
+
+    Con `azioni=True` misura le societa' invece delle monete. La differenza che
+    conta e' nella lettura, non nel conto: per un titolo azionario la parola di
+    mercato nel titolo e' OBBLIGATORIA (vedi serve_contesto), quindi la colonna
+    "senza" non e' un dubbio da valutare, e' scarto certo.
     """
+    scelta = CANDIDATI_AZIONI if azioni else CANDIDATI
+    cosa = "AZIONE" if azioni else "MONETA"
     print("=" * 76)
-    print("  QUANTO PORTEREBBE OGNI MONETA CANDIDATA")
+    print(f"  QUANTO PORTEREBBE OGNI {cosa} CANDIDATA")
     print("=" * 76)
-    print(f"\n  {len(CANDIDATI)} candidate, {ore} ore di file, entrambi i feed.\n")
+    print(f"\n  {len(scelta)} candidate, {ore} ore di file, entrambi i feed.\n")
 
     righe, file_ok, file_ko = righe_della_finestra(ore, quale_file)
     if not righe:
@@ -940,7 +1013,7 @@ def misura_candidati(quale_file: str | None, ore: int = 6) -> int:
     # Stesse regole della raccolta vera: confine di parola, e per le ambigue
     # anche una parola di mercato nel titolo.
     rx = {tk: re.compile(r"\b" + re.escape(nome) + r"\b", re.I)
-          for tk, (nome, _) in CANDIDATI.items()}
+          for tk, (nome, _) in scelta.items()}
 
     con_contesto = Counter()
     senza_contesto = Counter()
@@ -965,15 +1038,15 @@ def misura_candidati(quale_file: str | None, ore: int = 6) -> int:
     print("  " + "-" * 72)
 
     fattore = 24 / max(ore, 1)
-    trovate = sorted(CANDIDATI, key=lambda t: -(con_contesto[t] + senza_contesto[t]))
+    trovate = sorted(scelta, key=lambda t: -(con_contesto[t] + senza_contesto[t]))
     for tk in trovate:
         c, s = con_contesto[tk], senza_contesto[tk]
         if not (c or s):
             continue
-        nome, previsione = CANDIDATI[tk]
+        nome, previsione = scelta[tk]
         print(f"  {nome:<12}{c:>12}{s:>8}{c * fattore:>10.0f}   {previsione}")
 
-    mute = [CANDIDATI[t][0] for t in CANDIDATI if not (con_contesto[t] or senza_contesto[t])]
+    mute = [scelta[t][0] for t in scelta if not (con_contesto[t] or senza_contesto[t])]
     if mute:
         print(f"\n  nessuna notizia in questa finestra: {', '.join(mute)}")
 
@@ -984,7 +1057,7 @@ def misura_candidati(quale_file: str | None, ore: int = 6) -> int:
     for tk in trovate:
         if tk not in esempi:
             continue
-        nome, previsione = CANDIDATI[tk]
+        nome, previsione = scelta[tk]
         print(f"  {nome}  ({previsione})")
         for contesto, t in esempi[tk]:
             print(f"    {'[M]' if contesto else '[ ]'} {t}")
@@ -1125,13 +1198,17 @@ if __name__ == "__main__":
                     help="timestamp preciso, es. 20260806180000. "
                          "Senza, prende l'ultimo pubblicato.")
     ap.add_argument("--modo",
-                    choices=("resa", "colonne", "sigle", "candidati", "lingue"),
+                    choices=("resa", "colonne", "sigle", "candidati",
+                             "candidati-azioni", "lingue"),
                     default="resa",
                     help="resa: quanto rende un file. colonne: quanto "
                          "porterebbero temi, organizzazioni e nomi propri. "
                          "sigle: quanto porterebbe cercare BTC oltre a "
                          "Bitcoin. candidati: quante notizie porterebbe ogni "
-                         "moneta nuova che stiamo valutando. lingue: quante "
+                         "moneta nuova che stiamo valutando. "
+                         "candidati-azioni: lo stesso per le societa, che e' "
+                         "il buco vero (302 titoli offerti, 41 cercati). "
+                         "lingue: quante "
                          "notizie il filtro butta via, lingua per lingua.")
     ap.add_argument("--colonne", action="store_true",
                     help="scorciatoia per --modo colonne")
@@ -1148,6 +1225,8 @@ if __name__ == "__main__":
         sys.exit(misura_sigle(args.file, args.ore))
     if modo == "candidati":
         sys.exit(misura_candidati(args.file, args.ore))
+    if modo == "candidati-azioni":
+        sys.exit(misura_candidati(args.file, args.ore, azioni=True))
     if modo == "lingue":
         sys.exit(misura_lingue(args.file, args.ore))
     sys.exit(misura(args.file))

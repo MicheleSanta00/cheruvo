@@ -175,13 +175,29 @@ def leggi(nome: str, giorni: int = 3) -> list[dict]:
 
     fonte = FONTI[nome]
     d = feedparser.parse(fonte["rss"])
-    if getattr(d, "bozo", False) and not d.entries:
-        logger.warning("  %s: feed non leggibile (%s)", nome,
-                       str(getattr(d, "bozo_exception", ""))[:70])
+    voci = len(getattr(d, "entries", None) or [])
+
+    # Uno zero deve dire QUALE zero è.
+    #
+    # I primi tre giri hanno stampato "0 comunicati pertinenti" per tutte e tre
+    # le fonti, e da quella riga non si capiva niente: poteva voler dire che i
+    # feed avevano cinquanta comunicati e nessuno parlava di cripto, oppure che
+    # i feed non stavano arrivando affatto. Sono due situazioni opposte, una si
+    # aspetta e l'altra si aggiusta.
+    #
+    # Il controllo di prima non bastava: guardava `bozo`, che feedparser alza
+    # sugli XML malformati, ma un feed spostato che risponde 404 con una pagina
+    # HTML valida non è malformato. È solo vuoto, e passava in silenzio.
+    if not voci:
+        logger.warning("  %-18s NESSUNA VOCE dal feed (%s). Da controllare: %s",
+                       nome,
+                       str(getattr(d, "bozo_exception", "")) [:60] or "nessun errore segnalato",
+                       fonte["rss"])
         return []
 
     limite = datetime.now(timezone.utc).timestamp() - giorni * 86400
     fuori = []
+    letti = 0     # quanti comunicati cadono nella finestra, prima del filtro
     for e in d.entries:
         titolo = (getattr(e, "title", "") or "").strip()
         if not titolo:
@@ -197,6 +213,7 @@ def leggi(nome: str, giorni: int = 3) -> list[dict]:
         else:
             data = datetime.now(timezone.utc).isoformat()
 
+        letti += 1
         for tk in _pertinente(titolo, TERMINE_QUERY):
             fuori.append({
                 "ticker": tk,
@@ -211,6 +228,14 @@ def leggi(nome: str, giorni: int = 3) -> list[dict]:
                 "score_source": "istituzionale",
                 "lingua": "eng",
             })
+
+    logger.info("  %-18s %3d voci nel feed, %3d negli ultimi %d giorni, %3d pertinenti",
+                nome, voci, letti, giorni, len(fuori))
+    if letti and not fuori:
+        # Il caso normale, ma va detto che è normale: queste tre fonti
+        # pubblicano soprattutto nomine, calendari e vigilanza bancaria, e la
+        # cripto passa di lì poche volte al mese. Uno zero qui non è un guasto.
+        logger.info("       nessuno di questi parla di cripto o di un asset seguito")
     return fuori
 
 
@@ -219,9 +244,9 @@ def raccogli(giorni: int = 3, salva: bool = False) -> int:
 
     tutte: list[dict] = []
     for nome in FONTI:
-        righe = leggi(nome, giorni)
-        logger.info("  %-18s %3d comunicati pertinenti", nome, len(righe))
-        tutte.extend(righe)
+        # Il conteggio lo stampa `leggi`, che è l'unico posto in cui si sa
+        # quante voci sono arrivate prima del filtro.
+        tutte.extend(leggi(nome, giorni))
 
     if not tutte:
         logger.info("Niente di pertinente negli ultimi %d giorni.", giorni)
