@@ -157,6 +157,60 @@ npm install
 npm run dev
 ```
 
+## Test
+
+Due suite separate, nessuna delle due tocca il database di produzione.
+
+### Backend (pytest)
+
+```bash
+cd backend
+python -m pytest -q
+```
+
+Un test solo, mentre ci si lavora:
+
+```bash
+python -m pytest tests/test_giornaliero.py -q
+python -m pytest -k correlazione -q
+```
+
+I test non si connettono a Supabase: `tests/conftest.py` mette delle variabili
+d'ambiente finte e sostituisce il pool di connessioni. Se un giorno un test
+prova ad aprire una connessione vera vuol dire che qualcuno ha importato `main`
+troppo presto, prima che il `patch` di `test_auth.py` fosse in piedi. È già
+successo, e per questo `aggrega_giornaliero` vive in `giornaliero.py` e non
+dentro `main.py`.
+
+### Frontend
+
+```bash
+cd frontend
+npm test
+```
+
+Usa il runner incluso in Node (serve Node 18 o superiore), quindi non c'è
+nessuna dipendenza di test da installare. Il glob nello script è fra virgolette
+apposta: così a espanderlo è Node e non la shell, e il comando si comporta
+uguale su Windows e su Linux.
+
+Un file solo:
+
+```bash
+node --test src/utils/incertezza.test.js
+```
+
+### Prima di ogni push
+
+```bash
+cd backend  && python -m pytest -q
+cd ../frontend && npm test && npm run build
+```
+
+`npm run build` va lanciato davvero, non saltato: i test del frontend provano
+la logica pura in `src/utils/`, ma non compilano i componenti. Un errore di
+sintassi in un `.jsx` lo trova solo il build.
+
 ## Variabili d'ambiente richieste
 
 Vedi [`.env.example`](./.env.example) nella radice del progetto.

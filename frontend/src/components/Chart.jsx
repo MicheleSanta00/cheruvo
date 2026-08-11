@@ -1,11 +1,12 @@
 import { useState, useMemo, useEffect, useRef } from 'react'
 import {
-  ComposedChart, Area, Bar, Line,
+  ComposedChart, Area, Bar, Line, ErrorBar,
   XAxis, YAxis, CartesianGrid, Tooltip,
   ResponsiveContainer, ReferenceLine, ReferenceArea, Cell,
 } from 'recharts'
 import Icon from './Icon.jsx'
 import { formattaPrezzo } from './LogoCrypto.jsx'
+import { correlazione, compatibileConZero, spiegazione } from '../utils/incertezza.js'
 
 // ── Rileva schermi piccoli (per proporzioni grafico e tooltip) ────────────
 function useIsMobile() {
@@ -30,6 +31,12 @@ function CustomTooltip({ active, payload, label, compact }) {
   const vol   = get('Volume')
   const sent  = get('sentiment')
   const ma    = get('sentMA')
+  // n, dev ed errore non hanno una serie disegnata, quindi non stanno nel
+  // payload di recharts: si prendono dal punto dati sotto al cursore.
+  const punto = payload[0]?.payload || {}
+  const n     = punto.sentN
+  const dev   = punto.sentDev
+  const err   = punto.sentErr
 
   const sentVal = sent ?? ma
   const sentCol = sentVal == null ? '#94a3b8'
@@ -90,6 +97,23 @@ function CustomTooltip({ active, payload, label, compact }) {
               MA7: {ma > 0 ? '+' : ''}{ma.toFixed(3)}
             </div>
           )}
+
+          {/* Quante notizie compongono la media e quanto sono d'accordo.
+              Sono due cose diverse e su NVDA il 7 agosto dicevano l'opposto:
+              61 notizie (media precisa) con punteggi da -0.9 a +0.8
+              (notizie in totale disaccordo). Con la sola media, quel giorno
+              sembrava un tranquillo +0.21. */}
+          {sent != null && n != null && (
+            <div style={{ fontSize: 11, color: '#64748b', marginTop: 5, lineHeight: 1.6 }}>
+              <div>{n} {n === 1 ? 'notizia' : 'notizie'}{err != null && ` · media ±${(1.96 * err).toFixed(2)}`}</div>
+              {dev != null && (
+                <div>
+                  disaccordo fra le notizie: {dev.toFixed(2)}
+                  {dev > 0.42 && <span style={{ color: 'var(--giallo)' }}> (alto)</span>}
+                </div>
+              )}
+            </div>
+          )}
         </div>
       )}
     </div>
@@ -107,18 +131,9 @@ function movingAverage(data, key, n = 7) {
   })
 }
 
-// ── Calcola correlazione di Pearson tra due array ─────────────────────────
-function pearsonCorrelation(x, y) {
-  const pairs = x.map((v, i) => [v, y[i]]).filter(([a, b]) => a != null && b != null)
-  if (pairs.length < 5) return null
-  const n  = pairs.length
-  const mx = pairs.reduce((s, [a]) => s + a, 0) / n
-  const my = pairs.reduce((s, [, b]) => s + b, 0) / n
-  const num = pairs.reduce((s, [a, b]) => s + (a - mx) * (b - my), 0)
-  const dx  = Math.sqrt(pairs.reduce((s, [a]) => s + (a - mx) ** 2, 0))
-  const dy  = Math.sqrt(pairs.reduce((s, [, b]) => s + (b - my) ** 2, 0))
-  return dx && dy ? parseFloat((num / (dx * dy)).toFixed(3)) : null
-}
+// La correlazione, con la sua banda di incertezza, sta in utils/incertezza.js:
+// era scritta tre volte con tre soglie diverse, e tre copie della stessa
+// formula sono tre occasioni perché il difetto torni.
 
 // ── Candlestick shape ─────────────────────────────────────────────────────
 function makeCandleShape(minP, maxP) {
@@ -190,12 +205,13 @@ function DataPanel({ prices, sentiment, stats, correlation }) {
   const sentLabel = v => v == null ? '—'
     : v > 0.1 ? 'Bullish' : v < -0.1 ? 'Bearish' : 'Neutro'
 
-  const corrColor = c => c == null ? '#94a3b8'
-    : c > 0.3 ? '#4ade80' : c < -0.3 ? '#f87171' : 'var(--giallo)'
-  const corrLabel = c => c == null ? 'N/D'
-    : c > 0.5 ? 'Forte positiva' : c > 0.3 ? 'Moderata positiva'
-    : c < -0.5 ? 'Forte negativa' : c < -0.3 ? 'Moderata negativa'
-    : 'Debole / assente'
+  // Il colore adesso vuol dire "distinguibile da zero", non "numero grande".
+  // Un -0.74 misurato su cinque giorni non merita il rosso: merita il grigio e
+  // una riga che spieghi perché.
+  const corrColor = c => compatibileConZero(c) ? '#94a3b8'
+    : c.r > 0 ? '#4ade80' : '#f87171'
+
+  const corrSub = spiegazione
 
   // Celle piatte, non schedine arrotondate: stesso linguaggio della striscia
   // KPI in alto. Numeri monospaziati e tabellari così le cifre restano
@@ -261,12 +277,14 @@ function DataPanel({ prices, sentiment, stats, correlation }) {
                 con due stili diversi. Qui resta solo ciò che è specifico del
                 grafico: il dato più recente, la correlazione e i conteggi. */}
 
-            {/* Correlazione sentiment/prezzo */}
+            {/* Correlazione sentiment/prezzo, con la banda accanto */}
             <Block
               label="Correlazione sent/prezzo"
-              value={correlation != null ? (correlation > 0 ? '+' : '') + correlation : 'N/D'}
+              value={correlation?.r != null
+                ? (correlation.r > 0 ? '+' : '') + correlation.r
+                : '—'}
               valueColor={corrColor(correlation)}
-              sub={<span style={{ color: corrColor(correlation) }}>{corrLabel(correlation)}</span>}
+              sub={<span style={{ color: '#64748b' }}>{corrSub(correlation)}</span>}
             />
 
             <Block label="Giorni bullish" value={`${bullishDays} gg`} valueColor="#4ade80"
@@ -960,10 +978,26 @@ export default function Chart({ prices, sentiment, ticker, stats, intraday = fal
   }
 
   const data = useMemo(() => {
+    // Si tiene tutta la riga del giorno, non solo la media: da /api/sentiment
+    // arrivano anche quante notizie la compongono (n), quanto sono in
+    // disaccordo (dev) e quanto è precisa la media stessa (errore). Erano già
+    // calcolate e venivano buttate via qui dentro.
     const sentMap = {}
-    sentiment.forEach(s => { sentMap[s.date] = s.sentiment })
+    sentiment.forEach(s => { sentMap[s.date] = s })
 
-    const merged = prices.map(p => ({ ...p, sentiment: sentMap[p.date] ?? null }))
+    const merged = prices.map(p => {
+      const s = sentMap[p.date]
+      return {
+        ...p,
+        sentiment: s?.sentiment ?? null,
+        sentN:   s?.n ?? null,
+        sentDev: s?.dev ?? null,
+        sentErr: s?.errore ?? null,
+        // Semiampiezza della banda al 95% sulla media del giorno. Serve alla
+        // barra d'errore, che disegna quanto è incerta l'altezza della barra.
+        sentBanda: s?.errore != null ? 1.96 * s.errore : null,
+      }
+    })
 
     // Calcola MA7 sul sentiment
     const maValues = movingAverage(merged, 'sentiment', 7)
@@ -986,7 +1020,7 @@ export default function Chart({ prices, sentiment, ticker, stats, intraday = fal
     const priceChg = data.map(d =>
       d.Open != null && d.Close != null ? (d.Close - d.Open) / d.Open : null
     )
-    return pearsonCorrelation(sentArr, priceChg)
+    return correlazione(sentArr, priceChg)
   }, [data])
 
   const CandleShape = useMemo(() => makeCandleShape(minP, maxP), [minP, maxP])
@@ -1099,10 +1133,28 @@ export default function Chart({ prices, sentiment, ticker, stats, intraday = fal
         </ComposedChart>
       </ResponsiveContainer>
 
-      {/* Grafico sentiment + MA7 */}
-      <div style={{ marginTop: 16, marginBottom: 6, display: 'flex', alignItems: 'center', gap: 12 }}>
-        <span style={{ fontSize: 10, color: '#475569', letterSpacing: '0.06em', textTransform: 'uppercase' }}>
-          SENTIMENT GIORNALIERO
+      {/* Grafico sentiment + MA7.
+
+          L'etichetta era #475569 a 10px, cioè grigio scuro su fondo scuro. Un
+          utente esperto, che stava apposta cercando difetti, ha scambiato
+          queste barre per i volumi e si è pure scusato lui. Non era distratto:
+          l'etichetta era illeggibile e la legenda non diceva cosa fossero le
+          barre, solo cosa fosse la linea. */}
+      <div style={{ marginTop: 16, marginBottom: 6, display: 'flex', alignItems: 'center', gap: 12, flexWrap: 'wrap' }}>
+        <span style={{
+          fontSize: 11, color: 'var(--off-white)', fontWeight: 700,
+          letterSpacing: '0.08em', textTransform: 'uppercase',
+        }}>
+          Sentiment giornaliero
+        </span>
+        <span style={{ fontSize: 10, color: 'var(--muted)', display: 'flex', alignItems: 'center', gap: 5 }}>
+          <span style={{ width: 7, height: 11, background: '#4ade80', opacity: 0.7, display: 'inline-block', borderRadius: 1 }}/>
+          <span style={{ width: 7, height: 11, background: '#f87171', opacity: 0.7, display: 'inline-block', borderRadius: 1, marginLeft: -2 }}/>
+          media del giorno
+        </span>
+        <span style={{ fontSize: 10, color: 'var(--muted)', display: 'flex', alignItems: 'center', gap: 5 }}>
+          <span style={{ width: 1.5, height: 11, background: 'var(--muted)', display: 'inline-block' }}/>
+          incertezza sulla media
         </span>
         {showMA && (
           <span style={{ fontSize: 10, color: 'var(--giallo)', display: 'flex', alignItems: 'center', gap: 4 }}>
@@ -1138,6 +1190,12 @@ export default function Chart({ prices, sentiment, ticker, stats, intraday = fal
                   : 'var(--giallo)'}
               />
             ))}
+            {/* L'altezza della barra è una media, e una media di poche notizie
+                si sposta facilmente. Il baffo dice di quanto. Su un giorno da
+                sessanta articoli è quasi invisibile, ed è giusto così: quel
+                giorno la media si sa bene. */}
+            <ErrorBar dataKey="sentBanda" width={3} strokeWidth={1}
+              stroke="rgba(var(--rgb-contrasto), 0.45)" direction="y" />
           </Bar>
 
           {/* MA7 come linea sovrapposta */}

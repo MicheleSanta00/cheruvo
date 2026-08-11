@@ -31,6 +31,7 @@ import pandas as pd
 import logging
 
 from database import SuperNewsAnalyzer, init_database, get_pool
+from giornaliero import aggrega_giornaliero
 from prices import get_prices, validate_ticker, e_intraday, stato_mercato
 from paura_avidita import router as fng_router
 from stripe_routes import router as stripe_router, init_subscriptions_table
@@ -304,19 +305,7 @@ def sentiment_daily(ticker: str, request: Request,
     if df.empty:
         return {"sentiment": []}
 
-    daily = (
-        df.set_index("published_date")["sentiment"]
-        .resample("D").mean()
-        .reset_index()
-    )
-    daily.columns = ["date", "sentiment"]
-    daily["date"] = daily["date"].dt.strftime("%Y-%m-%d")
-    # Giorni SENZA news → null, non 0: uno zero è un giudizio ("neutro"),
-    # l'assenza di notizie non lo è. Il frontend salta i null (barre grigie,
-    # esclusi da media, MA7, giorni neutri e correlazione). NaN → None per JSON valido.
-    _mask = daily["sentiment"].notna()
-    daily["sentiment"] = daily["sentiment"].round(4).astype(object).where(_mask, None)
-    result = {"sentiment": daily.to_dict(orient="records")}
+    result = {"sentiment": aggrega_giornaliero(df)}
     cache_set(cache_key, result)
     return result
 

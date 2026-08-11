@@ -4,6 +4,9 @@
  *            AI summary → top bullish/bearish → recenti → footer
  */
 import { jsPDF } from 'jspdf'
+import {
+  MIN_COPPIE, correlazione, compatibileConZero, etichetta, spiegazione,
+} from './incertezza.js'
 
 // ── Colori ────────────────────────────────────────────────────────────────────
 //
@@ -166,28 +169,11 @@ function computeCorrelation(sentiment, prices) {
     xs.push(Number(s.sentiment))
     ys.push(((c1 - c0) / c0) * 100)
   }
-  if (xs.length < 10) return null
-
-  const n = xs.length
-  const mx = xs.reduce((a, b) => a + b, 0) / n
-  const my = ys.reduce((a, b) => a + b, 0) / n
-  let num = 0, dx = 0, dy = 0
-  for (let i = 0; i < n; i++) {
-    const a = xs[i] - mx, b = ys[i] - my
-    num += a * b; dx += a * a; dy += b * b
-  }
-  const den = Math.sqrt(dx * dy)
-  if (!den) return null
-  return { r: num / den, n }
-}
-
-function corrLabel(r) {
-  if (r == null) return 'N/D'
-  if (r > 0.5)  return 'Forte positiva'
-  if (r > 0.3)  return 'Moderata positiva'
-  if (r < -0.5) return 'Forte negativa'
-  if (r < -0.3) return 'Moderata negativa'
-  return 'Debole / assente'
+  // La formula e la soglia stanno in utils/incertezza.js. Qui c'è solo la
+  // costruzione delle coppie, che è l'unica cosa specifica del report: il PDF
+  // aveva una soglia sua (10 coppie) e una scala di aggettivi sua, e finiva
+  // per stampare su carta un giudizio che a schermo era già stato tolto.
+  return correlazione(xs, ys)
 }
 
 // ── Grafico sentiment + prezzo (disegnato con primitive jsPDF) ───────────────
@@ -419,11 +405,19 @@ export async function generateReport({ ticker, tickerInfo, stats, news, sentimen
     rect(doc, ML, y, CW, 16, C.card, 3)
     setDraw(doc, C.border); doc.setLineWidth(0.2)
     doc.roundedRect(ML, y, CW, 16, 3, 3, 'S')
-    const rcol = corr.r > 0.3 ? C.green : corr.r < -0.3 ? C.red : C.yellow
+
+    // Su carta il rischio è più alto che a schermo: un PDF viene inoltrato,
+    // stampato e riletto mesi dopo senza il contesto. Se la banda comprende lo
+    // zero, il numero non prende un colore che suggerisce una direzione.
+    const rcol = compatibileConZero(corr) ? C.muted : corr.r > 0 ? C.green : C.red
     rect(doc, ML, y, 2, 16, rcol)
-    text(doc, (corr.r >= 0 ? '+' : '') + corr.r.toFixed(3), ML + 8, y + 10, rcol, 13, 'bold')
-    text(doc, corrLabel(corr.r), ML + 34, y + 7, C.white, 8, 'bold')
-    text(doc, `Pearson su ${corr.n} coppie sentiment/rendimento — vicino a 0 = nessuna relazione`, ML + 34, y + 12, C.muted, 6)
+    text(doc, corr.r != null ? (corr.r >= 0 ? '+' : '') + corr.r.toFixed(3) : '—',
+      ML + 8, y + 10, rcol, 13, 'bold')
+    text(doc, etichetta(corr), ML + 34, y + 7, C.white, 8, 'bold')
+    text(doc, corr.r != null
+      ? `Pearson su ${corr.n} coppie, ${spiegazione(corr)}`
+      : `Servono ${MIN_COPPIE} giorni con notizie e prezzo, ce ne sono ${corr.n}`,
+      ML + 34, y + 12, C.muted, 6)
     y += 22
   }
 

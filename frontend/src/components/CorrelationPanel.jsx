@@ -5,18 +5,10 @@ import {
   ResponsiveContainer, ReferenceLine,
 } from 'recharts'
 import Icon from './Icon.jsx'
-
-// ── Pearson correlation ───────────────────────────────────────────────────────
-function pearson(x, y) {
-  const n  = x.length
-  if (n < 5) return null
-  const mx = x.reduce((a, b) => a + b, 0) / n
-  const my = y.reduce((a, b) => a + b, 0) / n
-  const num = x.reduce((s, v, i) => s + (v - mx) * (y[i] - my), 0)
-  const dx  = Math.sqrt(x.reduce((s, v) => s + (v - mx) ** 2, 0))
-  const dy  = Math.sqrt(y.reduce((s, v) => s + (v - my) ** 2, 0))
-  return dx && dy ? parseFloat((num / (dx * dy)).toFixed(3)) : null
-}
+import {
+  MIN_COPPIE, MIN_GIORNI_MEDIA, correlazione, mediaConBanda,
+  compatibileConZero, etichetta, spiegazione,
+} from '../utils/incertezza.js'
 
 // ── Regressione lineare y = a + b*x ──────────────────────────────────────────
 function linearRegression(x, y) {
@@ -89,17 +81,26 @@ export default function CorrelationPanel({ prices, sentiment, isPro, onUpgrade }
       pairs.push({ x: sent, y: ret, date: p.date })
     }
 
-    if (pairs.length < 5) return { pairs, corr: null, regLine: [], stats: null }
-
     const xs   = pairs.map(p => p.x)
     const ys   = pairs.map(p => p.y)
-    const corr = pearson(xs, ys)
-    const { a, b } = linearRegression(xs, ys)
+    const corr = correlazione(xs, ys)
 
-    // Due punti per la linea di regressione
+    // Lo scatter si mostra anche sotto le venti coppie: i punti sono dati veri
+    // e guardarli non fa danno. Quello che non si mostra sotto le venti è il
+    // NUMERO, perché è quello che viene scambiato per una misura. Sotto le
+    // cinque coppie non c'è nemmeno abbastanza per disegnare qualcosa.
+    if (pairs.length < 5) return { pairs, corr, regLine: [], stats: null }
+
+    // La retta di regressione si disegna SOLO se la correlazione è
+    // distinguibile da zero. Una riga che attraversa la nuvola in diagonale è
+    // un'affermazione più forte del numero che le sta accanto: l'occhio la
+    // legge come "ecco l'andamento" anche quando sotto ci sono otto punti
+    // messi a caso. Togliere il numero e lasciare la retta sarebbe stato
+    // sistemare la finestra e lasciare aperta la porta.
+    const { a, b } = linearRegression(xs, ys)
     const xMin = Math.min(...xs)
     const xMax = Math.max(...xs)
-    const regLine = [
+    const regLine = compatibileConZero(corr) ? [] : [
       { x: parseFloat(xMin.toFixed(3)), y: parseFloat((a + b * xMin).toFixed(3)) },
       { x: parseFloat(xMax.toFixed(3)), y: parseFloat((a + b * xMax).toFixed(3)) },
     ]
@@ -109,37 +110,54 @@ export default function CorrelationPanel({ prices, sentiment, isPro, onUpgrade }
     const avgPos     = ys.filter(y => y > 0).reduce((s, v) => s + v, 0) / (posReturns || 1)
     const avgNeg     = ys.filter(y => y < 0).reduce((s, v) => s + v, 0) / (ys.filter(y => y < 0).length || 1)
 
-    // Giorni con sentiment bullish → rendimento medio D+1
-    const bullPairs = pairs.filter(p => p.x > 0.1)
-    const bearPairs = pairs.filter(p => p.x < -0.1)
-    const avgRetBull = bullPairs.length
-      ? parseFloat((bullPairs.reduce((s, p) => s + p.y, 0) / bullPairs.length).toFixed(2))
-      : null
-    const avgRetBear = bearPairs.length
-      ? parseFloat((bearPairs.reduce((s, p) => s + p.y, 0) / bearPairs.length).toFixed(2))
-      : null
+    // Giorni con sentiment bullish → rendimento medio D+1, con la banda.
+    //
+    // Erano due medie nude, dietro il piano a pagamento, colorate di verde o
+    // rosso: si leggevano come una regola operativa. Misurate su sei ticker,
+    // sette medie calcolabili su sette comprendevano lo zero e due erano la
+    // variazione di un giorno solo spacciata per media. Il ragionamento
+    // completo, con i numeri, sta in utils/incertezza.js.
+    const avgRetBull = mediaConBanda(pairs.filter(p => p.x > 0.1).map(p => p.y))
+    const avgRetBear = mediaConBanda(pairs.filter(p => p.x < -0.1).map(p => p.y))
 
     return { pairs, corr, regLine, stats: { posReturns, avgPos, avgNeg, avgRetBull, avgRetBear, n: pairs.length } }
   }, [prices, sentiment])
 
-  // Colori e label correlazione
-  const corrColor = c => c == null ? '#94a3b8'
-    : c > 0.3 ? '#4ade80' : c < -0.3 ? '#f87171' : 'var(--giallo)'
-  const corrLabel = c => {
-    if (c == null) return 'N/D'
-    if (c > 0.6)  return 'Forte positiva'
-    if (c > 0.3)  return 'Moderata positiva'
-    if (c < -0.6) return 'Forte negativa'
-    if (c < -0.3) return 'Moderata negativa'
-    return 'Debole / assente'
+  // Il colore adesso dice "distinguibile da zero", non "numero grande". Un
+  // -0.712 su cinque giorni prendeva il rosso e l'etichetta "Forte negativa":
+  // erano tutte e due false, e la seconda era peggio della prima.
+  const corrColor = c => compatibileConZero(c) ? '#94a3b8'
+    : c.r > 0 ? '#4ade80' : '#f87171'
+
+  // Stessa regola per le due medie di rendimento. Il verde su un +0.45%
+  // calcolato su dodici giorni diceva "questo funziona", e non era vero.
+  const valoreMedia = m => m?.media == null
+    ? '—'
+    : `${m.media > 0 ? '+' : ''}${m.media.toFixed(2)}%`
+
+  const coloreMedia = m => compatibileConZero(m) ? '#94a3b8'
+    : m.media > 0 ? '#4ade80' : '#f87171'
+
+  const spiegaMedia = (m, gruppo) => {
+    if (m?.media == null) {
+      return `servono ${MIN_GIORNI_MEDIA} giorni ${gruppo}, ce ne sono ${m?.n ?? 0}`
+    }
+    const seg = v => `${v > 0 ? '+' : ''}${v.toFixed(2)}%`
+    return compatibileConZero(m)
+      ? `${seg(m.lo)} / ${seg(m.hi)}: comprende lo zero`
+      : `${seg(m.lo)} / ${seg(m.hi)} su ${m.n} giorni`
   }
 
-  // Se non ci sono abbastanza dati
+  // Sotto le cinque coppie non c'è nemmeno una nuvola di punti da guardare.
+  // Il messaggio dice il numero che serve per il NUMERO, non per il disegno,
+  // perché è quello che la gente sta aspettando.
   if (pairs.length < 5) return (
     <div style={panelStyle}>
       <Header />
       <div style={{ textAlign: 'center', padding: '30px 0', color: 'var(--muted)', fontSize: 13 }}>
-        Servono almeno 6 giorni di dati per calcolare la correlazione.
+        Ancora {pairs.length} giorni con notizie e prezzo.
+        <br />
+        La nuvola dei punti compare da 5 giorni, il coefficiente da {MIN_COPPIE}.
       </div>
     </div>
   )
@@ -158,18 +176,31 @@ export default function CorrelationPanel({ prices, sentiment, isPro, onUpgrade }
             Pearson r
           </div>
           <div style={{ fontSize: 26, fontWeight: 700, letterSpacing: '-0.02em', color: corrColor(corr), lineHeight: 1 }}>
-            {corr != null ? (corr > 0 ? '+' : '') + corr : '—'}
+            {corr?.r != null ? (corr.r > 0 ? '+' : '') + corr.r : '—'}
           </div>
           <div style={{ fontSize: 11, color: corrColor(corr), marginTop: 4 }}>
-            {corrLabel(corr)}
+            {etichetta(corr)}
+          </div>
+          <div style={{ fontSize: 10, color: '#64748b', marginTop: 3 }}>
+            {spiegazione(corr)}
           </div>
         </div>
 
         <div style={{ fontSize: 12, color: 'var(--muted)', lineHeight: 1.7, flex: 1, minWidth: 200 }}>
           Ogni punto mostra il <b style={{ color: 'var(--off-white)' }}>sentiment del giorno D</b> e il{' '}
           <b style={{ color: 'var(--off-white)' }}>rendimento del prezzo il giorno dopo (D+1)</b>.
-          {corr != null && (
-            <> Un r = {corr > 0 ? '+' : ''}{corr} indica una correlazione <b style={{ color: corrColor(corr) }}>{corrLabel(corr).toLowerCase().replace(/[🚀📈🔻📉➡️]/g, '').trim()}</b>.</>
+          {corr?.r == null ? (
+            <> Il numero compare da {MIN_COPPIE} giorni in su: sotto, la banda di
+            incertezza è più larga di qualsiasi relazione che avrebbe senso
+            rivendicare, e quello che si legge è rumore.</>
+          ) : compatibileConZero(corr) ? (
+            <> La banda va da {corr.lo} a {corr.hi} e comprende lo zero: su questi
+            dati <b style={{ color: 'var(--off-white)' }}>non si può dire che una
+            relazione ci sia</b>.</>
+          ) : (
+            <> La banda va da {corr.lo} a {corr.hi} e non comprende lo zero. Resta
+            una relazione statistica su {corr.n} giorni, che non vuol dire che il
+            sentiment causi il movimento.</>
           )}
         </div>
       </div>
@@ -259,16 +290,16 @@ export default function CorrelationPanel({ prices, sentiment, isPro, onUpgrade }
           />
           <StatBlock
             label="Rendimento medio (Bullish)"
-            value={stats.avgRetBull != null ? `${stats.avgRetBull > 0 ? '+' : ''}${stats.avgRetBull}%` : '—'}
-            valueColor={stats.avgRetBull != null ? (stats.avgRetBull >= 0 ? '#4ade80' : '#f87171') : '#94a3b8'}
-            sub={`dopo ${isPro ? (pairs.filter(p => p.x > 0.1).length) : '?'} giorni bullish`}
+            value={valoreMedia(stats.avgRetBull)}
+            valueColor={coloreMedia(stats.avgRetBull)}
+            sub={isPro ? spiegaMedia(stats.avgRetBull, 'bullish') : 'dopo i giorni bullish'}
             locked={!isPro}
           />
           <StatBlock
             label="Rendimento medio (Bearish)"
-            value={stats.avgRetBear != null ? `${stats.avgRetBear > 0 ? '+' : ''}${stats.avgRetBear}%` : '—'}
-            valueColor={stats.avgRetBear != null ? (stats.avgRetBear >= 0 ? '#4ade80' : '#f87171') : '#94a3b8'}
-            sub={`dopo ${isPro ? (pairs.filter(p => p.x < -0.1).length) : '?'} giorni bearish`}
+            value={valoreMedia(stats.avgRetBear)}
+            valueColor={coloreMedia(stats.avgRetBear)}
+            sub={isPro ? spiegaMedia(stats.avgRetBear, 'bearish') : 'dopo i giorni bearish'}
             locked={!isPro}
           />
         </div>
