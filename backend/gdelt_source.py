@@ -147,6 +147,38 @@ TERMINE_QUERY = {
     "ENI.MI": "Eni", "ENEL.MI": "Enel", "ISP.MI": "Intesa",
     "UCG.MI": "UniCredit", "STMMI.MI": "STMicroelectronics", "RACE.MI": "Ferrari",
     "LVMH.PA": "LVMH", "SAP.DE": "SAP", "ASML.AS": "ASML", "SHEL.L": "Shell",
+
+    # ── Adottate il 15 agosto 2026 ────────────────────────────────────────
+    #
+    # Escono da `gdelt_grezzo.py --modo candidati-azioni` su 24 ore di file,
+    # 318.782 righe. Il numero fra parentesi e' quante ne porterebbero al
+    # giorno DOPO il filtro di contesto, cioe' quelle che entrerebbero davvero.
+    # La soglia per finire in classifica e' 5 (market.py, MIN_NEWS).
+    "JPM": "JPMorgan",          # 24 al giorno
+    "PLTR": "Palantir",         # 18
+    "SAN.MC": "Santander",      # 17
+    "BA": "Boeing",             # 14
+    "SMCI": "Super Micro",      # 8
+    "HOOD": "Robinhood",        # 6
+    "AIR.PA": "Airbus",         # 5
+    "ABNB": "Airbnb",           # 5
+    "AVGO": "Broadcom",         # 5
+
+    # CHI E' RIMASTO FUORI, E PERCHE'
+    #
+    # Visa (1 riga buona contro 176 di permessi di soggiorno), Leonardo (3
+    # contro 69: da Vinci, DiCaprio e un cantante brasiliano), Terna (in
+    # spagnolo e' la rosa di candidati a una carica), Disney (4 contro 140,
+    # tutto intrattenimento), Uber, Poste Italiane (13 righe, tutte orari
+    # degli uffici postali).
+    #
+    # Netflix e Walmart passerebbero la soglia (8 e 6) ma solo perche' il
+    # filtro scarta il 97% e il 90%: adottarle vorrebbe dire fidarsi
+    # ciecamente del filtro sui due nomi piu' rumorosi dell'elenco.
+    #
+    # Siemens rende 19 al giorno ed e' sospesa per un motivo diverso: "Siemens"
+    # pesca anche Siemens Energy e Siemens Healthineers, che sono societa'
+    # quotate SEPARATE. Sarebbe il problema di GOOG e GOOGL rifatto da capo.
     # Criptovalute. Misurato il 4 agosto 2026: la query "Bitcoin" su un solo
     # giorno rende 8 articoli di mercato veri su 15, contro 1 su 20 di "Eni".
     # È la stessa GDELT con la stessa licenza: cambia solo che la stampa

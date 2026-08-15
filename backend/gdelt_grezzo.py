@@ -1107,22 +1107,20 @@ def misura_contesto(quale_file: str | None, ore: int = 6) -> int:
 # La colonna della previsione è scritta PRIMA di far girare la misura. Serve a
 # non riscrivere la storia dopo: se una che avevo dato per sicura si rivela
 # sporca, l'errore resta scritto qui.
+# Nove sono uscite da qui il 15 agosto 2026 perche' sono state ADOTTATE:
+# JPMorgan, Palantir, Santander, Boeing, Super Micro, Robinhood, Airbus,
+# Airbnb e Broadcom stanno in TERMINE_QUERY e si raccolgono davvero. Misurare
+# una candidata che gia' si raccoglie non dice niente di nuovo, e un test lo
+# verifica (test_le_candidate_azioni_non_sono_gia_seguite).
 CANDIDATI_AZIONI = {
     # ticker         nome cercato          previsione
-    "JPM":          ("JPMorgan",          "sicuro"),
     "NFLX":         ("Netflix",           "sicuro, ma molta cronaca di spettacolo"),
     "COIN":         ("Coinbase",          "sicuro"),
-    "PLTR":         ("Palantir",          "sicuro"),
-    "AVGO":         ("Broadcom",          "sicuro"),
     "TSM":          ("TSMC",              "sicuro"),
     "BABA":         ("Alibaba",           "sicuro"),
-    "BA":           ("Boeing",            "sicuro"),
     "PFE":          ("Pfizer",            "sicuro"),
     "XOM":          ("Exxon",             "sicuro"),
     "WMT":          ("Walmart",           "sicuro"),
-    "SMCI":         ("Super Micro",       "sicuro"),
-    "HOOD":         ("Robinhood",         "sicuro"),
-    "ABNB":         ("Airbnb",            "sicuro"),
     "SHOP":         ("Shopify",           "sicuro"),
     "UBER":         ("Uber",              "dubbio: tantissima cronaca non finanziaria"),
     "DIS":          ("Disney",            "dubbio: quasi tutto intrattenimento"),
@@ -1151,9 +1149,7 @@ CANDIDATI_AZIONI = {
     "NOVN.SW":      ("Novartis",          "sicuro"),
     "AZN.L":        ("AstraZeneca",       "sicuro"),
     "HSBA.L":       ("HSBC",              "sicuro"),
-    "SAN.MC":       ("Santander",         "sicuro"),
     "TTE.PA":       ("TotalEnergies",     "sicuro"),
-    "AIR.PA":       ("Airbus",            "sicuro"),
 }
 
 

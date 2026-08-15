@@ -288,3 +288,56 @@ def test_le_parole_ambigue_sono_state_lasciate_fuori():
     for t in ("Seduta fiume in consiglio comunale a Bergamo",
               "Il nuovo listino prezzi del ristorante fa discutere"):
         assert not gg.CONTESTO.search(t), t
+
+
+# ── Le nove azioni adottate il 15 agosto 2026 ─────────────────────────────
+#
+# Escono dalla misura su 24 ore di file GDELT (318.782 righe). Il numero e'
+# quante ne porterebbero al giorno DOPO il filtro di contesto.
+NUOVE = {
+    "JPM": ("JPMorgan", 24), "PLTR": ("Palantir", 18), "SAN.MC": ("Santander", 17),
+    "BA": ("Boeing", 14), "SMCI": ("Super Micro", 8), "HOOD": ("Robinhood", 6),
+    "AIR.PA": ("Airbus", 5), "ABNB": ("Airbnb", 5), "AVGO": ("Broadcom", 5),
+}
+
+
+def test_le_nove_adottate_sono_cercate_col_termine_misurato():
+    """
+    Il termine deve essere quello su cui e' stata fatta la misura. Cambiarlo
+    dopo, anche di poco, vuol dire che i numeri nel commento non valgono piu'.
+    """
+    from gdelt_source import TERMINE_QUERY
+    for tk, (termine, _) in NUOVE.items():
+        assert TERMINE_QUERY.get(tk) == termine, f"{tk}: termine cambiato"
+
+
+def test_le_nuove_chiedono_tutte_il_contesto_finanziario():
+    """
+    Sono azioni, quindi il contesto resta obbligatorio. Se una finisce in
+    NOMI_NETTI deve essere perche' `--modo contesto` ha mostrato che il filtro
+    le sta rubando notizie vere, non perche' rendeva poco.
+    """
+    from gdelt_source import TERMINE_QUERY
+    for tk, (termine, _) in NUOVE.items():
+        assert gg.serve_contesto(tk, termine) is True, tk
+
+
+def test_ogni_adottata_supera_la_soglia_della_classifica():
+    """
+    Sotto 5 al giorno un titolo non entra mai in classifica (market.py,
+    MIN_NEWS) e aggiunge solo una pagina che mostra un conteggio.
+    """
+    for tk, (_, al_giorno) in NUOVE.items():
+        assert al_giorno >= 5, f"{tk} non arriva alla soglia"
+
+
+def test_le_bocciate_restano_bocciate():
+    """
+    Visa faceva 1 riga buona contro 176 di permessi di soggiorno, Leonardo 3
+    contro 69 fra da Vinci e DiCaprio, Terna in spagnolo e' la rosa di
+    candidati a una carica. Se ricompaiono, qualcuno le ha adottate guardando
+    solo la resa.
+    """
+    from gdelt_source import TERMINE_QUERY
+    for tk in ("V", "LDO.MI", "TRN.MI", "DIS", "PST.MI", "NFLX", "SIE.DE"):
+        assert tk not in TERMINE_QUERY, f"{tk} adottata senza risolvere il suo problema"
