@@ -11,8 +11,9 @@ Principio di robustezza: se Groq fallisce (rate limit, modello dismesso,
 JSON rotto) NON si tocca nulla — gli score esistenti restano.
 Mai sovrascrivere uno score buono con uno zero.
 
-Modello: env GROQ_SCORE_MODEL (default llama-3.3-70b-versatile, lo stesso
-già usato per AI Summary — garantito attivo sull'account).
+Modello: env GROQ_SCORE_MODEL (default openai/gpt-oss-120b). I Llama
+sono stati dismessi da Groq il 16 agosto 2026: la nota sta piu' sotto,
+vicino alle costanti.
 """
 import os
 import re
@@ -25,7 +26,60 @@ from database import get_pool
 
 logger = logging.getLogger(__name__)
 
-GROQ_SCORE_MODEL = os.environ.get("GROQ_SCORE_MODEL", "llama-3.3-70b-versatile")
+# ── I modelli, in un posto solo ───────────────────────────────────────────
+#
+# IL 16 AGOSTO 2026 GROQ HA SPENTO TUTTI E DUE I LLAMA CHE USAVAMO
+#
+# `llama-3.3-70b-versatile` (i punteggi) e `llama-3.1-8b-instant` (il riassunto
+# e il backfill) sono stati dismessi lo stesso giorno. Il nome del modello era
+# scritto a mano in quattro file diversi piu' un workflow, quindi la migrazione
+# e' stata una caccia invece di una riga. Da qui in poi sta qui, e chi ne ha
+# bisogno lo importa.
+#
+# COSA ABBIAMO SCELTO, E IL METRO GIUSTO PER SCEGLIERE
+#
+# Cheruvo sta sul piano GRATUITO di Groq e ci deve restare. Quindi il prezzo
+# per milione di token non c'entra niente: quello che conta sono i limiti del
+# piano gratuito, che sono questi.
+#
+#                              RPD      TPM     TPD
+#   llama-3.3-70b (spento)    1.000     12K    100K
+#   openai/gpt-oss-120b       1.000      8K    200K   <- punteggi
+#
+#   llama-3.1-8b (spento)    14.400      6K    500K
+#   openai/gpt-oss-20b        1.000      8K    200K   <- riassunti, backfill
+#
+# Le due sostituzioni vanno in direzioni OPPOSTE, e va saputo.
+#
+# Sui punteggi si guadagna: stesse richieste al giorno e il doppio dei token,
+# da 100K a 200K.
+#
+# Sul backfill si perde parecchio: le richieste crollano da 14.400 a 1.000 e i
+# token da 500K a 200K. Oggi regge perche' il backfill gira una volta al giorno
+# con BACKFILL_MAX=1500, cioe' 75 richieste da venti articoli. Se un domani lo
+# si rimette ogni due ore, il tetto salta.
+#
+# Sul piano gratuito il 120B e il 20B hanno limiti IDENTICI, quindi per i
+# punteggi si tiene il 120B: non costa niente in piu' e ragiona meglio.
+#
+# Groq suggeriva anche `qwen/qwen3.6-27b`, scartato: la loro stessa pagina lo
+# elenca fra i PREVIEW, con scritto che non vanno usati in produzione perche'
+# possono sparire con poco preavviso. Cioe' la situazione di oggi.
+#
+# SE UN GIORNO I TOKEN AL GIORNO NON BASTANO
+#
+# I GPT-OSS ragionano prima di rispondere e quei token di ragionamento
+# consumano TPD vero. La prima cosa da provare e' `reasoning_effort="low"`
+# nella chiamata: non e' stato messo adesso perche' il pacchetto groq e'
+# fissato alla 0.9.0 e un parametro che lui non conosce farebbe fallire tutto
+# proprio nel giorno in cui i Llama si spengono. Da provare a mente fredda,
+# aggiornando prima il pacchetto.
+MODELLO_PUNTEGGIO = os.environ.get("GROQ_SCORE_MODEL", "openai/gpt-oss-120b")
+MODELLO_VELOCE = os.environ.get("GROQ_FAST_MODEL", "openai/gpt-oss-20b")
+
+# Il nome vecchio resta come alias: e' usato in giro e cambiarlo tutto insieme
+# alla migrazione avrebbe mescolato due modifiche in una.
+GROQ_SCORE_MODEL = MODELLO_PUNTEGGIO
 
 _groq_client: Groq | None = None
 
@@ -176,7 +230,19 @@ def score_batch(articles: list[dict], prompt: str | None = None) -> list | None:
             # ~18 token per elemento {"n":12,"s":-0.4}, più margine per la cornice
             # JSON. Con un tetto fisso troppo basso la risposta veniva TRONCATA e
             # gli ultimi articoli restavano senza punteggio.
-            max_tokens=120 + 20 * len(articles),
+            #
+            # Alzato il 15 agosto 2026 con il passaggio ai GPT-OSS. Il tetto
+            # vecchio (120 + 20 per articolo, cioè 520 per un lotto da venti)
+            # era tarato su Llama, che rispondeva e basta. I GPT-OSS ragionano
+            # prima, e quei token di ragionamento escono dallo STESSO budget:
+            # con 520 il ragionamento poteva mangiarsi tutto e lasciare un JSON
+            # tagliato a metà, cioè metà lotto senza punteggio e in silenzio.
+            #
+            # Alzare il TETTO non consuma la quota giornaliera: si contano i
+            # token davvero generati, non quelli concessi. Quindi tenerlo largo
+            # protegge dal troncamento senza costare TPD, e il massimo del
+            # modello è comunque 65.536.
+            max_tokens=600 + 40 * len(articles),
             # 0 e non 0.1: con 0.1 la stessa identica notizia riceveva punteggi
             # diversi in run diversi (osservato in produzione: +0.3 e -0.6).
             temperature=0,

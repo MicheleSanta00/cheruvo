@@ -5,6 +5,7 @@ Genera un riassunto intelligente delle news di un ticker usando Llama 3.
 import os
 import json
 from groq import Groq
+from sentiment_groq import MODELLO_VELOCE
 
 client = Groq(api_key=os.environ.get("GROQ_API_KEY"))
 
@@ -46,7 +47,7 @@ def genera_summary(ticker: str, company: str, headlines: list[str], avg_sentimen
 
     try:
         response = client.chat.completions.create(
-            model="llama-3.1-8b-instant",
+            model=MODELLO_VELOCE,
             messages=[{"role": "user", "content": prompt}],
             max_tokens=800,
             temperature=0.3,   # bassa per output consistente
@@ -63,7 +64,7 @@ def genera_summary(ticker: str, company: str, headlines: list[str], avg_sentimen
             "giudizio":  data["giudizio"],
             "riassunto": data["riassunto"],
             "temi":      data["temi"][:3],
-            "fonte":     "groq/llama-3.1-8b",
+            "fonte":     f"groq/{MODELLO_VELOCE}",
         }
 
     except (json.JSONDecodeError, AssertionError, KeyError):

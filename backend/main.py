@@ -32,6 +32,7 @@ import logging
 
 from database import SuperNewsAnalyzer, init_database, get_pool
 from giornaliero import aggrega_giornaliero
+from sentiment_groq import MODELLO_PUNTEGGIO, MODELLO_VELOCE
 from prices import get_prices, validate_ticker, e_intraday, stato_mercato
 from paura_avidita import router as fng_router
 from stripe_routes import router as stripe_router, init_subscriptions_table
@@ -487,7 +488,7 @@ Regole:
 
     try:
         response = groq_client.chat.completions.create(
-            model="llama-3.3-70b-versatile",
+            model=MODELLO_PUNTEGGIO,
             messages=[
                 {"role": "system", "content": system_prompt},
                 {"role": "user", "content": body.message},

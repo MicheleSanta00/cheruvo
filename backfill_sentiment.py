@@ -17,7 +17,7 @@ diverso da 'llm'/'av') e le ri-classifica con Groq, senza limite temporale.
   restano com'erano) e basta rilanciarlo il giorno dopo.
 
 Uso consigliato: modello veloce ad alto rate-limit per il volume.
-  GROQ_SCORE_MODEL=llama-3.1-8b-instant  (default qui sotto)
+  GROQ_SCORE_MODEL=openai/gpt-oss-20b  (default qui sotto)
 
 Avvio:
   - da GitHub Actions: workflow "Backfill sentiment" (workflow_dispatch), oppure
@@ -33,7 +33,7 @@ BASE = os.path.dirname(os.path.abspath(__file__))
 sys.path.insert(0, os.path.join(BASE, "backend"))
 
 # Per il backfill di massa conviene il modello veloce (rate-limit alto).
-os.environ.setdefault("GROQ_SCORE_MODEL", "llama-3.1-8b-instant")
+os.environ.setdefault("GROQ_SCORE_MODEL", "openai/gpt-oss-20b")
 
 from database import get_pool
 from sentiment_groq import score_batch

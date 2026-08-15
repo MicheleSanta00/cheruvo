@@ -11,7 +11,10 @@ l'unica cosa misurabile e' se il punteggio serve a qualcosa, non se e' corretto.
 Quella risposta e' vera ma incompleta, perche' in casa ci sono gia' DUE
 valutatori indipendenti:
 
-  Llama 3.3 70B     legge il TITOLO, restituisce da -1 a +1
+  il modello Groq   legge il TITOLO, restituisce da -1 a +1
+                    (era Llama 3.3 70B fino al 15 agosto 2026,
+                     poi openai/gpt-oss-120b: i Llama sono stati
+                     dismessi)
   tono GDELT        calcolato da GDELT sul TESTO INTEGRALE, diviso 10
 
 Sono costruiti in modo completamente diverso, guardano quantita' di testo
@@ -77,7 +80,7 @@ def prepara_colonne() -> None:
 
 def da_rivalutare(quanti: int) -> list[tuple]:
     """
-    Le righe che hanno già il primo parere di Llama e non ancora il secondo.
+    Le righe che hanno già il primo parere del modello e non ancora il secondo.
 
     Sono le STESSE righe del giro precedente, di proposito: confrontare due
     prompt su campioni diversi non direbbe niente, perché la differenza fra i
@@ -122,7 +125,7 @@ def da_valutare(quanti: int) -> list[tuple]:
 def valuta(righe: list[tuple], scrivi: bool = False,
            bilanciato: bool = False) -> int:
     """
-    Fa punteggiare da Llama le righe passate. Restituisce quante ne ha scritte.
+    Fa punteggiare dal modello Groq le righe passate. Restituisce quante ne ha scritte.
 
     Con `bilanciato=True` usa il prompt in prova e scrive in `sentiment_3`,
     così i due prompt restano confrontabili sulle stesse identiche righe.
@@ -439,7 +442,7 @@ if __name__ == "__main__":
         sys.exit(0)
 
     che = ("da ripunteggiare col prompt bilanciato" if args.rivaluta
-           else "con il tono GDELT da far valutare anche a Llama")
+           else "con il tono GDELT da far valutare anche al modello")
     print(f"\n  {len(righe)} righe {che}.")
     if not args.scrivi:
         coda = " --rivaluta" if args.rivaluta else ""
