@@ -61,11 +61,21 @@ export default function Sidebar({ ticker, days, period, hasTicker, onLoad, onFet
     return () => { vivo = false }
   }, [])
 
-  // La classifica contiene solo i titoli con almeno due notizie nelle ultime
-  // 48 ore: gli altri restavano senza punteggio, con un puntino al posto del
-  // numero. Per quelli chiediamo la media a 7 giorni, una richiesta ciascuno
-  // e solo per i mancanti (al massimo una manciata, ed è tutto in cache lato
-  // server). Meglio un dato più lento che una casella vuota.
+  // La classifica contiene solo i titoli con almeno MIN_NEWS notizie nelle
+  // ultime 48 ore: gli altri restavano senza punteggio, con un trattino al
+  // posto del numero. Per quelli chiediamo la media a 7 giorni, una richiesta
+  // ciascuno e solo per i mancanti.
+  //
+  // Il 15 agosto 2026 questa strada era il collo di bottiglia: la classifica
+  // tornava solo 20 righe, quindi i mancanti erano sei o sette, e `/api/news`
+  // ha un limite di 20 al minuto. Fra queste richieste, quelle della pagina e
+  // un paio di ricariche, alcune venivano respinte e finivano nel `catch` qui
+  // sotto senza lasciare traccia: META aveva 179 notizie e media -0.16 e
+  // mostrava un trattino.
+  //
+  // Adesso la classifica ne torna 60, cioè tutti i titoli seguiti, e questo
+  // ripiego serve solo a chi ha davvero poche notizie in 48 ore. Se fallisce
+  // lo dice in console, perché un buco silenzioso è impossibile da diagnosticare.
   useEffect(() => {
     if (righeMercato === null || !watchlist.length) return
     const mancanti = watchlist.filter((tk) => sentimenti[tk] === undefined)
@@ -74,7 +84,10 @@ export default function Sidebar({ ticker, days, period, hasTicker, onLoad, onFet
     Promise.all(mancanti.map((tk) =>
       apiFetch(`/news/${tk}?days=7`)
         .then((d) => ({ tk, s: d?.avg_sentiment, n: d?.total }))
-        .catch(() => null)
+        .catch((e) => {
+          console.warn(`Cheruvo: punteggio di ${tk} non recuperato`, e)
+          return null
+        })
     )).then((esiti) => {
       if (!vivo) return
       const s = {}, c = {}

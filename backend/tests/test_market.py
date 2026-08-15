@@ -181,3 +181,23 @@ class TestClassificaSenzaDoppioni:
         sql = pool.getconn.return_value.cursor.return_value.execute.call_args[0][0]
         for pezzo in ("lower(", "[^[:alnum:][:space:]]", "left(", "90)"):
             assert pezzo in sql, f"manca {pezzo} nella normalizzazione"
+
+
+def test_la_classifica_copre_tutti_i_titoli_seguiti(app):
+    """
+    MAX_ROWS non e' solo "quante righe mostrare": questo endpoint e' anche la
+    fonte dei punteggi della barra laterale, con una chiamata sola, pubblica e
+    in cache.
+
+    Col taglio a 20, un titolo fuori dai primi venti per sentiment non c'era e
+    la barra doveva chiederlo a /api/news uno per uno, endpoint limitato a 20
+    al minuto. Il 15 agosto 2026 META aveva 179 notizie e media -0.16 e
+    mostrava un trattino, perche' quelle richieste venivano respinte in
+    silenzio.
+    """
+    import market
+    from gdelt_source import TERMINE_QUERY
+    assert market.MAX_ROWS >= len(TERMINE_QUERY), (
+        f"MAX_ROWS ({market.MAX_ROWS}) non copre i {len(TERMINE_QUERY)} titoli "
+        "seguiti: la barra laterale tornera' a mostrare trattini"
+    )

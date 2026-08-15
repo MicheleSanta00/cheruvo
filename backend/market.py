@@ -41,7 +41,26 @@ def _finestra(secondi: int) -> int:
 MARKET_TTL = 15 * 60      # 15 minuti
 WINDOW_HOURS = 48         # finestra "oggi"
 BASELINE_DAYS = 7         # confronto per il delta
-MAX_ROWS = 20
+# Quante righe torna la classifica.
+#
+# Era 20, e sembrava ragionevole: in home se ne mostrano cinque per parte, chi
+# ne vuole venti e' gia' tanto. Ma questo endpoint non serve solo alla
+# classifica: la barra laterale ci prende i punteggi di TUTTI i titoli seguiti,
+# con una chiamata sola, pubblica e in cache per un quarto d'ora.
+#
+# Con il taglio a venti, un titolo fuori dai primi venti per sentiment non
+# c'era, e la barra doveva chiederlo a `/api/news` uno per uno. Quell'endpoint
+# ha un limite di 20 al minuto: con sei titoli mancanti, piu' le chiamate che
+# la pagina fa da sola, piu' un paio di ricariche, le richieste venivano
+# respinte e l'errore finiva in un `catch` silenzioso. Risultato: un trattino
+# al posto del punteggio su titoli che i dati ce li avevano eccome. META il 15
+# agosto 2026 aveva 179 notizie e media -0.16, e mostrava un trattino.
+#
+# Sessanta coprono i 48 titoli seguiti con margine. Costa qualche centinaio di
+# byte su una risposta gia' in cache, e toglie di mezzo N richieste fragili.
+# Chi vuole una classifica corta la taglia lato frontend, che e' dove si decide
+# cosa mostrare.
+MAX_ROWS = 60
 
 # News minime per entrare in classifica.
 #
