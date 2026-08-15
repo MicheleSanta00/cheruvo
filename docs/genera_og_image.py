@@ -60,12 +60,13 @@ except FileNotFoundError:
 d.text((x_testo, 48), "Cheruvo", font=f(28, True), fill=TESTO)
 d.text((x_testo, 82), "cheruvo.com", font=f(15), fill=FIOCO)
 
-d.text((L - 56, 52), "Il sentiment delle criptovalute,", font=f(17), fill=FIOCO, anchor="ra")
-d.text((L - 56, 78), "letto dalle notizie", font=f(17), fill=FIOCO, anchor="ra")
+d.text((L - 56, 52), "Il sentiment delle notizie,", font=f(17), fill=FIOCO, anchor="ra")
+d.text((L - 56, 78), "con la sua incertezza", font=f(17), fill=FIOCO, anchor="ra")
 
 # ── quattro numeri veri ──────────────────────────────────────────────────
-METRICHE = [("NOTIZIE OGGI", "412"), ("IN ARCHIVIO", "4.446"),
-            ("MONETE E TITOLI", "44"), ("AGGIORNATO", "ogni ora")]
+# Numeri veri al 15 agosto 2026, letti da /api/market/stats.
+METRICHE = [("NOTIZIE OGGI", "308"), ("IN ARCHIVIO", "7.634"),
+            ("TITOLI SEGUITI", "50"), ("AGGIORNATO", "ogni ora")]
 x = 56
 larg = (L - 112 - 3 * 16) // 4
 for et, val in METRICHE:
@@ -75,9 +76,9 @@ for et, val in METRICHE:
     x += larg + 16
 
 # ── la classifica, coi numeri di adesso ──────────────────────────────────
-RIGHE = [("BTC", "Bitcoin", 194, -0.14), ("XRP", "XRP", 66, -0.18),
-         ("ETH", "Ethereum", 35, -0.02), ("SOL", "Solana", 9, +0.11),
-         ("DOGE", "Dogecoin", 9, +0.06), ("OP", "Optimism", 8, +0.31)]
+RIGHE = [("NVDA", "NVIDIA", 66, +0.20), ("GOOGL", "Alphabet", 33, +0.08),
+         ("AAPL", "Apple", 32, +0.09), ("ETH", "Ethereum", 39, +0.08),
+         ("ENI.MI", "Eni", 5, +0.36), ("SOL", "Solana", 8, +0.12)]
 
 pannello(56, 240, L - 112, 268)
 d.text((80, 262), "MERCATO OGGI", font=f(13, True), fill=FIOCO)
@@ -88,7 +89,12 @@ y = 322
 for sig, nome, news, s in RIGHE:
     col = VERDE if s > 0.08 else (ROSSO if s < -0.08 else FIOCO)
     d.text((80, y), sig, font=f(19, True), fill=TESTO)
-    d.text((80 + 72, y + 4), nome, font=f(15), fill=FIOCO)
+    # Il nome della societa' parte DOPO la sigla, misurata di volta in volta.
+    # Con uno scarto fisso di 72 pixel andava bene per BTC ed ETH, ma con le
+    # azioni aperte arrivano sigle da cinque e sei caratteri e "GOOGL" finiva
+    # sopra "Alphabet".
+    largh_sig = d.textlength(sig, font=f(19, True))
+    d.text((80 + largh_sig + 14, y + 4), nome, font=f(15), fill=FIOCO)
     # barra proporzionale al numero di notizie
     largh = int(max(0.08, (min(news, 200) / 200) ** 0.5) * 300)
     d.rounded_rectangle([560, y + 8, 560 + largh, y + 18], radius=5, fill=BORDO)
