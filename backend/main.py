@@ -32,6 +32,7 @@ import logging
 
 from database import SuperNewsAnalyzer, init_database, get_pool
 from giornaliero import aggrega_giornaliero
+from payload import righe_per_json
 from sentiment_groq import MODELLO_PUNTEGGIO, MODELLO_VELOCE
 from prices import get_prices, validate_ticker, e_intraday, stato_mercato
 from paura_avidita import router as fng_router
@@ -233,7 +234,7 @@ def get_news(ticker: str, request: Request, days: int = 30,
     ).dt.strftime("%Y-%m-%d").fillna("")
 
     result = {
-        "news":          df.to_dict(orient="records"),
+        "news":          righe_per_json(df),
         "total":         len(df),
         "avg_sentiment": round(float(df["sentiment"].mean()), 4),
         "max_sentiment": round(float(df["sentiment"].max()), 4),
