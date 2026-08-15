@@ -78,3 +78,52 @@ class TestDeduplicazione:
 
         assert len(unique) == 1
         assert unique[0]["title"] == "Has URL"
+
+
+# ── La lingua originale ───────────────────────────────────────────────────
+#
+# `ingest_grezzo` legge la lingua da GDELT (srclc:tur) e la mette nel
+# dizionario da salvare fin da agosto, ma `save_news` non la scriveva e la
+# colonna non esisteva: veniva raccolta e buttata a ogni riga.
+#
+# Serve perche' meta' dell'archivio arriva dal feed tradotto, che restituisce
+# il titolo nella lingua del giornale: chi apre Bitcoin trova un titolo turco
+# e non sa se e' un'altra lingua o se il sito e' rotto.
+class TestLinguaSalvata:
+
+    def _salva(self, righe):
+        from unittest.mock import MagicMock, patch
+        import quick_fetch
+        pool, conn, cur = MagicMock(), MagicMock(), MagicMock()
+        conn.cursor.return_value = cur
+        pool.getconn.return_value = conn
+        cur.fetchall.return_value = []
+        with patch("quick_fetch.get_pool", return_value=pool), \
+             patch("psycopg2.extras.execute_values") as ev:
+            quick_fetch.save_news("BTC-USD", righe)
+        return ev
+
+    def _riga(self, **extra):
+        base = {"source": "GDELT · x.com", "title": "un titolo",
+                "summary": "", "published_date": "2026-08-15",
+                "url": "https://x.com/1", "sentiment": 0.1}
+        base.update(extra)
+        return base
+
+    def test_la_lingua_finisce_nella_insert(self):
+        ev = self._salva([self._riga(lingua="tur")])
+        sql = ev.call_args[0][1]
+        assert "lingua" in sql, "la colonna manca dalla INSERT"
+        assert ev.call_args[0][2][0][-1] == "tur"
+
+    def test_chi_non_la_dichiara_lascia_null_invece_di_indovinare(self):
+        ev = self._salva([self._riga()])
+        assert ev.call_args[0][2][0][-1] is None
+
+    def test_una_lingua_vuota_diventa_null_e_non_stringa_vuota(self):
+        """
+        Una stringa vuota in colonna sembra un dato e non lo e': il frontend
+        deve poter distinguere "non lo so" da un valore.
+        """
+        ev = self._salva([self._riga(lingua="")])
+        assert ev.call_args[0][2][0][-1] is None

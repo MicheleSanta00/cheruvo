@@ -299,15 +299,21 @@ def save_news(ticker: str, news_list: list) -> int:
                 # buttando via il punteggio buono, e mesi dopo era impossibile
                 # dimostrare che fossero lecite. Ora la fonte lo dichiara.
                 source_kind = n.get("score_source", "vader")
+                # `lingua` la dichiarano ingest_grezzo (da GDELT, srclc:tur) e
+                # istituzionali. Fino al 15 agosto 2026 arrivava fin qui dentro
+                # il dizionario e poi non veniva scritta, perche' mancava sia
+                # dalla INSERT sia dalla tabella: raccolta e buttata a ogni
+                # riga. Chi non la dichiara lascia NULL, e va bene cosi'.
                 new_entries.append((
                     ticker, n["source"], n["title"],
                     n.get("summary", ""), n["published_date"],
                     n["url"], float(n["sentiment"]), source_kind,
+                    n.get("lingua") or None,
                 ))
                 existing.add((tk, sk))
         if new_entries:
             psycopg2.extras.execute_values(cur, """
-                INSERT INTO news (ticker, source, title, summary, published_date, url, sentiment, score_source)
+                INSERT INTO news (ticker, source, title, summary, published_date, url, sentiment, score_source, lingua)
                 VALUES %s
                 ON CONFLICT (ticker, title, source) DO NOTHING
             """, new_entries)

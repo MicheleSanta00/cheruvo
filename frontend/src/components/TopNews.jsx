@@ -35,6 +35,41 @@ const NOTA_LICENZA = {
       'this publication.',
 }
 
+// La lingua originale dell'articolo.
+//
+// Metà dell'archivio arriva dal feed tradotto di GDELT, che restituisce il
+// titolo COME LO HA SCRITTO IL GIORNALE. Chi apre Bitcoin si trova
+// "Bitcoin'de haftalık kayıp yüzde 3'ü aştı" e non ha modo di sapere se è un
+// titolo in una lingua che non conosce o se il sito si è rotto.
+//
+// Dirgli che è turco non gliela fa leggere, ma toglie il sospetto. E la
+// scritta compare SOLO sulle lingue che non sono italiano o inglese: mettere
+// "ITA" accanto a ogni titolo italiano sarebbe rumore su ogni riga per
+// risolvere un problema che lì non c'è.
+//
+// I codici sono quelli a tre lettere che dichiara GDELT (srclc:tur). Quelli
+// fuori elenco si mostrano in maiuscolo così come sono: meglio "SWA" che
+// niente, perché anche una sigla sconosciuta dice "è un'altra lingua".
+const LINGUE = {
+  tur: 'turco', rus: 'russo', deu: 'tedesco', ger: 'tedesco', spa: 'spagnolo',
+  fra: 'francese', fre: 'francese', por: 'portoghese', ell: 'greco', gre: 'greco',
+  hun: 'ungherese', nld: 'olandese', dut: 'olandese', pol: 'polacco',
+  ces: 'ceco', cze: 'ceco', ron: 'rumeno', rum: 'rumeno', ara: 'arabo',
+  zho: 'cinese', chi: 'cinese', jpn: 'giapponese', kor: 'coreano',
+  ukr: 'ucraino', srp: 'serbo', hrv: 'croato', bul: 'bulgaro', ind: 'indonesiano',
+  vie: 'vietnamita', tha: 'thai', heb: 'ebraico', fas: 'persiano', per: 'persiano',
+  swe: 'svedese', dan: 'danese', nor: 'norvegese', fin: 'finlandese',
+  slk: 'slovacco', slv: 'sloveno', lit: 'lituano', lav: 'lettone', est: 'estone',
+  cat: 'catalano', hin: 'hindi', ben: 'bengalese', tam: 'tamil', urd: 'urdu',
+}
+const NOSTRE = new Set(['ita', 'eng', 'en', 'it', ''])
+
+function etichettaLingua(codice) {
+  const c = (codice || '').toLowerCase().trim()
+  if (!c || NOSTRE.has(c)) return null
+  return LINGUE[c] || c.toUpperCase()
+}
+
 const numStyle = { fontFamily: 'var(--mono)', fontVariantNumeric: 'tabular-nums', fontWeight: 700 }
 const colore = (v) => (v > 0.08 ? 'var(--green)' : v < -0.08 ? 'var(--red)' : 'var(--muted)')
 const fmt = (v) => `${v > 0 ? '+' : v < 0 ? '−' : ''}${Math.abs(Number(v)).toFixed(2)}`
@@ -142,6 +177,15 @@ export default function TopNews({ news, isPro, onUpgrade }) {
                   </td>
                   <td style={{ ...td, color: 'var(--muted)', fontSize: 10.5, whiteSpace: 'nowrap' }}>
                     {(n.source || '').replace(/^GDELT · /, '')}
+                    {(() => {
+                      const l = etichettaLingua(n.lingua)
+                      return l && (
+                        <span style={{
+                          display: 'block', marginTop: 2, fontSize: 9.5,
+                          color: 'var(--muted)', opacity: 0.75,
+                        }}>in {l}</span>
+                      )
+                    })()}
                   </td>
                   <td style={{ ...td, ...numStyle, textAlign: 'right', color: colore(s), whiteSpace: 'nowrap' }}>
                     {fmt(s)}

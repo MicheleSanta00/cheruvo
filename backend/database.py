@@ -63,6 +63,24 @@ def init_database():
         # Serve a ri-classificare ogni articolo UNA volta sola e a non degradare
         # score di qualità con fallback successivi.
         cur.execute("ALTER TABLE news ADD COLUMN IF NOT EXISTS score_source TEXT DEFAULT 'vader'")
+
+        # La lingua originale dell'articolo, quando la fonte la dichiara.
+        #
+        # `ingest_grezzo` la leggeva da GDELT (srclc:tur, srclc:rus) e la
+        # metteva nel dizionario da salvare fin dall'inizio, ma `save_news` non
+        # la scriveva e la colonna non esisteva: il dato si raccoglieva e si
+        # buttava a ogni riga, da agosto.
+        #
+        # Serve perche' meta' dell'archivio viene dal feed tradotto, che
+        # restituisce il titolo nella lingua del giornale. Chi apre Bitcoin si
+        # trova "Bitcoin'de haftalik kayip yuzde 3'u asti" e non sa nemmeno
+        # perche' non lo capisce. Dirgli che e' turco non risolve la lettura,
+        # ma toglie il sospetto che il sito sia rotto.
+        #
+        # Resta NULL sulle righe vecchie e su quelle che arrivano da fonti che
+        # non la dichiarano: in quel caso non si mostra niente, invece di
+        # tirare a indovinare.
+        cur.execute("ALTER TABLE news ADD COLUMN IF NOT EXISTS lingua TEXT")
         conn.commit()
         cur.close()
     finally:
