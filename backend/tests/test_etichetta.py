@@ -14,19 +14,115 @@ from unittest.mock import patch
 import etichetta as e
 
 
+# Titoli finti ma DAVVERO diversi fra loro. La prima versione di questo aiuto
+# generava "titolo numero 1", "titolo numero 2" e cosi' via: per il filtro sui
+# fatti ripetuti sono la stessa notizia, ed e' giusto che li fonda. La finzione
+# era sbagliata, non il filtro.
+_SOGGETTI = ["fabbrica", "accordo", "bilancio", "causa", "brevetto", "fusione",
+             "licenziamenti", "dividendo", "esordio", "richiamo", "multa",
+             "concessione", "appalto", "scissione", "aumento", "riacquisto",
+             "declassamento", "promozione", "trimestrale", "guidance"]
+_LUOGHI = ["Milano", "Berlino", "Taiwan", "Texas", "Norvegia", "Cina", "Parigi",
+           "Londra", "Osaka", "Detroit", "Seul", "Dublino", "Madrid", "Varsavia"]
+_VERBI = ["annuncia", "smentisce", "rimanda", "chiude", "apre", "vende",
+          "compra", "sospende", "raddoppia", "taglia"]
+
+
 def _righe(quante=100):
-    """(ticker, titolo, gdelt, modello) con scarti crescenti."""
+    """(ticker, titolo, gdelt, modello) con scarti crescenti e titoli distinti."""
     fuori = []
     for i in range(quante):
         scarto = i / quante          # da 0 a ~1
-        fuori.append(("NVDA", f"titolo numero {i}", 0.0, scarto))
+        # Tre parole condivise al massimo, il resto e' unico per riga: cosi'
+        # due titoli non arrivano mai alle quattro parole in comune che
+        # `_stessa_notizia` chiede per fonderli. Con un vocabolario piccolo e
+        # riusato le collisioni sono la norma, ed e' un difetto della finzione,
+        # non del filtro.
+        titolo = (f"societa{i} {_VERBI[i % len(_VERBI)]} "
+                  f"{_SOGGETTI[i % len(_SOGGETTI)]} progetto{i} "
+                  f"per {_LUOGHI[i % len(_LUOGHI)]} valore{i} milioni")
+        fuori.append((f"TK{i}", titolo, 0.0, scarto))
     return fuori
+
+
+# ── Riconoscere la stessa notizia riscritta ───────────────────────────────
+#
+# La coppia su Intel e' il motivo per cui questo filtro esiste, ed e' anche il
+# caso che la prima versione NON riconosceva: i due titoli condividono due
+# parole su sei, il 33%, molto sotto la soglia del 60%. La regola a proporzione
+# prende le riscritture pigre, quella sulla cifra prende le riscritture vere.
+#
+# Nota su cosa vale questa prova: le coppie qui sotto sono scritte a mano, non
+# pescate dall'archivio. Dicono che le due regole fanno quello per cui sono
+# state scritte, NON con che frequenza sbagliano sui titoli veri. Quel numero
+# si ottiene solo girando il filtro sull'archivio.
+_STESSO_FATTO = [
+    ("Intel targets $15 billion stock sale after rally",
+     "Intel seeks $15 billion as turnaround boosts shares"),
+    ("Intel to raise $15 billion in share sale",
+     "Chipmaker Intel plans $15 billion equity raise"),
+    ("Eni firma un accordo da 2 miliardi in Algeria",
+     "Accordo da 2 miliardi per Eni sul gas algerino"),
+    ("Nvidia beats earnings expectations for the fourth quarter",
+     "Nvidia tops fourth quarter earnings expectations analysts say"),
+    ("Tesla richiama 400.000 veicoli",
+     "Tesla recalls 400,000 vehicles over camera fault"),
+]
+
+_FATTI_DIVERSI = [
+    # Stessa societa', due vicende
+    ("Eni taglia le stime", "Eni sale in borsa"),
+    ("Ferrari alza la guidance dopo i conti del trimestre",
+     "Ferrari conferma la guidance nonostante i dazi"),
+    ("Shell taglia 200 posti nel settore rinnovabili",
+     "Shell chiude il trimestre sopra le attese"),
+    # L'anno non e' un fatto, dice quando e non cosa
+    ("Nvidia alza le stime per il 2026",
+     "Nvidia annuncia il riacquisto di azioni per il 2026"),
+    # Una percentuale piccola non e' un'impronta: si ripete dappertutto
+    ("Apple sale del 3% a Wall Street", "Tesla scende del 3% a Wall Street"),
+    ("UniCredit sale del 2% dopo la trimestrale",
+     "UniCredit apre un piano da 2 miliardi di buyback"),
+    # Niente in comune
+    ("Apple lancia il nuovo iPhone a settembre",
+     "Tesla richiama 400.000 veicoli negli Stati Uniti"),
+]
+
+
+def test_riconosce_la_stessa_notizia_riscritta():
+    for a, b in _STESSO_FATTO:
+        assert e._stessa_notizia(a, b), f"non fusi: {a!r} / {b!r}"
+        assert e._stessa_notizia(b, a), f"non simmetrico: {a!r} / {b!r}"
+
+
+def test_non_fonde_fatti_diversi_della_stessa_societa():
+    for a, b in _FATTI_DIVERSI:
+        assert not e._stessa_notizia(a, b), f"fusi per sbaglio: {a!r} / {b!r}"
+
+
+def test_gli_anni_non_contano_come_cifre():
+    """Il 2026 dice quando, non cosa: due fatti dello stesso anno non sono
+    lo stesso fatto."""
+    assert e._cifre("Nvidia alza le stime per il 2026") == set()
+    assert "15" in e._cifre("Intel raises $15 billion in 2026")
 
 
 # ── Il campione ───────────────────────────────────────────────────────────
 def test_il_campione_e_di_cinquanta_piu_la_riserva():
-    scelte = e._campione(_righe(200))
+    scelte = e._campione(_righe(400))
     assert len(scelte) == 50 + e.QUANTI_DI_RISERVA
+
+
+def test_con_poco_materiale_il_campione_si_accorcia_invece_di_ripetersi():
+    """
+    Meglio quaranta titoli distinti che cinquanta con dentro dieci copie: chi
+    etichetta la stessa notizia due volte non aggiunge un dato, aggiunge una
+    conferma di se stesso.
+    """
+    scelte = e._campione(_righe(30))
+    titoli = [r[1] for r in scelte]
+    assert len(titoli) == len(set(titoli))
+    assert len(scelte) <= 30
 
 
 def test_ci_sono_i_litigiosi_i_concordi_e_quelli_a_caso():
@@ -207,3 +303,50 @@ def test_il_rapporto_avvisa_che_il_risultato_vale_solo_per_le_lingue_lette(capsy
     fuori = capsys.readouterr().out
     assert "lingue non leggibili: 6" in fuori
     assert "vale per le lingue che leggi" in fuori
+
+
+# ── Lo stesso fatto raccontato in modo diverso ────────────────────────────
+#
+# `_chiave_titolo` riconosce solo le copie identiche. Ma "Intel targets $15
+# billion stock sale after rally" e "Intel seeks $15 billion as turnaround
+# boosts shares" sono due titoli diversi e lo stesso fatto: chi etichetta li
+# vede tutti e due, e dopo la quinta variante smette di giudicare e comincia a
+# copiare il voto di prima.
+def test_riconosce_lo_stesso_fatto_riscritto():
+    assert e._stessa_notizia(
+        "Intel targets $15 billion stock sale after rally",
+        "Intel targets a $15 billion stock sale, after the rally")
+
+
+def test_due_fatti_diversi_sullo_stesso_titolo_restano_diversi():
+    assert not e._stessa_notizia(
+        "Intel raises $20 billion in upsized share sale",
+        "Intel appoints new chief financial officer")
+
+
+def test_il_campione_non_ripete_lo_stesso_fatto():
+    """Venti riscritture della stessa notizia devono valere una riga sola."""
+    righe = []
+    for i in range(30):
+        righe.append(("INTC", f"Intel targets 15 billion stock sale after rally {i//29}", 0.0, 0.9))
+    for i in range(60):
+        righe.append((f"TK{i}", f"notizia completamente diversa numero {i} su cose varie", 0.0, i/100))
+    campione = e._campione(righe)[:50]
+    intel = [r for r in campione if r[0] == "INTC"]
+    assert len(intel) <= 1, f"{len(intel)} varianti della stessa notizia nel campione"
+
+
+def test_nessun_titolo_occupa_piu_di_tre_posti():
+    """
+    Nel campione dell'11 agosto 2026 dodici disaccordi su dodici erano Intel.
+    Un tetto per ticker costringe il campione a coprire il mercato invece di
+    misurare una giornata sola di una societa' sola.
+    """
+    from collections import Counter
+    righe = [("INTC", f"Intel fa una cosa diversa numero {i} in un settore", 0.0, 0.9 - i/200)
+             for i in range(40)]
+    righe += [(f"TK{i}", f"altra societa numero {i} annuncia qualcosa di suo", 0.0, i/100)
+              for i in range(60)]
+    campione = e._campione(righe)[:50]
+    conta = Counter(r[0] for r in campione)
+    assert conta.most_common(1)[0][1] <= 3, f"un ticker occupa {conta.most_common(1)[0][1]} posti"

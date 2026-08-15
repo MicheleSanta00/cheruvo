@@ -100,6 +100,121 @@ ISTRUZIONI = """
 """
 
 
+def _parole(titolo: str) -> set:
+    """Le parole di un titolo, senza quelle che ci sono in tutti."""
+    import re
+    VUOTE = {"il","lo","la","i","gli","le","di","a","da","in","con","su","per",
+             "the","of","to","and","in","for","on","at","as","is","are","with",
+             "after","from","by","its","has","have","will","that","this","a","an",
+             "e","ed","che","non","si","al","del","della","dei","delle","un","una"}
+    t = re.sub(r"[^\w\s]", " ", (titolo or "").lower())
+    return {p for p in t.split() if len(p) > 2 and p not in VUOTE}
+
+
+_ANNO = __import__("re").compile(r"^(19|20)\d\d$")
+
+
+def _cifre(titolo: str) -> set:
+    """
+    Le cifre citate nel titolo, esclusi gli anni.
+
+    Una cifra in un titolo e' quasi sempre il fatto: "15 miliardi", "400.000
+    veicoli", "il 3%". Due giornali che raccontano la stessa cosa la ripetono
+    identica anche quando riscrivono tutto il resto, ed e' l'unica traccia che
+    sopravvive alla riscrittura.
+
+    Gli anni no: "Nvidia alza le stime 2026" e "Nvidia annuncia il riacquisto
+    2026" condividono il 2026 e sono due fatti diversi. Un anno dice quando,
+    non cosa.
+    """
+    import re
+    fuori = set()
+    for grezzo in re.findall(r"\d[\d.,]*", titolo or ""):
+        n = grezzo.rstrip(".,").replace(".", "").replace(",", "")
+        if n and not _ANNO.match(n):
+            fuori.add(n.lstrip("0") or "0")
+    return fuori
+
+
+def _stessa_notizia(a: str, b: str, soglia: float = 0.6) -> bool:
+    """
+    Due titoli raccontano lo stesso fatto anche se scritti diverso?
+
+    `_chiave_titolo` di calibra riconosce solo le copie IDENTICHE, quindi
+    "Intel targets $15 billion stock sale after rally" e "Intel seeks $15
+    billion as turnaround boosts shares" per lui sono due notizie. Per chi
+    etichetta sono la stessa cosa vista due volte, e dopo la quinta variante
+    smette di dare giudizi e comincia a copiare quello di prima.
+
+    Ci sono due modi di accorgersene, e servono tutti e due.
+
+    IL PRIMO, per le riscritture pigre. Se gli insiemi di parole si
+    sovrappongono per piu' del 60% del piu' corto dei due, e' lo stesso fatto.
+    Servono pero' anche almeno quattro parole in comune, non solo la
+    proporzione: su due titoli corti bastano tre parole condivise per superare
+    il 60% e finire fusi anche parlando di cose diverse. "Eni annuncia accordo
+    in Libia" e "Eni annuncia accordo in Egitto" hanno quattro parole su cinque
+    uguali ed e' giusto fonderli, "Eni taglia" e "Eni sale" no.
+
+    IL SECONDO, per le riscritture vere, ed e' quello che serviva qui. I due
+    titoli su Intel condividono soltanto "intel" e "billion": due parole su
+    sei, il 33%, molto sotto qualunque soglia sensata. La prima versione di
+    questa funzione NON li riconosceva, pur citandoli come motivo per
+    esistere. Quello che condividono davvero e' la CIFRA, 15 miliardi, e la
+    cifra sopravvive alla riscrittura perche' e' il fatto. Quindi: stessa cifra
+    piu' almeno un'altra parola in comune (di solito il nome della societa')
+    vuol dire stesso fatto.
+
+    Non e' esatto, ma sbagliare tenendo fuori una notizia buona costa meno che
+    chiedere cinque volte lo stesso giudizio: ce ne sono altre trecento in
+    archivio, di pazienza di chi etichetta ce n'e' una sola.
+    """
+    pa, pb = _parole(a), _parole(b)
+    if not pa or not pb:
+        return False
+    comuni = len(pa & pb)
+    if comuni >= 4 and comuni / min(len(pa), len(pb)) >= soglia:
+        return True
+
+    if not comuni:
+        return False
+    condivise = _cifre(a) & _cifre(b)
+    # Una cifra vale come impronta solo se e' GROSSA o se ha accanto la parola
+    # di grandezza. Le percentuali a una o due cifre non distinguono niente:
+    # "Apple sale del 3% a Wall Street" e "Tesla scende del 3% a Wall Street"
+    # condividono il 3 e due parole, e sono due fatti diversi. Il 3 di "15
+    # miliardi" invece e' il fatto, e "400000" da solo non lo dice nessun
+    # altro.
+    GRANDEZZE = {"billion", "million", "trillion", "miliardi", "milioni",
+                 "miliardo", "milione", "mld", "mln"}
+    return any(len(n) >= 3 for n in condivise) or bool(
+        condivise and GRANDEZZE & pa & pb)
+
+
+def _varia(righe: list[tuple], quante: int, max_per_ticker: int = 3) -> list[tuple]:
+    """
+    Prende `quante` righe evitando di ripetere lo stesso fatto e lo stesso
+    titolo azionario.
+
+    Il tetto per ticker serve perche' i casi su cui i due valutatori litigano
+    di piu' tendono a essere tutti lo stesso evento: nel campione dell'11
+    agosto 2026 dodici disaccordi su dodici erano l'aumento di capitale di
+    Intel, in dodici riscritture diverse.
+    """
+    from collections import Counter
+    presi, conta = [], Counter()
+    for r in righe:
+        if len(presi) >= quante:
+            break
+        if conta[r[0]] >= max_per_ticker:
+            continue
+        if any(_stessa_notizia(r[1], p[1]) for p in presi):
+            continue
+        presi.append(r)
+        conta[r[0]] += 1
+    return presi
+
+
 def _campione(righe: list[tuple], seme: int = 11) -> list[tuple]:
     """
     Stratificato: i litigiosi, un po' a caso, e qualche concorde.
@@ -113,22 +228,29 @@ def _campione(righe: list[tuple], seme: int = 11) -> list[tuple]:
         return []
 
     per_scarto = sorted(con_due, key=lambda r: -abs(float(r[2]) - float(r[3])))
-    litigiosi = per_scarto[:QUANTI_LITIGIOSI]
-    concordi = per_scarto[-QUANTI_CONCORDI:]
+
+    # Ogni gruppo passa da `_varia`: niente stesso fatto raccontato due volte,
+    # e non piu' di tre righe per titolo azionario. Senza, i venti litigiosi
+    # sarebbero venti versioni dell'aumento di capitale di Intel.
+    litigiosi = _varia(per_scarto, QUANTI_LITIGIOSI)
+    concordi = _varia(list(reversed(per_scarto)), QUANTI_CONCORDI)
 
     presi = {id(r) for r in litigiosi} | {id(r) for r in concordi}
     resto = [r for r in con_due if id(r) not in presi]
 
     rnd = random.Random(seme)
-    a_caso = rnd.sample(resto, min(QUANTI_A_CASO, len(resto)))
+    rnd.shuffle(resto)
+    a_caso = _varia(resto, QUANTI_A_CASO)
 
     fuori = litigiosi + concordi + a_caso
+    # Anche fra i tre gruppi non deve ricomparire lo stesso fatto.
+    fuori = _varia(fuori, len(fuori))
     rnd.shuffle(fuori)
 
-    # La riserva: stessa provenienza, stesso mescolamento, tenuta da parte.
     presi.update(id(r) for r in a_caso)
-    avanzo = [r for r in con_due if id(r) not in presi]
-    riserva = rnd.sample(avanzo, min(QUANTI_DI_RISERVA, len(avanzo)))
+    avanzo = [r for r in con_due if id(r) not in presi
+              and not any(_stessa_notizia(r[1], p[1]) for p in fuori)]
+    riserva = _varia(avanzo, QUANTI_DI_RISERVA)
     return fuori + riserva
 
 
