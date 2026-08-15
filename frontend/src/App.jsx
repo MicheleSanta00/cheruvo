@@ -94,11 +94,18 @@ export default function App() {
   // Mercato attivo: azioni o crypto. Filtra tutto quello che è un elenco.
   const [mercatoAttivo, setMercatoAttivo] = useState(leggiMercato)
   const stretto = useSchermoStretto()
-  // Scappatoia per te: con ?azioni=1 nell'indirizzo la sezione titoli si
-  // apre lo stesso, così puoi continuare a provarla mentre è chiusa al
-  // pubblico. Nessuno ci arriva per caso.
-  const azioniSbloccate = typeof window !== 'undefined' &&
-    new URLSearchParams(window.location.search).get('azioni') !== null
+  // LE AZIONI SONO APERTE (15 agosto 2026)
+  //
+  // Erano chiuse dietro ?azioni=1, un indirizzo passato a mano a chi doveva
+  // provarle. Si aprono adesso perché la copertura c'è: NVDA 66 notizie nelle
+  // ultime 48 ore, GOOGL 33, AAPL 32, SAP 27, TSLA 27, AMZN 25, MSFT 21, e poi
+  // le italiane (Eni, UniCredit, Ferrari) e le europee (ASML, Shell). Diciassette
+  // titoli con notizie vere, non una sezione vuota da riempire di promesse.
+  //
+  // Il flag resta come rete: `?azioni=0` le richiude, se un giorno servisse
+  // spegnerle in fretta senza aspettare un deploy.
+  const azioniChiuse = typeof window !== 'undefined' &&
+    new URLSearchParams(window.location.search).get('azioni') === '0'
 
   // Le classifiche, il nastro e la colonna destra mostrano SOLO il mercato
   // attivo: un elenco che mescola Bitcoin ed Eni non si legge.
@@ -646,7 +653,7 @@ export default function App() {
                       overflow: stretto ? 'visible' : 'hidden' }}>
 
         {/* ── Content area ── */}
-        {mercatoAttivo === 'azioni' && !azioniSbloccate ? (
+        {mercatoAttivo === 'azioni' && azioniChiuse ? (
           <SezioneAzioni lang={lang} onVaiACrypto={() => cambiaMercato('crypto')} />
         ) : (
         <>

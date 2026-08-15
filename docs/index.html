@@ -239,12 +239,12 @@ footer a:hover{color:var(--txt)}
         <div class="p">€0</div>
         <div style="font-size:12.5px;color:var(--faint)" data-i18n="planFreeSub">nessuna carta richiesta</div>
         <ul>
-          <li data-i18n="f1">Sentiment di tutte e 20 le monete</li>
+          <li data-i18n="f1">Sentiment su criptovalute e azioni</li>
           <li data-i18n="f2">Classifica di mercato aggiornata</li>
           <li data-i18n="f3">Grafico prezzo e sentiment, con livelli disegnabili</li>
           <li data-i18n="f4">Watchlist senza limiti e storico completo</li>
           <li data-i18n="p2">Export PDF e CSV</li>
-          <li data-i18n="p3">Alert email sulle monete che segui</li>
+          <li data-i18n="p3">Alert email sui titoli che segui</li>
         </ul>
         <a class="btn p" href="https://app.cheruvo.com" data-i18n="planFreeCta">Apri Cheruvo</a>
       </div>
@@ -359,9 +359,12 @@ const f2  = v => (v > 0 ? '+' : v < 0 ? '−' : '') + Math.abs(v).toFixed(2)
 const nf  = n => Number(n).toLocaleString(lang === 'it' ? 'it-IT' : 'en-US')
 
 fetch(BASE + '/market/today').then(r => r.json()).then(d => {
-  // Solo criptovalute: la home parla di crypto, mostrare Eni accanto a
-  // Bitcoin rimetterebbe in pagina la confusione che abbiamo appena tolto.
-  const rows = (d.rows || []).filter(r => String(r.ticker).endsWith('-USD'))
+  // Cripto E azioni. Il filtro sulle sole monete aveva senso finche' la
+  // sezione titoli era chiusa dietro un indirizzo privato: mostrare Eni
+  // accanto a Bitcoin avrebbe promesso una cosa che non si poteva aprire.
+  // Dal 15 agosto 2026 le azioni sono pubbliche, e continuare a nasconderle
+  // qui vorrebbe dire raccontare meta' del prodotto.
+  const rows = (d.rows || [])
   if (!rows.length) return
   const nome = tk => NOMI[tk] || tk.replace('-USD', '')
   const sigla = tk => tk.replace('-USD', '')
