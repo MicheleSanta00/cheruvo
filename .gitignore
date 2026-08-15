@@ -39,3 +39,6 @@ landing/frames/
 
 # Sessioni di lavoro dell'assistente: file locali, non codice del progetto.
 .claude/
+
+# Le cinquanta etichette a mano: dati di lavoro, non codice.
+backend/etichette.json

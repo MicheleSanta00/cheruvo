@@ -55,21 +55,7 @@
   .step .n { flex-shrink:0; width:26px; height:26px; border-radius:50%; background:rgba(30,92,255,.15); border:1px solid rgba(30,92,255,.4); color:var(--azure); font-size:13px; font-weight:700; display:flex; align-items:center; justify-content:center; }
   .box { background:var(--card); border:1px solid var(--border); border-radius:12px; padding:14px 18px; margin:16px 0; font-size:14.5px; }
   .box.pro { background:rgba(245,196,81,.05); border-color:rgba(245,196,81,.3); }
-  .tag-pro { font-size:10.5px; font-weight:700; color:#f5c451; background:rgba(245,196,81,.14); border:1px solid rgba(245,196,81,.35); border-radius:99px; padding:2px 8px; vertical-align:middle; margin-left:6px; }
-
-  /* Screenshot: mostra l'immagine reale; finché manca, un placeholder elegante */
-  figure.shot { margin:16px 0 20px; }
-  figure.shot img { width:100%; border:1px solid var(--border); border-radius:12px; display:block; }
-  .shot-ph { display:flex; flex-direction:column; align-items:center; justify-content:center; gap:8px; min-height:200px; border:2px dashed var(--border); border-radius:12px; color:var(--muted); font-size:13px; text-align:center; padding:24px; background:var(--card); }
-  .shot-ph b { color:var(--off-white); font-family:monospace; font-size:12.5px; }
   figcaption { color:var(--muted); font-size:12.5px; margin-top:8px; text-align:center; }
-  figure.shot img { cursor:zoom-in; transition:border-color .15s; }
-  figure.shot img:hover { border-color:var(--azure); }
-  /* Lightbox: ingrandisci lo screenshot al clic */
-  #lightbox { position:fixed; inset:0; z-index:100; background:rgba(3,4,8,.93); display:none; align-items:center; justify-content:center; padding:24px; cursor:zoom-out; backdrop-filter:blur(4px); }
-  #lightbox.open { display:flex; }
-  #lightbox img { max-width:100%; max-height:100%; border:1px solid var(--border); border-radius:10px; box-shadow:0 24px 90px rgba(0,0,0,.75); }
-  #lightbox .lb-close { position:fixed; top:16px; right:22px; color:#fff; font-size:26px; line-height:1; background:none; border:none; cursor:pointer; opacity:.85; }
 
   .divider { height:1px; background:linear-gradient(90deg,transparent,rgba(255,255,255,.08),transparent); margin:40px 0; border:none; }
   footer { border-top:1px solid var(--border); padding:26px 24px; text-align:center; color:var(--muted); font-size:13px; }
@@ -134,48 +120,45 @@
     <div class="step"><span class="n">1</span><div>Apri <a href="https://app.cheruvo.com">app.cheruvo.com</a> e registrati con email e password.</div></div>
     <div class="step"><span class="n">2</span><div>Conferma l'email (controlla anche lo spam) e accedi.</div></div>
     <div class="step"><span class="n">3</span><div>Al primo accesso parte un breve tour che ti mostra le funzioni principali.</div></div>
-    <figure class="shot"><img src="assets/guide/01-login.png" alt="Schermata di accesso a Cheruvo" loading="lazy" onerror="this.style.display='none';this.nextElementSibling.style.display='flex'"><div class="shot-ph" style="display:none">📷 Schermata di accesso<br><b>assets/guide/01-login.png</b></div><figcaption>La schermata di accesso.</figcaption></figure>
 
     <hr class="divider">
 
     <h2 id="cerca">Cercare un titolo</h2>
     <p>Dalla barra di ricerca in alto, scrivi il simbolo (ticker) di un'azione e premi invio. Da qualunque punto dell'app la scorciatoia <strong>Ctrl+K</strong> (su Mac <strong>Cmd+K</strong>) ci porta il cursore. Cheruvo supporta i mercati USA ed europei: ad esempio <strong>NVDA</strong> (NVIDIA), <strong>AAPL</strong> (Apple), <strong>ENI.MI</strong> (Eni, Borsa Italiana), <strong>SAP.DE</strong> (SAP, Germania). Se non ricordi il simbolo, inizia a digitare il nome e scegli dal suggerimento.</p>
-    <figure class="shot"><img src="assets/guide/02-cerca.png" alt="Ricerca di un ticker dalla barra in alto" loading="lazy" onerror="this.style.display='none';this.nextElementSibling.style.display='flex'"><div class="shot-ph" style="display:none">📷 Ricerca ticker dalla barra in alto<br><b>assets/guide/02-cerca.png</b></div><figcaption>La ricerca di un titolo con il suggerimento automatico.</figcaption></figure>
 
     <h2 id="score">Il sentiment score</h2>
-    <p>Il <strong>sentiment score</strong> è un numero da <strong>−1</strong> (molto ribassista) a <strong>+1</strong> (molto rialzista) che misura l'umore delle notizie su quel titolo. Vicino a +1 significa ottimismo diffuso, vicino a −1 pessimismo, intorno a 0 il mercato è neutro o diviso. Lo score giornaliero è la media dei punteggi di tutte le notizie di quel giorno.</p>
+    <p>Il <strong>sentiment score</strong> è un numero da <strong>−1</strong> (molto ribassista) a <strong>+1</strong> (molto rialzista) che misura l'umore delle notizie su quel titolo. Vicino a +1 significa ottimismo diffuso, vicino a −1 pessimismo, intorno a 0 il mercato è neutro o diviso. Lo score giornaliero è la media dei punteggi delle notizie di quel giorno, contando <strong>una volta sola le riprese</strong>: se lo stesso lancio d'agenzia esce su venti testate è un giudizio solo, non venti. Il numero di riprese resta visibile nel grafico, perché per capire quanta attenzione ha avuto un titolo quel dato serve.</p>
+    <p>Passando il cursore su una barra del grafico vedi anche <strong>quante notizie</strong> compongono quella media e <strong>quanto sono in disaccordo fra loro</strong>. Sono due cose diverse: una giornata può avere una media calcolata su sessanta articoli, quindi solida, e allo stesso tempo articoli che vanno da −0,9 a +0,8. In quel caso la media dice poco e il disaccordo dice tutto.</p>
     <div class="box">💡 Ricorda: il sentiment è un <strong>termometro</strong>, non una previsione. Ti dice che aria tira, non cosa comprare. La decisione resta tua.</div>
 
     <h2 id="kpi">I numeri chiave (KPI)</h2>
     <p>In alto trovi i riquadri con i numeri principali: <strong>sentiment medio</strong> del periodo, <strong>massimo</strong> e <strong>minimo</strong> raggiunti, numero di <strong>notizie analizzate</strong> e <strong>fonti</strong>. Servono a inquadrare il titolo in un colpo d'occhio prima di guardare il grafico.</p>
-    <figure class="shot"><img src="assets/guide/03-kpi.png" alt="I riquadri KPI del Sentiment Analyzer" loading="lazy" onerror="this.style.display='none';this.nextElementSibling.style.display='flex'"><div class="shot-ph" style="display:none">📷 I riquadri KPI in alto<br><b>assets/guide/03-kpi.png</b></div><figcaption>I numeri chiave del titolo selezionato.</figcaption></figure>
 
     <h2 id="grafico">Il grafico prezzo + sentiment</h2>
     <p>Il grafico sovrappone il <strong>prezzo</strong> del titolo alla curva del <strong>sentiment</strong>, giorno per giorno. Guarda soprattutto le <strong>divergenze</strong>: quando il sentiment sale mentre il prezzo è fermo (o viceversa), spesso qualcosa sta cambiando. Con lo zoom puoi restringere il periodo; la media mobile a 7 giorni (MA7) smussa il rumore.</p>
     <div class="step"><span class="n">1</span><div>Usa il cursore sui giorni per leggere prezzo e sentiment esatti.</div></div>
-    <div class="step"><span class="n">2</span><div>Cambia il periodo (1M, 3M e, con Pro, 6M/1A) dai pulsanti nell'intestazione del grafico. La finestra delle notizie (7, 14, 30 e con Pro 60 e 90 giorni) si imposta invece dalla barra in alto: sono due cose distinte.</div></div>
-    <figure class="shot"><img src="assets/guide/04-grafico.png" alt="Grafico prezzo sovrapposto al sentiment" loading="lazy" onerror="this.style.display='none';this.nextElementSibling.style.display='flex'"><div class="shot-ph" style="display:none">📷 Grafico prezzo + sentiment<br><b>assets/guide/04-grafico.png</b></div><figcaption>Prezzo e sentiment sovrapposti nel tempo.</figcaption></figure>
+    <div class="step"><span class="n">2</span><div>Cambia il periodo (1M, 3M, 6M, 1A) dai pulsanti nell'intestazione del grafico. La finestra delle notizie (7, 14, 30, 60, 90 giorni) si imposta invece dalla barra in alto: sono due cose distinte.</div></div>
 
     <h2 id="news">Le notizie</h2>
     <p>Sotto il grafico trovi le notizie che generano il sentiment. La scheda <strong>Top Bullish / Bearish</strong> mostra le più rialziste e le più ribassiste del momento, con il loro score; la scheda <strong>Recenti</strong> le ordina per data. Clicca una notizia per leggere l'articolo originale. Consiglio pratico: leggi solo gli estremi (le 2-3 più forti), sono quelle che stanno muovendo il sentiment.</p>
-    <figure class="shot"><img src="assets/guide/05-news.png" alt="Le notizie top bullish e bearish" loading="lazy" onerror="this.style.display='none';this.nextElementSibling.style.display='flex'"><div class="shot-ph" style="display:none">📷 Le notizie con lo score<br><b>assets/guide/05-news.png</b></div><figcaption>Le notizie più impattanti, con il punteggio di sentiment.</figcaption></figure>
 
     <h2 id="correlazione">La correlazione</h2>
-    <p>Il pannello <strong>Correlazione</strong> risponde alla domanda: per <em>questo</em> titolo, il sentiment di oggi ha davvero anticipato il prezzo di domani? Mostra il coefficiente di <strong>Pearson</strong> (da −1 a +1) tra sentiment del giorno D e rendimento del giorno D+1, con uno scatter plot. Un valore vicino a 0 significa nessuna relazione; più è alto (in positivo o negativo), più il legame è forte. È lo strumento onesto che ti fa giudicare da solo dove il sentiment è utile e dove no. <span class="tag-pro">PRO</span></p>
-    <figure class="shot"><img src="assets/guide/06-correlazione.png" alt="Scatter plot della correlazione sentiment-prezzo" loading="lazy" onerror="this.style.display='none';this.nextElementSibling.style.display='flex'"><div class="shot-ph" style="display:none">📷 Scatter correlazione (Pro)<br><b>assets/guide/06-correlazione.png</b></div><figcaption>La correlazione sentiment → prezzo del giorno dopo.</figcaption></figure>
+    <p>Il pannello <strong>Correlazione</strong> risponde alla domanda: per <em>questo</em> titolo, il sentiment di oggi ha davvero anticipato il prezzo di domani? Mostra il coefficiente di <strong>Pearson</strong> fra il sentiment del giorno D e il rendimento del giorno D+1, con lo scatter plot dei singoli giorni.</p>
+    <p>Il numero compare <strong>solo da 20 giorni di dati in su</strong>, e sempre accanto alla sua <strong>banda di incertezza</strong>. Sotto quella soglia la banda è più larga di qualunque relazione che avrebbe senso rivendicare, quindi qualsiasi cifra mostrata sarebbe rumore travestito da misura: su cinque giorni un coefficiente di −0,74 può diventare +0,24 togliendo una sola giornata, e su serie casuali lunghe cinque un valore così esce nel 15% dei casi.</p>
+    <p>Se la banda comprende lo zero, c'è scritto. Vuol dire che i dati non distinguono quella correlazione dall'assenza di correlazione, ed è un'informazione, non un difetto. Per lo stesso motivo non ci sono più aggettivi tipo "forte" o "moderata": davano un giudizio di intensità a numeri che spesso non erano distinguibili dal caso.</p>
+    <div class="box">Anche quando la banda esclude lo zero, resta una relazione statistica su pochi giorni. Non vuol dire che il sentiment <em>causi</em> il movimento: molte notizie descrivono un prezzo che si è già mosso.</div>
 
-    <h2 id="confronto">Confronto multi-ticker <span class="tag-pro">PRO</span></h2>
+    <h2 id="confronto">Confronto multi-ticker</h2>
     <p>Sovrapponi il sentiment di fino a 3 titoli sullo stesso grafico per confrontarli: ad esempio NVDA contro AMD, o ENI contro ENEL. Utile per capire chi sta andando meglio nello stesso settore.</p>
 
-    <h2 id="summary">AI Summary <span class="tag-pro">PRO</span></h2>
+    <h2 id="summary">AI Summary</h2>
     <p>L'<strong>AI Summary</strong> genera un riassunto in linguaggio semplice delle ultime notizie del titolo, con un giudizio complessivo (rialzista / ribassista / neutro) e i temi chiave. È il modo più veloce per capire "cosa sta succedendo" senza leggere venti articoli.</p>
 
-    <h2 id="export">Export e alert <span class="tag-pro">PRO</span></h2>
-    <p>Con Pro puoi <strong>esportare</strong> i dati in CSV o un report in PDF (KPI, sentiment, top news) dai pulsanti in alto, e attivare gli <strong>alert email</strong>: ricevi una notifica quando il sentiment di un titolo in watchlist cambia bruscamente, senza dover controllare la dashboard.</p>
+    <h2 id="export">Export e alert</h2>
+    <p>Puoi <strong>esportare</strong> i dati in CSV o un report in PDF (KPI, sentiment, top news) dai pulsanti in alto, e attivare gli <strong>alert email</strong>: ricevi una notifica quando il sentiment di un titolo in watchlist cambia bruscamente, senza dover controllare la dashboard.</p>
 
     <h2 id="mercato">Mercato oggi</h2>
-    <p>È la schermata che trovi appena entri, senza dover cliccare niente: la classifica dei titoli più rialzisti e più ribassisti secondo le notizie delle ultime 48 ore, con la variazione rispetto alla settimana. Clicca un titolo per aprirlo. Quando poi sei dentro un titolo, la stessa classifica resta consultabile nella colonna di destra. In fondo trovi anche gli <strong>earnings in arrivo</strong> con il sentiment pre-conti <span class="tag-pro">PRO</span>.</p>
-    <figure class="shot"><img src="assets/guide/07-mercato.png" alt="La schermata Mercato oggi" loading="lazy" onerror="this.style.display='none';this.nextElementSibling.style.display='flex'"><div class="shot-ph" style="display:none">📷 Schermata Mercato oggi<br><b>assets/guide/07-mercato.png</b></div><figcaption>La classifica del sentiment di oggi.</figcaption></figure>
+    <p>È la schermata che trovi appena entri, senza dover cliccare niente: la classifica dei titoli più rialzisti e più ribassisti secondo le notizie delle ultime 48 ore, con la variazione rispetto alla settimana. Clicca un titolo per aprirlo. Quando poi sei dentro un titolo, la stessa classifica resta consultabile nella colonna di destra. In fondo trovi anche gli <strong>earnings in arrivo</strong> con il sentiment pre-conti.</p>
 
     <h2 id="watchlist">La watchlist</h2>
     <p>La <strong>watchlist</strong> occupa la colonna di sinistra e mostra per ogni titolo il sentiment e quante notizie sono state analizzate. Per aggiungerne uno scrivi nel campo in fondo alla lista: compaiono i suggerimenti con simbolo e nome della società, e si salvano solo titoli realmente quotati. Al primo accesso si riempie da sola con i titoli col sentiment più alto del momento, così non parti da una schermata vuota. Non c'è un limite al numero di titoli seguiti, e la watchlist alimenta gli alert e il digest settimanale via email.</p>
@@ -194,16 +177,15 @@
     <p>Controlla il simbolo: per i titoli europei serve il suffisso del mercato (es. <strong>ENI.MI</strong> per Milano, <strong>SAP.DE</strong> per Francoforte, <strong>MC.PA</strong> per Parigi). Alcuni titoli molto piccoli potrebbero non avere abbastanza notizie.</p>
     <h3>Il sentiment è a zero o poche notizie</h3>
     <p>Su titoli poco seguiti dalla stampa il sentiment può essere neutro semplicemente perché ci sono poche notizie. Le notizie si aggiornano da sole ogni dieci minuti sul titolo aperto, e più volte al giorno su tutti gli altri; l'icona circolare nella barra in alto forza un aggiornamento subito.</p>
-    <h3>Ho pagato Pro ma non vedo le funzioni</h3>
-    <p>Aggiorna la pagina: il passaggio a Pro si attiva in pochi secondi dopo il pagamento. Se non compare, esci e rientra dall'account.</p>
-    <h3>Come disdico il Pro</h3>
-    <p>Dal tuo profilo, in qualsiasi momento. Resta attivo fino alla fine del periodo pagato, poi torna Free. Nessun vincolo.</p>
+    <h3>La correlazione non mi mostra nessun numero</h3>
+    <p>Serve almeno una ventina di giorni in cui quel titolo abbia sia notizie sia prezzo. Sotto quella soglia il pannello scrive quanti giorni mancano invece di mostrare una cifra: un coefficiente calcolato su cinque giorni cambia segno togliendone uno, e mostrarlo sarebbe peggio che tacere.</p>
+    <h3>Un titolo mostra il prezzo ma nessuna notizia</h3>
+    <p>Il prezzo arriva da Yahoo e c'è per tutti i titoli quotati; le notizie invece vengono raccolte in automatico solo per una parte. Se apri un titolo che non ha ancora niente, Cheruvo va a cercare le notizie da solo in quel momento: aspetta qualche secondo e ricarica. Se resta vuoto, di quel titolo in quel periodo non si è scritto.</p>
 
     <div class="box" style="margin-top:34px">Non hai trovato quello che cercavi? Scrivici a <a href="mailto:michelesantacaterina08@gmail.com">michelesantacaterina08@gmail.com</a>.</div>
   </main>
 </div>
 
-<div id="lightbox" aria-hidden="true"><button class="lb-close" aria-label="Chiudi">✕</button><img alt=""></div>
 
 <footer>© 2026 Cheruvo · <a href="index.html">cheruvo.com</a> · <a href="blog/">Blog</a> · <a href="privacy.html">Privacy</a> · <a href="termini.html">Termini</a></footer>
 
@@ -284,19 +266,6 @@
     })
   }, { rootMargin: '-130px 0px -70% 0px' })
   document.querySelectorAll('main h2').forEach(function (h) { obs.observe(h) })
-})();
-
-// ── Lightbox: clicca uno screenshot per ingrandirlo ────────────────────────
-(function () {
-  var lb = document.getElementById('lightbox')
-  var lbImg = lb.querySelector('img')
-  function open(src, alt) { lbImg.src = src; lbImg.alt = alt || ''; lb.classList.add('open'); lb.setAttribute('aria-hidden', 'false') }
-  function close() { lb.classList.remove('open'); lb.setAttribute('aria-hidden', 'true'); lbImg.src = '' }
-  document.querySelectorAll('figure.shot img').forEach(function (img) {
-    img.addEventListener('click', function () { open(img.src, img.alt) })
-  })
-  lb.addEventListener('click', close)
-  document.addEventListener('keydown', function (e) { if (e.key === 'Escape') close() })
 })();
 </script>
 </body>

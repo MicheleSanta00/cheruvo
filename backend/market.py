@@ -76,23 +76,66 @@ def _fetch_market() -> list[dict]:
         cur = conn.cursor()
         # WINDOW_HOURS/BASELINE_DAYS sono costanti di modulo (interi), non input utente:
         # sicuri dentro la f-string. MIN_NEWS e MAX_ROWS passano come parametri.
+        # UNA NOTIZIA, UN VOTO — ANCHE QUI
+        #
+        # Prima questa query faceva AVG e COUNT su tutte le righe. Il 15 agosto
+        # 2026, misurando un campione, 61 righe su 300 erano lo stesso lancio
+        # d'agenzia ("Intel targets $15 billion stock sale after rally") ripreso
+        # da 61 testate.
+        #
+        # Con quel conteggio un titolo poteva entrare in classifica con UNA
+        # notizia sola rilanciata cinque volte, e comparire in home con scritto
+        # "5 news". Sia la soglia MIN_NEWS sia la media erano falsate dalla
+        # sindacazione invece che dai fatti.
+        #
+        # Le riprese si fondono prima: stesso ticker e stesso titolo diventano
+        # una voce sola, col punteggio medio fra le copie. Il conteggio delle
+        # riprese non si perde, esce come `riprese`.
+        #
+        # La normalizzazione del titolo rispecchia `giornaliero.chiave_titolo`:
+        # minuscole, punteggiatura a spazi, spazi collassati, primi 90
+        # caratteri. Le due DEVONO restare uguali, altrimenti il grafico e la
+        # classifica fondono gruppi diversi e mostrano numeri che non tornano.
+        #
+        # Un titolo vuoto non si fonde con gli altri titoli vuoti: senza testo
+        # non si puo' dire che due notizie siano la stessa, e fonderle
+        # cancellerebbe righe vere. Per questo c'e' il ripiego sull'id.
+        chiave = ("left(btrim(regexp_replace(regexp_replace("
+                  "lower(coalesce(title, '')), '[^[:alnum:][:space:]]', ' ', 'g'"
+                  "), '\\s+', ' ', 'g')), 90)")
         cur.execute(f"""
-            WITH recent AS (
+            WITH distinte AS (
                 SELECT ticker,
-                       AVG(sentiment)  AS avg_now,
-                       COUNT(*)        AS n_now
+                       COALESCE(NULLIF({chiave}, ''), 'id:' || id::text) AS chiave,
+                       AVG(sentiment) AS sentiment,
+                       COUNT(*)       AS copie
                 FROM news
                 WHERE published_date >= NOW() - INTERVAL '{int(WINDOW_HOURS)} hours'
+                GROUP BY ticker, 2
+            ),
+            recent AS (
+                SELECT ticker,
+                       AVG(sentiment)      AS avg_now,
+                       COUNT(*)            AS n_now,
+                       SUM(copie) - COUNT(*) AS riprese
+                FROM distinte
                 GROUP BY ticker
             ),
-            baseline AS (
-                SELECT ticker, AVG(sentiment) AS avg_prev
+            distinte_prima AS (
+                SELECT ticker,
+                       COALESCE(NULLIF({chiave}, ''), 'id:' || id::text) AS chiave,
+                       AVG(sentiment) AS sentiment
                 FROM news
                 WHERE published_date <  NOW() - INTERVAL '{int(WINDOW_HOURS)} hours'
                   AND published_date >= NOW() - INTERVAL '{int(BASELINE_DAYS)} days'
+                GROUP BY ticker, 2
+            ),
+            baseline AS (
+                SELECT ticker, AVG(sentiment) AS avg_prev
+                FROM distinte_prima
                 GROUP BY ticker
             )
-            SELECT r.ticker, r.avg_now, r.n_now, b.avg_prev
+            SELECT r.ticker, r.avg_now, r.n_now, b.avg_prev, r.riprese
             FROM recent r
             LEFT JOIN baseline b ON b.ticker = r.ticker
             WHERE r.n_now >= %s
@@ -105,10 +148,11 @@ def _fetch_market() -> list[dict]:
         pool.putconn(conn)
 
     out = []
-    for t, avg_now, n_now, avg_prev in rows:
+    for t, avg_now, n_now, avg_prev, riprese in rows:
         avg_now = round(float(avg_now or 0), 3)
         delta = round(avg_now - float(avg_prev), 3) if avg_prev is not None else None
-        out.append({"ticker": t, "sentiment": avg_now, "news": int(n_now), "delta": delta})
+        out.append({"ticker": t, "sentiment": avg_now, "news": int(n_now),
+                    "delta": delta, "riprese": int(riprese or 0)})
     return out
 
 

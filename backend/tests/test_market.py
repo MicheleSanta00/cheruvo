@@ -42,7 +42,8 @@ class TestMarketToday:
         assert "rows" in resp.json()
 
     def test_shape_e_delta(self, app):
-        rows = [("NVDA", 0.42, 12, 0.30), ("TSLA", -0.21, 5, None)]
+        # (ticker, media, notizie distinte, media precedente, riprese)
+        rows = [("NVDA", 0.42, 12, 0.30, 3), ("TSLA", -0.21, 5, None, 0)]
         with patch("market.cache_get", return_value=None), \
              patch("market.cache_set"), \
              patch("market.get_pool", return_value=_make_pool(rows)):
@@ -50,7 +51,8 @@ class TestMarketToday:
                 data = c.get("/api/market/today").json()
         assert data["window_hours"] == 48
         r0, r1 = data["rows"]
-        assert r0 == {"ticker": "NVDA", "sentiment": 0.42, "news": 12, "delta": 0.12}
+        assert r0 == {"ticker": "NVDA", "sentiment": 0.42, "news": 12,
+                      "delta": 0.12, "riprese": 3}
         assert r1["delta"] is None          # nessuna baseline → delta assente
 
     def test_cache_hit_non_tocca_il_db(self, app):
@@ -112,3 +114,70 @@ class TestMarketToday:
                 resp = c.get("/api/market/today")
         assert resp.status_code == 200
         assert resp.json()["rows"] == []
+
+
+class TestClassificaSenzaDoppioni:
+    """
+    Un titolo non deve entrare in classifica grazie alle riprese.
+
+    Il 15 agosto 2026, su un campione di 300 righe, 61 erano lo stesso lancio
+    d'agenzia ripreso da 61 testate. Con COUNT(*) un titolo poteva superare
+    MIN_NEWS con UNA notizia sola rilanciata cinque volte, e comparire in home
+    con scritto "5 news".
+    """
+
+    def test_la_query_fonde_le_riprese_prima_di_mediare(self, app):
+        pool = _make_pool([("NVDA", 0.4, 9, 0.3, 40)])
+        with patch("market.cache_get", return_value=None), \
+             patch("market.cache_set"), \
+             patch("market.get_pool", return_value=pool):
+            with TestClient(app, raise_server_exceptions=False) as c:
+                c.get("/api/market/today")
+        sql = pool.getconn.return_value.cursor.return_value.execute.call_args[0][0]
+        assert "GROUP BY ticker, 2" in sql, "non raggruppa per titolo normalizzato"
+        assert "FROM distinte" in sql, "media e conteggio non girano sulle distinte"
+
+    def test_anche_la_baseline_fonde_le_riprese(self, app):
+        """
+        Se la finestra recente fonde e quella precedente no, il delta confronta
+        due cose diverse e sembra un movimento dove non c'e'.
+        """
+        pool = _make_pool([("NVDA", 0.4, 9, 0.3, 40)])
+        with patch("market.cache_get", return_value=None), \
+             patch("market.cache_set"), \
+             patch("market.get_pool", return_value=pool):
+            with TestClient(app, raise_server_exceptions=False) as c:
+                c.get("/api/market/today")
+        sql = pool.getconn.return_value.cursor.return_value.execute.call_args[0][0]
+        assert "distinte_prima" in sql and "FROM distinte_prima" in sql
+
+    def test_un_titolo_vuoto_non_si_fonde_con_gli_altri_titoli_vuoti(self, app):
+        """
+        Senza testo non si puo' dire che due notizie siano la stessa: fonderle
+        cancellerebbe righe vere. Il ripiego e' sull'id.
+        """
+        pool = _make_pool([("NVDA", 0.4, 9, 0.3, 0)])
+        with patch("market.cache_get", return_value=None), \
+             patch("market.cache_set"), \
+             patch("market.get_pool", return_value=pool):
+            with TestClient(app, raise_server_exceptions=False) as c:
+                c.get("/api/market/today")
+        sql = pool.getconn.return_value.cursor.return_value.execute.call_args[0][0]
+        assert "'id:' || id::text" in sql
+
+    def test_la_normalizzazione_e_la_stessa_del_grafico(self, app):
+        """
+        La chiave SQL deve rispecchiare `giornaliero.chiave_titolo`: minuscole,
+        punteggiatura a spazi, spazi collassati, primi 90 caratteri. Se le due
+        divergono, il grafico e la classifica fondono gruppi diversi e mostrano
+        numeri che non tornano fra loro.
+        """
+        pool = _make_pool([("NVDA", 0.4, 9, 0.3, 0)])
+        with patch("market.cache_get", return_value=None), \
+             patch("market.cache_set"), \
+             patch("market.get_pool", return_value=pool):
+            with TestClient(app, raise_server_exceptions=False) as c:
+                c.get("/api/market/today")
+        sql = pool.getconn.return_value.cursor.return_value.execute.call_args[0][0]
+        for pezzo in ("lower(", "[^[:alnum:][:space:]]", "left(", "90)"):
+            assert pezzo in sql, f"manca {pezzo} nella normalizzazione"
