@@ -42,20 +42,78 @@ e non mente.
 """
 
 
+def chiave_titolo(t) -> str:
+    """
+    Titolo ridotto all'osso, per riconoscere la stessa notizia ripresa altrove.
+
+    Minuscole, via la punteggiatura, spazi normalizzati. Non riconosce le
+    riscritture ("Intel punta a una vendita da 15 miliardi" resta diversa da
+    "Intel targets $15 billion stock sale"), quindi i doppioni che trova sono
+    un MINIMO: quelli veri sono almeno tanti.
+    """
+    import re
+    if not isinstance(t, str):
+        return ""
+    t = re.sub(r"[^\w\s]", " ", t.lower())
+    return re.sub(r"\s+", " ", t).strip()[:90]
+
+
 def aggrega_giornaliero(df) -> list[dict]:
     """
     Una riga per giorno di calendario, con media, conteggio, disaccordo, errore.
 
-    `df` deve avere le colonne `published_date` (datetime) e `sentiment`.
+    `df` deve avere le colonne `published_date` (datetime), `sentiment` e
+    `title`.
+
+    UNA NOTIZIA, UN VOTO
+
+    L'11 agosto 2026, misurando un campione di 300 righe, 61 erano lo stesso
+    lancio d'agenzia: "Intel targets $15 billion stock sale after rally",
+    ripreso da sessantuno testate. Il 37% del campione erano riprese.
+
+    `save_news` scarta i doppioni per (titolo, TESTATA), quindi la stessa
+    notizia ripresa da sessantuno giornali entra sessantuno volte. È voluto:
+    per l'attenzione sessantuno riprese sono un segnale vero, ed è esattamente
+    quello che il rilevatore di anomalie deve vedere.
+
+    Ma la MEDIA le contava come sessantuno giudizi indipendenti, e non lo sono:
+    è un giudizio solo, moltiplicato da quanto la notizia è stata sindacata.
+    Una giornata finiva colorata da quale lancio era stato ripreso di più.
+
+    Quindi qui le riprese vengono FUSE prima della media: stesso giorno e
+    stesso titolo diventano una voce sola, col punteggio medio fra le copie.
+    Il conteggio delle riprese non si perde, viaggia in `riprese`, perché è il
+    dato che serve a chi guarda l'attenzione invece del giudizio.
     """
+    d = df.copy()
+    d["_giorno"] = d["published_date"].dt.floor("D")
+    d["_chiave"] = d["title"].map(chiave_titolo) if "title" in d.columns else ""
+
+    # Una riga senza titolo utilizzabile non si può confrontare con niente:
+    # resta una notizia a sé, invece di fondersi con tutte le altre senza
+    # titolo e sparire.
+    vuote = d["_chiave"] == ""
+    d.loc[vuote, "_chiave"] = ["§" + str(i) for i in range(int(vuote.sum()))]
+
+    distinte = (d.groupby(["_giorno", "_chiave"], as_index=False)
+                 .agg(sentiment=("sentiment", "mean"),
+                      copie=("sentiment", "size")))
+
     giornaliero = (
-        df.set_index("published_date")["sentiment"]
+        distinte.set_index("_giorno")
         .resample("D")
-        .agg(["mean", "count", "std"])
+        .agg(sentiment=("sentiment", "mean"),
+             n=("sentiment", "count"),
+             dev=("sentiment", "std"),
+             copie=("copie", "sum"))
         .reset_index()
     )
-    giornaliero.columns = ["date", "sentiment", "n", "dev"]
+    giornaliero.columns = ["date", "sentiment", "n", "dev", "copie"]
     giornaliero["date"] = giornaliero["date"].dt.strftime("%Y-%m-%d")
+
+    # Quante righe erano riprese di una notizia già contata.
+    giornaliero["riprese"] = (giornaliero["copie"] - giornaliero["n"]).astype(int)
+    giornaliero = giornaliero.drop(columns=["copie"])
 
     # std di pandas ha ddof=1, quindi con una notizia sola è NaN. È giusto così:
     # una notizia non è in disaccordo con nessuno, ma non è nemmeno una misura
@@ -69,6 +127,7 @@ def aggrega_giornaliero(df) -> list[dict]:
     _mask = giornaliero["sentiment"].notna()
     giornaliero["sentiment"] = giornaliero["sentiment"].round(4).astype(object).where(_mask, None)
     giornaliero["n"] = giornaliero["n"].astype(int)
+    giornaliero["riprese"] = giornaliero["riprese"].astype(int)
     for col in ("dev", "errore"):
         giornaliero[col] = (giornaliero[col].round(4).astype(object)
                             .where(giornaliero[col].notna(), None))

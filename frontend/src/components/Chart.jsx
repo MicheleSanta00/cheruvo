@@ -37,6 +37,7 @@ function CustomTooltip({ active, payload, label, compact }) {
   const n     = punto.sentN
   const dev   = punto.sentDev
   const err   = punto.sentErr
+  const riprese = punto.sentRiprese
 
   const sentVal = sent ?? ma
   const sentCol = sentVal == null ? '#94a3b8'
@@ -113,6 +114,17 @@ function CustomTooltip({ active, payload, label, compact }) {
                     schermo, e lì non c'è overflow da togliere che tenga. */}
                 {compact && dev != null && ` · disacc. ${dev.toFixed(2)}`}
               </div>
+              {/* Le riprese sono la stessa notizia rilanciata da altre testate.
+                  Non entrano nella media, perché sono un giudizio solo
+                  moltiplicato per quanto è stata sindacata, ma dirlo conta: un
+                  giorno con 4 notizie e 60 riprese ha avuto molta attenzione
+                  su pochissimi fatti, ed è un'informazione diversa da un
+                  giorno con 4 notizie e basta. */}
+              {riprese > 0 && (
+                <div>
+                  {riprese} {riprese === 1 ? 'ripresa' : 'riprese'} della stessa notizia
+                </div>
+              )}
               {!compact && dev != null && (
                 <div>
                   disaccordo fra le notizie: {dev.toFixed(2)}
@@ -1000,6 +1012,7 @@ export default function Chart({ prices, sentiment, ticker, stats, intraday = fal
         sentN:   s?.n ?? null,
         sentDev: s?.dev ?? null,
         sentErr: s?.errore ?? null,
+        sentRiprese: s?.riprese ?? 0,
         // Semiampiezza della banda al 95% sulla media del giorno. Serve alla
         // barra d'errore, che disegna quanto è incerta l'altezza della barra.
         sentBanda: s?.errore != null ? 1.96 * s.errore : null,

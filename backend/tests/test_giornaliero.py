@@ -30,6 +30,9 @@ def _righe(coppie):
         for i, s in enumerate(punteggi):
             dati.append({
                 "published_date": pd.Timestamp(f"{giorno} {8 + i % 10}:00:00"),
+                # Titoli tutti diversi: questi test misurano la dispersione,
+                # non i doppioni, e senza titoli distinti verrebbero fusi.
+                "title": f"{giorno} notizia numero {i}",
                 "sentiment": s,
             })
     return pd.DataFrame(dati)
@@ -136,3 +139,96 @@ def test_niente_nan_nel_payload():
     for riga in out:
         for k, v in riga.items():
             assert v is None or v == v, f"{k} è NaN nella riga {riga['date']}"
+
+
+# ── Una notizia, un voto ──────────────────────────────────────────────────
+#
+# L'11 agosto 2026: su 300 righe di campione, 61 erano lo stesso lancio
+# d'agenzia ("Intel targets $15 billion stock sale after rally") ripreso da 61
+# testate. Il 37% del campione erano riprese, e la media le contava tutte.
+def _con_titoli(coppie):
+    """coppie = lista di (titolo, punteggio), tutte lo stesso giorno."""
+    return pd.DataFrame([
+        {"published_date": pd.Timestamp("2026-08-11 10:00"), "title": t, "sentiment": s}
+        for t, s in coppie
+    ])
+
+
+def test_lo_stesso_lancio_ripreso_ovunque_conta_una_volta_sola():
+    """
+    Il caso vero, ridotto: sessantuno riprese di una notizia positiva e tre
+    notizie diverse. Senza fusione la giornata usciva a +0.48, cioe' il colore
+    di quel singolo lancio.
+    """
+    coppie = [("Intel targets $15 billion stock sale after rally", 0.5)] * 61
+    coppie += [("Nvidia beats expectations", 0.7),
+               ("Bitcoin falls below 100k", -0.6),
+               ("Eni firma accordo in Libia", 0.1)]
+    g = aggrega_giornaliero(_con_titoli(coppie))[0]
+
+    assert g["n"] == 4, "le riprese devono contare come una notizia sola"
+    assert g["riprese"] == 60
+    assert g["sentiment"] == pytest.approx(0.175, abs=0.001)
+
+
+def test_il_conteggio_delle_riprese_non_si_perde():
+    """
+    Per l'ATTENZIONE sessantuno riprese sono un segnale vero, ed e' quello che
+    il rilevatore di anomalie deve vedere. Si fondono per la media, non si
+    buttano.
+    """
+    g = aggrega_giornaliero(_con_titoli([("Stessa notizia", 0.4)] * 9))[0]
+    assert g["n"] == 1
+    assert g["riprese"] == 8
+
+
+def test_le_riprese_con_punteggi_diversi_diventano_la_loro_media():
+    """
+    Lo stesso titolo puo' aver ricevuto punteggi leggermente diversi da
+    chiamate diverse al modello. Sceglierne uno a caso sarebbe arbitrario.
+    """
+    g = aggrega_giornaliero(_con_titoli([("Stessa notizia", 0.2),
+                                         ("Stessa notizia", 0.6)]))[0]
+    assert g["n"] == 1
+    assert g["sentiment"] == pytest.approx(0.4)
+
+
+def test_maiuscole_e_punteggiatura_non_fanno_due_notizie():
+    coppie = [("Intel targets $15 billion stock sale", 0.5),
+              ("INTEL TARGETS $15 BILLION STOCK SALE!", 0.5),
+              ("Intel  targets  $15  billion  stock  sale.", 0.5)]
+    assert aggrega_giornaliero(_con_titoli(coppie))[0]["n"] == 1
+
+
+def test_titoli_davvero_diversi_restano_diversi():
+    coppie = [("Intel targets $15 billion stock sale", 0.5),
+              ("Intel seeks $15 billion as turnaround boosts shares", 0.4)]
+    assert aggrega_giornaliero(_con_titoli(coppie))[0]["n"] == 2
+
+
+def test_le_righe_senza_titolo_non_si_fondono_fra_loro():
+    """
+    Senza titolo non si puo' dire che due notizie siano la stessa. Fonderle
+    tutte insieme cancellerebbe righe vere.
+    """
+    df = pd.DataFrame([
+        {"published_date": pd.Timestamp("2026-08-11 10:00"), "title": None, "sentiment": 0.2},
+        {"published_date": pd.Timestamp("2026-08-11 11:00"), "title": "", "sentiment": 0.6},
+        {"published_date": pd.Timestamp("2026-08-11 12:00"), "title": "   ", "sentiment": -0.4},
+    ])
+    g = aggrega_giornaliero(df)[0]
+    assert g["n"] == 3
+    assert g["riprese"] == 0
+
+
+def test_la_fusione_avviene_dentro_il_giorno_non_fra_giorni():
+    """
+    La stessa notizia ripubblicata il giorno dopo e' una notizia di quel
+    giorno: fonderla all'indietro svuoterebbe la giornata successiva.
+    """
+    df = pd.DataFrame([
+        {"published_date": pd.Timestamp("2026-08-11 10:00"), "title": "Stessa", "sentiment": 0.4},
+        {"published_date": pd.Timestamp("2026-08-12 10:00"), "title": "Stessa", "sentiment": 0.4},
+    ])
+    out = aggrega_giornaliero(df)
+    assert [r["n"] for r in out] == [1, 1]
