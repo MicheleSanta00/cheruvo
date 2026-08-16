@@ -85,6 +85,37 @@ export default function App() {
   // toglieva funzioni proprio alle persone che servono per capire cosa
   // costruire.
   const [isPro, setIsPro]             = useState(true)
+
+  // CHI STA GUARDANDO SENZA ACCOUNT
+  //
+  // Il 16 agosto 2026, su r/ItaliaStartups: "Rimuovi il Login wall, voglio
+  // vedere prima di iscrivermi". Aveva ragione, e la riga qui sotto era il
+  // muro: `if (!user) return <Auth />` rimandava alla schermata di accesso
+  // chiunque, quindi del prodotto non si vedeva niente prima di registrarsi.
+  // Chi non lo prova non si registra, e nessuno si registra per scoprire se
+  // valeva la pena.
+  //
+  // Adesso la registrazione non è più una porta, è la profondità: sette
+  // giorni di storico per chi passa, trenta per chi ha un account. Il limite
+  // si incontra DOPO aver visto che funziona, che è l'unico momento in cui
+  // uno accetta di lasciare l'email.
+  const [mostraAccesso, setMostraAccesso] = useState(false)
+
+  /**
+   * Chiede l'account per un'azione che ne ha bisogno.
+   *
+   * Restituisce true se l'azione va fermata. Sta in una funzione sola perché
+   * i punti da proteggere sono sparsi (aggiornamento, export, chat, profilo)
+   * e la scelta di quale porta chiudere non deve dipendere da chi si ricorda
+   * di scrivere il controllo.
+   */
+  const serveAccount = () => {
+    if (user) return false
+    track('signup_prompted', { ticker: loadedTicker })
+    setMostraAccesso(true)
+    return true
+  }
+
   const [showProfile, setShowProfile] = useState(false)
   const [sidebarOpen, setSidebarOpen] = useState(false)
   const [loadedTicker, setLoadedTicker] = useState(null)
@@ -233,6 +264,9 @@ export default function App() {
   }
 
   const handleFetch = async (tk) => {
+    // Fa partire una raccolta, e la raccolta passa da Groq: e' una delle due
+    // porte da cui un visitatore potrebbe consumare il piano gratuito.
+    if (serveAccount()) return
     track('news_refreshed', { ticker: tk })
     await triggerFetch(tk)
     setTimeout(() => handleLoad(tk, days, period, false, true), 3000)
@@ -263,13 +297,24 @@ export default function App() {
   // `giaProvati` a fare da guardia: se torna vuoto anche dopo il fetch vuol
   // dire che di quel titolo non si parla, e insistere sarebbe una richiesta
   // ogni dieci minuti per sempre.
+  //
+  // MA NON PER CHI NON HA UN ACCOUNT.
+  //
+  // Da quando l'applicazione si apre anche ai visitatori, questa scorciatoia
+  // diventerebbe il modo più veloce di bruciare il piano gratuito di Groq:
+  // uno che passa e prova tre ticker a caso fa partire tre raccolte, e le
+  // raccolte costano. `/api/fetch` gli risponderebbe 401 comunque, quindi
+  // sarebbero tre richieste respinte e un errore in console per niente.
+  //
+  // Il visitatore vede quello che c'è già in archivio, che è il punto: deve
+  // capire se il prodotto gli serve, non riempirlo.
   const giaProvati = useRef(new Set())
   useEffect(() => {
-    if (!loadedTicker || loading || error) return
+    if (!user || !loadedTicker || loading || error) return
     if (news.length || giaProvati.current.has(loadedTicker)) return
     giaProvati.current.add(loadedTicker)
     handleFetch(loadedTicker)
-  }, [loadedTicker, news.length, loading, error])
+  }, [user, loadedTicker, news.length, loading, error])
 
   // Vista "Oggi": il grafico si compone da solo, un punto ogni minuto.
   //
@@ -305,6 +350,8 @@ export default function App() {
   }
 
   const handleUpgrade = async () => {
+    // A un visitatore non si chiede la carta: prima l'account, il resto poi.
+    if (serveAccount()) return
     track('upgrade_clicked', { ticker: loadedTicker, from: 'app' })
     const data = await apiFetch('/checkout', {
       method: 'POST',
@@ -314,6 +361,7 @@ export default function App() {
   }
 
   const handlePDF = async () => {
+    if (serveAccount()) return
     if (!isPro) { handleUpgrade(); return }
     if (!tickerInfo) return
     track('pdf_exported', { ticker: loadedTicker })
@@ -323,6 +371,7 @@ export default function App() {
   }
 
   const handleExport = () => {
+    if (serveAccount()) return
     if (!isPro) { handleUpgrade(); return }
     track('csv_exported', { ticker: loadedTicker })
     if (!news.length) return
@@ -351,7 +400,12 @@ export default function App() {
   }
 
   if (authLoading) return null
-  if (!user) return <Auth onLogin={setUser} />
+  // La schermata di accesso adesso si RAGGIUNGE, non si subisce: compare
+  // quando la chiedi tu o quando tocchi qualcosa che ha bisogno di un account.
+  if (!user && mostraAccesso) return (
+    <Auth onLogin={(u) => { setUser(u); setMostraAccesso(false) }}
+          onIndietro={() => setMostraAccesso(false)} />
+  )
   if (showMarket) return (
     <MarketToday
       onExit={() => setShowMarket(false)}
@@ -368,11 +422,16 @@ export default function App() {
                   overflow: stretto ? 'visible' : 'hidden',
                   background: 'var(--black)', position: 'relative' }}>
       <OnboardingTooltip hasData={hasData} />
-      <ChatWidget
-        ticker={loadedTicker}
-        sentimentScore={stats?.avg}
-        topNews={news}
-      />
+      {/* Anche questa passa da Groq. Non si disabilita, non si mostra
+          proprio: un pulsante che al primo clic chiede di registrarsi e'
+          peggio di un pulsante che non c'e'. */}
+      {user && (
+        <ChatWidget
+          ticker={loadedTicker}
+          sentimentScore={stats?.avg}
+          topNews={news}
+        />
+      )}
 
       {/* Overlay mobile */}
       {sidebarOpen && (
@@ -633,15 +692,50 @@ export default function App() {
               })()}
             </div>
 
-            <div onClick={() => setShowProfile(true)} title={user?.email} style={{
-              width: 28, height: 28, borderRadius: '50%', background: 'var(--blue)',
-              display: 'flex', alignItems: 'center', justifyContent: 'center',
-              fontSize: 12, fontWeight: 600, cursor: 'pointer', flexShrink: 0,
-            }}>
-              {user?.email?.[0].toUpperCase()}
-            </div>
+            {user ? (
+              <div onClick={() => setShowProfile(true)} title={user.email} style={{
+                width: 28, height: 28, borderRadius: '50%', background: 'var(--blue)',
+                display: 'flex', alignItems: 'center', justifyContent: 'center',
+                fontSize: 12, fontWeight: 600, cursor: 'pointer', flexShrink: 0,
+              }}>
+                {user.email?.[0].toUpperCase()}
+              </div>
+            ) : (
+              <button onClick={() => setMostraAccesso(true)} style={{
+                height: 28, padding: '0 12px', borderRadius: 14,
+                background: 'var(--blue)', color: '#fff', border: 'none',
+                fontSize: 12, fontWeight: 600, cursor: 'pointer', flexShrink: 0,
+              }}>
+                Entra
+              </button>
+            )}
           </div>
         </header>
+
+        {/* Dice al visitatore dove si trova.
+            Elenca quello che gli manca DAVVERO, cioè le cose legate a un
+            account. Una prima versione diceva "vedi 7 giorni invece di 30",
+            che oltre a essere una decisione di prodotto presa di straforo
+            non era nemmeno vera: i dati sono gli stessi per tutti. */}
+        {!user && (
+          <div style={{
+            display: 'flex', alignItems: 'center', justifyContent: 'center',
+            gap: 10, flexWrap: 'wrap', padding: '7px 12px',
+            background: 'var(--near-black)', borderBottom: '1px solid var(--border)',
+            fontSize: 12.5, color: 'var(--dim)',
+          }}>
+            <span>
+              Stai guardando senza account. I dati sono gli stessi: con un
+              account hai watchlist, alert ed export.
+            </span>
+            <button onClick={() => setMostraAccesso(true)} style={{
+              background: 'none', border: '1px solid var(--border)', borderRadius: 12,
+              color: 'var(--text)', fontSize: 12, padding: '2px 10px', cursor: 'pointer',
+            }}>
+              Entra, è gratis
+            </button>
+          </div>
+        )}
 
         {/* Nastro ticker: il primo segno che l'applicazione è viva */}
         <TickerStrip rows={righeFiltrate(mercato?.rows)} onPick={(tk) => { setTicker(tk); handleLoad(tk, days, period) }} />
@@ -712,7 +806,8 @@ export default function App() {
 
               {/* AI Summary */}
               {loadedTicker && (
-                <SummaryCard ticker={loadedTicker} isPro={isPro} onUpgrade={handleUpgrade} />
+                <SummaryCard ticker={loadedTicker} isPro={isPro} haAccount={!!user}
+                             onUpgrade={handleUpgrade} />
               )}
 
               {/* Stats PRO — collassabili */}

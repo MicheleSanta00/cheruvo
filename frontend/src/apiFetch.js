@@ -25,6 +25,7 @@
  */
 
 import { supabase } from './supabase.js'
+import { intestazioni, generedelRifiuto } from './utils/richiesta.js'
 
 const BASE = import.meta.env.VITE_API_BASE
 
@@ -194,23 +195,30 @@ async function fetchTenace(url, opzioni) {
 export default async function apiFetch(path, options = {}, _isRetry = false) {
   const token = await _getToken()
 
-  if (!token) {
-    await supabase.auth.signOut()
-    throw new Error('Sessione scaduta — effettua nuovamente il login')
-  }
-
-  // Con FormData (upload) il Content-Type lo imposta il browser (boundary inclusa)
+  // SENZA TOKEN SI CHIEDE LO STESSO.
+  //
+  // Prima qui c'era `signOut()` e un errore: senza sessione la richiesta non
+  // partiva nemmeno. Il 16 agosto 2026, aprendo il backend a chi non ha un
+  // account, questa riga rendeva l'apertura inutile: il server accettava le
+  // richieste anonime e il client si rifiutava di farle, quindi un visitatore
+  // vedeva "Sessione scaduta" su ogni schermata invece dei dati.
+  //
+  // Le due regole stanno in `utils/richiesta.js` perché lì si possono provare
+  // senza finto Supabase e senza finta rete.
   const isForm = typeof FormData !== 'undefined' && options.body instanceof FormData
 
   const res = await fetchTenace(`${BASE}${path}`, {
     ...options,
-    headers: {
-      ...(isForm ? {} : { 'Content-Type': 'application/json' }),
-      'Authorization': `Bearer ${token}`,
-      'X-Sessione': gettoneSessione(),
-      ...(options.headers || {}),
-    },
+    headers: intestazioni({
+      token, isForm, sessione: gettoneSessione(), extra: options.headers,
+    }),
   })
+
+  if (generedelRifiuto(res.status, token) === 'serve-account') {
+    const e = new Error('Per questa funzione serve un account')
+    e.serveAccount = true
+    throw e
+  }
 
   // ── 401: token scaduto ── prova a fare refresh e riprova UNA volta
   if (res.status === 401 && !_isRetry) {

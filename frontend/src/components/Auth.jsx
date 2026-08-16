@@ -3,7 +3,7 @@ import { supabase } from '../supabase'
 import { useLang } from '../LangContext.jsx'
 import apiFetch from '../apiFetch.js'
 
-export default function Auth({ onLogin }) {
+export default function Auth({ onLogin, onIndietro }) {
   const { lang, t, toggleLang } = useLang()
   const [email, setEmail]       = useState('')
   const [password, setPassword] = useState('')
@@ -52,6 +52,21 @@ export default function Auth({ onLogin }) {
         border: '1px solid var(--border)', borderRadius: 16, padding: 32,
         position: 'relative', zIndex: 1,
       }}>
+
+        {/* La via d'uscita.
+            Da quando l'applicazione si apre anche a chi non ha un account,
+            questa schermata non e' piu' il punto di partenza obbligato: ci si
+            arriva da dentro, e da dentro si deve poter tornare. Senza questo
+            pulsante uno che clicca "Entra" per curiosita' resta chiuso qui e
+            l'unica uscita e' il tasto indietro del browser. */}
+        {onIndietro && (
+          <button onClick={onIndietro} style={{
+            background: 'none', border: 'none', color: 'var(--dim)',
+            fontSize: 13, cursor: 'pointer', padding: 0, marginBottom: 16,
+          }}>
+            &larr; {lang === 'en' ? 'Back to Cheruvo' : 'Torna a Cheruvo'}
+          </button>
+        )}
 
         {/* Switch lingua */}
         <button

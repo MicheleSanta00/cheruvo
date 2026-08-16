@@ -8,13 +8,17 @@ const COLORI = {
   neutro:  { accent: '#8a94a6', bg: 'var(--tinta-neu)', border: 'rgba(138,148,166,0.15)', badge: '#8a94a6', icon: 'neutral' },
 }
 
-export default function SummaryCard({ ticker, isPro, onUpgrade }) {
+export default function SummaryCard({ ticker, isPro, haAccount = true, onUpgrade }) {
   const [data, setData]       = useState(null)
   const [loading, setLoading] = useState(false)
   const [error, setError]     = useState(null)
 
   useEffect(() => {
-    if (!ticker || !isPro) return  // utenti free vedono già il banner, inutile chiamare l'API
+    // Senza account non si chiama nemmeno. `/summary` passa da `require_pro`,
+    // che pretende un token vero: a un visitatore risponderebbe 401 e la
+    // scheda mostrerebbe un errore su ogni titolo aperto. `isPro` non basta a
+    // fermarlo, perché parte acceso finché il paywall resta spento.
+    if (!ticker || !isPro || !haAccount) return
     setData(null)
     setError(null)
     setLoading(true)
