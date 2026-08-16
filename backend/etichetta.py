@@ -412,6 +412,156 @@ def sessione(lavoro: list[dict]) -> None:
         print("  Adesso i numeri:  python backend/etichetta.py --rapporto\n")
 
 
+def _a_capo(testo: str, largo: int) -> list[str]:
+    righe, corrente = [], ""
+    for parola in testo.split():
+        if len(corrente) + len(parola) + 1 > largo:
+            righe.append(corrente)
+            corrente = parola
+        else:
+            corrente = f"{corrente} {parola}".strip()
+    if corrente:
+        righe.append(corrente)
+    return righe
+
+
+def confronto_appaiato(umano: list, a: list, b: list) -> dict:
+    """
+    Quale dei due valutatori sta piu' vicino al giudizio umano.
+
+    APPAIATO, non due misure separate. I due prompt punteggiano gli STESSI
+    cinquanta titoli, quindi confrontare due correlazioni calcolate a parte
+    butterebbe via l'informazione piu' utile: che su un titolo difficile
+    sbagliano tutti e due, e su uno facile ci prendono tutti e due. Si guarda
+    invece la differenza degli errori titolo per titolo, che e' molto meno
+    rumorosa.
+
+    Restituisce delta negativo se B (il nuovo) e' piu' vicino di A.
+    """
+    n = len(umano)
+    if n < 20 or len(a) != n or len(b) != n:
+        return {"delta": None, "lo": None, "hi": None, "n": n}
+    diff = [abs(u - y) - abs(u - x) for u, x, y in zip(umano, a, b)]
+    media = sum(diff) / n
+    dev = (sum((d - media) ** 2 for d in diff) / (n - 1)) ** 0.5
+    errore = dev / n ** 0.5
+    return {"delta": media, "lo": media - 1.96 * errore,
+            "hi": media + 1.96 * errore, "n": n}
+
+
+def verdetto_prompt(c: dict) -> str:
+    """
+    Cosa fare, detto in una riga.
+
+    A parita' vince chi c'e' gia'. Cambiare il prompt in produzione costa un
+    ripunteggio dell'archivio e rende i giudizi vecchi non confrontabili con
+    quelli nuovi: non si fa per un miglioramento che non si distingue dal
+    caso.
+    """
+    if c["delta"] is None:
+        return ("Troppi pochi titoli etichettati per confrontare i due "
+                "prompt. Ne servono almeno venti.")
+    if c["lo"] <= 0 <= c["hi"]:
+        return ("NON DECIDE. La differenza fra i due prompt comprende lo "
+                "zero: sulle stesse cinquanta righe non si distinguono. "
+                "Tieni quello in produzione, perche' a parita' non si cambia "
+                "cio' che gia' gira.")
+    if c["hi"] < 0:
+        return ("ADOTTA IL BILANCIATO. Sta piu' vicino al tuo giudizio, e la "
+                "banda esclude lo zero. Ricordati che cambiarlo rende i "
+                "punteggi vecchi non confrontabili con i nuovi.")
+    return ("TIENI QUELLO IN PRODUZIONE. Il bilanciato si allontana dal tuo "
+            "giudizio piu' di quello attuale, e adesso lo sai per misura "
+            "invece che per abitudine.")
+
+
+# Quanti titoli per chiamata quando si prova il prompt alternativo.
+#
+# DIECI E NON VENTI, e la ragione e' stata misurata il 16 agosto 2026: due
+# blocchi da venti su tre sono tornati con `json_validate_failed` e generazione
+# VUOTA, mentre l'ultimo, che ne aveva dieci perche' erano gli ultimi rimasti,
+# e' passato.
+#
+# Non era il prompt a essere sbagliato, era il budget. `score_batch` chiede
+# `600 + 40 * articoli` token di risposta, quindi 1400 per venti titoli. Il
+# prompt in prova e' piu' lungo di quello in produzione e gpt-oss spende parte
+# di quel budget in ragionamento prima di scrivere: il JSON viene troncato a
+# meta' e Groq lo rifiuta senza restituire niente.
+#
+# Dimezzare i titoli raddoppia il margine per ciascuno. Costa il doppio delle
+# chiamate su cinquanta righe, cioe' tre in piu': niente, rispetto a rifare il
+# giro due volte.
+A_BLOCCO = 10
+
+
+def _punteggia_pezzo(pezzo: list, prompt: str, score_batch) -> int:
+    """
+    Punteggia un blocco, e se fallisce lo spezza in due e riprova.
+
+    Il fallimento tipico e' la risposta troncata, e su meta' titoli il budget
+    per ciascuno raddoppia. Un solo tentativo di divisione: se non basta
+    neanche a cinque per volta, il problema e' un altro e insistere fa solo
+    consumare il piano gratuito.
+    """
+    punti = score_batch([{"title": v["titolo"], "summary": ""} for v in pezzo],
+                        prompt=prompt)
+    if punti is None:
+        if len(pezzo) < 4:
+            return 0
+        meta = len(pezzo) // 2
+        print("troppo lungo, lo spezzo...", end=" ", flush=True)
+        return (_punteggia_pezzo(pezzo[:meta], prompt, score_batch)
+                + _punteggia_pezzo(pezzo[meta:], prompt, score_batch))
+    fatti = 0
+    for v, p in zip(pezzo, punti):
+        if p is not None:
+            v["modello_bilanciato"] = float(p)
+            fatti += 1
+    return fatti
+
+
+def prova_prompt() -> int:
+    """
+    Punteggia i titoli gia' etichettati anche col prompt in prova.
+
+    PERCHE' NON BASTA `calibra --rivaluta`
+
+    Quel confronto mette i due prompt uno contro l'altro e guarda quale ha la
+    media piu' vicina a zero e quanti neutri produce. Ma "piu' vicino a zero"
+    non e' la domanda: un prompt che risponde sempre 0 vincerebbe quel
+    confronto e sarebbe inutile.
+
+    La domanda e' quale dei due somiglia di piu' a un essere umano, e si puo'
+    fare solo da quando l'essere umano ha risposto.
+    """
+    from sentiment_groq import PROMPT_BILANCIATO, score_batch
+
+    lavoro = carica()
+    da_fare = [v for v in lavoro if v["umano"] is not None
+               and v.get("modello_bilanciato") is None]
+    if not lavoro:
+        print("\n  Nessun campione. Prima:  python backend/etichetta.py\n")
+        return 1
+    if not da_fare:
+        print("\n  Gia' fatto. Il confronto e' in "
+              "python backend/etichetta.py --rapporto\n")
+        return 0
+
+    print(f"\n  {len(da_fare)} titoli da ripunteggiare col prompt in prova.")
+    print("  I tuoi giudizi non vengono toccati.\n")
+    for i in range(0, len(da_fare), A_BLOCCO):
+        pezzo = da_fare[i:i + A_BLOCCO]
+        print(f"    blocco {i // A_BLOCCO + 1} di "
+              f"{(len(da_fare) + A_BLOCCO - 1) // A_BLOCCO}...",
+              end=" ", flush=True)
+        fatti = _punteggia_pezzo(pezzo, PROMPT_BILANCIATO, score_batch)
+        print(f"{fatti} punteggi" if fatti else "niente, lo salto.", flush=True)
+
+    salva(lavoro)
+    print("\n  Adesso:  python backend/etichetta.py --rapporto\n")
+    return 0
+
+
 def rapporto() -> int:
     """Chi ti somiglia di piu', e di quanto."""
     from verifica_segnale import pearson, spearman
@@ -430,6 +580,11 @@ def rapporto() -> int:
     umano = [v["umano"] for v in lavoro]
     macchine = {"modello Groq": [v["modello"] for v in lavoro],
                 "tono GDELT": [v["gdelt"] for v in lavoro]}
+    # Il prompt in prova compare solo se e' stato davvero girato su queste
+    # righe: una colonna a meta' sarebbe peggio di una colonna assente.
+    con_prova = [v for v in lavoro if v.get("modello_bilanciato") is not None]
+    if len(con_prova) == n:
+        macchine["prompt in prova"] = [v["modello_bilanciato"] for v in lavoro]
 
     def verso(x):
         return 1 if x > 0.1 else (-1 if x < -0.1 else 0)
@@ -465,6 +620,21 @@ def rapporto() -> int:
         print(f"  [{v['ticker']:<9}] tu {v['umano']:+.2f}  modello {v['modello']:+.2f}"
               f"  gdelt {v['gdelt']:+.2f}   {v['titolo'][:52]}")
 
+    if len(con_prova) == n:
+        c = confronto_appaiato(umano, [v["modello"] for v in lavoro],
+                               [v["modello_bilanciato"] for v in lavoro])
+        print("\n" + "=" * 74)
+        print("  QUALE PROMPT TENERE")
+        print("=" * 74 + "\n")
+        print(f"  Differenza degli errori, titolo per titolo: {c['delta']:+.3f}")
+        print(f"  banda al 95% da {c['lo']:+.3f} a {c['hi']:+.3f}")
+        print("  (negativo = il prompt in prova sta piu' vicino a te)\n")
+        for riga in _a_capo(verdetto_prompt(c), 70):
+            print(f"  {riga}")
+    elif con_prova:
+        print(f"\n  Il prompt in prova e' stato girato solo su {len(con_prova)}")
+        print(f"  titoli su {n}: rilancia --prova-prompt prima di confrontarli.")
+
     print("\n" + "=" * 74)
     print("  COME SI LEGGE")
     print("=" * 74)
@@ -491,9 +661,14 @@ if __name__ == "__main__":
                     help="continua dal punto in cui avevi lasciato")
     ap.add_argument("--rifai", action="store_true",
                     help="riscegli i titoli tenendo i giudizi gia' dati")
+    ap.add_argument("--prova-prompt", action="store_true",
+                    help="punteggia gli stessi titoli col prompt in prova")
     ap.add_argument("--rapporto", action="store_true",
                     help="i numeri su quello che hai gia' etichettato")
     args = ap.parse_args()
+
+    if args.prova_prompt:
+        sys.exit(prova_prompt())
 
     if args.rapporto:
         sys.exit(rapporto())

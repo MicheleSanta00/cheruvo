@@ -1,0 +1,90 @@
+-- 008_enable_rls.sql — Row Level Security sulle tabelle Supabase.
+--
+-- Eseguito il 16 agosto 2026 dall'SQL Editor di Supabase.
+--
+-- PERCHE'
+--
+-- Supabase espone ogni tabella del database via API REST, e la chiave
+-- pubblica (anon) sta dentro il JavaScript servito a chiunque apra il sito.
+-- Senza RLS, quella chiave legge e scrive qualunque tabella. Non e' un buco
+-- di configurazione esotico: e' il comportamento predefinito, ed e' il motivo
+-- per cui la console segnala con un avviso rosso ogni tabella senza RLS.
+--
+-- CHI SCAVALCA LA RLS, E PERCHE' IL BACKEND CONTINUA A FUNZIONARE
+--
+-- Il backend non passa dall'API REST: si collega in Postgres con psycopg2 e
+-- DATABASE_URL, come proprietario del database. Il proprietario scavalca la
+-- RLS (a meno di FORCE ROW LEVEL SECURITY, che qui non si usa). Quindi le
+-- tabelle che tocca solo lui si possono chiudere SENZA nessuna policy: fuori
+-- non entra piu' nessuno, dentro il backend lavora come prima.
+--
+-- L'ECCEZIONE E' `watchlist`
+--
+-- E' l'unica tabella che il frontend interroga direttamente, con supabase-js
+-- e la chiave pubblica (frontend/src/components/Sidebar.jsx). E la query di
+-- lettura NON filtra per utente:
+--
+--     supabase.from('watchlist').select('ticker').order('created_at')
+--
+-- Quel filtro deve farlo la RLS. Se la si accende senza policy la watchlist
+-- smette di funzionare; se la si lascia spenta, ognuno legge quella di tutti.
+
+-- ── Tabelle che tocca solo il backend ─────────────────────────────────────
+-- Nessuna policy: chi arriva con la chiave pubblica non entra.
+alter table public.visite            enable row level security;
+alter table public.storico_copertura enable row level security;
+
+-- Le altre della stessa specie, da chiudere allo stesso modo dopo aver
+-- verificato che nessuna sia interrogata dal frontend:
+-- alter table public.news              enable row level security;
+-- alter table public.subscriptions     enable row level security;
+-- alter table public.digest_prefs      enable row level security;
+-- alter table public.digest_log        enable row level security;
+-- alter table public.onboarding_emails enable row level security;
+-- alter table public.earnings_calendar enable row level security;
+
+-- ── watchlist: gia' a posto, controllata il 16 agosto 2026 ────────────────
+--
+-- Ha la RLS accesa e quattro policy, tutte con la stessa identica condizione
+-- `auth.uid() = user_id`:
+--
+--   Utenti vedono solo la propria watchlist   ALL
+--   watchlist_select_own                      SELECT
+--   watchlist_insert_own                      INSERT
+--   watchlist_delete_own                      DELETE
+--
+-- La prima e' ridondante rispetto alle altre tre e verrebbe voglia di
+-- cancellarla per lasciare tre regole leggibili. NON farlo: fra le tre
+-- specifiche manca UPDATE, che oggi non usa nessuno ma che e' coperto solo
+-- dalla policy su ALL. Toglierla vorrebbe dire scoprire il buco il giorno in
+-- cui servisse, in cambio di un po' di eleganza.
+
+-- ── Com'era messa, verificato il 16 agosto 2026 ───────────────────────────
+--
+-- Dopo le due righe qui sopra, `pg_tables` dice rowsecurity = true su tutte e
+-- venti le tabelle dello schema public. Le altre diciotto ce l'avevano gia'
+-- accesa da prima: le uniche due scoperte erano `visite` e
+-- `storico_copertura`, cioe' proprio quelle di questo file.
+--
+-- Le uniche tabelle CON policy sono quelle che il client interroga davvero:
+-- watchlist e le quattro academy_*. Tutte le altre hanno la RLS accesa e
+-- nessuna policy, che e' la combinazione giusta per la roba che tocca solo il
+-- backend: dall'esterno non entra nessuno, dentro il proprietario lavora.
+--
+-- DA GUARDARE, in un altro momento e in un altro progetto: `classes`,
+-- `class_members`, `class_posts`, `class_messages`, `admins`, `book_jobs` e
+-- `book_maps` hanno la RLS accesa e nessuna policy. Se la Classroom le legge
+-- con la chiave pubblica di Supabase invece che dal suo backend, non vede
+-- niente. Non e' successo stasera: erano gia' cosi'.
+
+-- ── Come si verifica ──────────────────────────────────────────────────────
+--
+--   select tablename, rowsecurity from pg_tables
+--   where schemaname = 'public' order by rowsecurity, tablename;
+--
+--   select tablename, policyname, cmd from pg_policies
+--   where schemaname = 'public' order by tablename;
+--
+-- Poi, nell'ordine: aprire l'app e controllare che la watchlist si carichi,
+-- e lanciare a mano il workflow delle visite su GitHub controllando che il
+-- conteggio salga. Sono le due cose che si romperebbero per prime.

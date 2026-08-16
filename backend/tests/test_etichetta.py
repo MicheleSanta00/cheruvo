@@ -13,6 +13,8 @@ from unittest.mock import patch
 
 import etichetta as e
 
+ms_confronto = e.confronto_appaiato
+
 
 # Titoli finti ma DAVVERO diversi fra loro. La prima versione di questo aiuto
 # generava "titolo numero 1", "titolo numero 2" e cosi' via: per il filtro sui
@@ -398,3 +400,140 @@ def test_nessun_titolo_occupa_piu_di_tre_posti():
     campione = e._campione(righe)[:50]
     conta = Counter(r[0] for r in campione)
     assert conta.most_common(1)[0][1] <= 3, f"un ticker occupa {conta.most_common(1)[0][1]} posti"
+
+
+# ── Quale prompt tenere ───────────────────────────────────────────────────
+#
+# Il confronto e' APPAIATO perche' i due prompt punteggiano gli STESSI titoli.
+# Confrontare due correlazioni calcolate a parte butterebbe via l'informazione
+# piu' utile: che su un titolo difficile sbagliano tutti e due.
+def test_se_il_nuovo_e_piu_vicino_il_delta_e_negativo():
+    umano = [1.0, -1.0, 0.5, -0.5, 0.0] * 6
+    vecchio = [0.2, -0.2, 0.1, -0.1, 0.4] * 6      # lontano
+    nuovo = [0.9, -0.9, 0.5, -0.5, 0.05] * 6       # vicino
+    c = ms_confronto(umano, vecchio, nuovo)
+    assert c["delta"] < 0
+    assert c["hi"] < 0, "cosi' separati devono escludere lo zero"
+
+
+def test_due_prompt_identici_non_si_distinguono():
+    umano = [1.0, -1.0, 0.5, -0.5, 0.0] * 6
+    stesso = [0.5, -0.5, 0.3, -0.3, 0.1] * 6
+    c = ms_confronto(umano, stesso, list(stesso))
+    assert c["delta"] == 0
+    assert c["lo"] <= 0 <= c["hi"]
+
+
+def test_sotto_venti_titoli_non_si_confronta():
+    c = ms_confronto([1.0] * 10, [0.5] * 10, [0.9] * 10)
+    assert c["delta"] is None
+
+
+def test_a_parita_vince_quello_che_gia_gira():
+    """
+    Cambiare il prompt in produzione costa un ripunteggio dell'archivio e
+    rende i giudizi vecchi non confrontabili coi nuovi. Non si fa per un
+    miglioramento che non si distingue dal caso.
+    """
+    v = e.verdetto_prompt({"delta": -0.04, "lo": -0.12, "hi": 0.04, "n": 50})
+    assert "NON DECIDE" in v
+    assert "produzione" in v
+
+
+def test_il_verdetto_sa_dire_anche_che_il_nuovo_e_peggio():
+    v = e.verdetto_prompt({"delta": 0.20, "lo": 0.08, "hi": 0.32, "n": 50})
+    assert "TIENI QUELLO IN PRODUZIONE" in v
+
+
+def test_il_verdetto_adotta_solo_se_la_banda_esclude_lo_zero():
+    v = e.verdetto_prompt({"delta": -0.20, "lo": -0.32, "hi": -0.08, "n": 50})
+    assert "ADOTTA" in v
+
+
+def test_il_rapporto_non_mostra_una_colonna_a_meta(tmp_path, monkeypatch, capsys):
+    """
+    Se il prompt in prova e' stato girato solo su una parte dei titoli, la
+    colonna non compare: mezza misura confrontata con una intera direbbe che
+    il prompt nuovo e' meglio solo perche' ha visto i titoli facili.
+    """
+    archivio = tmp_path / "etichette.json"
+    monkeypatch.setattr(e, "ARCHIVIO", str(archivio))
+    lavoro = [{"ticker": f"TK{i}", "titolo": f"titolo distinto numero {i}",
+               "gdelt": 0.1, "modello": 0.2, "umano": 0.3,
+               "illeggibile": False, "riserva": False}
+              for i in range(30)]
+    lavoro[0]["modello_bilanciato"] = 0.25      # una sola su trenta
+    e.salva(lavoro)
+    e.rapporto()
+    testo = capsys.readouterr().out
+    # La riga della tabella comincia col nome del valutatore. L'avviso invece
+    # e' una frase: distinguerli sul prefisso, non sulla parola.
+    righe_tabella = [r for r in testo.splitlines() if r.startswith("  prompt in prova")]
+    assert not righe_tabella, righe_tabella
+    assert "solo su 1" in testo, "l'avviso deve dire quanti ne mancano"
+
+
+# ── Il blocco troppo lungo si spezza invece di perdersi ───────────────────
+#
+# Il 16 agosto 2026 due blocchi da venti su tre sono tornati da Groq con
+# `json_validate_failed` e generazione vuota: il prompt in prova e' piu' lungo
+# e gpt-oss spende parte del budget in ragionamento, quindi il JSON usciva
+# troncato. Il terzo blocco, che ne aveva dieci, e' passato.
+def _voci(n, da=0):
+    return [{"titolo": f"titolo distinto numero {i}", "umano": 0.0}
+            for i in range(da, da + n)]
+
+
+def test_un_blocco_troppo_lungo_viene_spezzato_e_recuperato():
+    visti = []
+
+    def finto_score(articoli, prompt=None):
+        visti.append(len(articoli))
+        if len(articoli) > 5:
+            return None                      # come Groq quando tronca
+        return [0.3] * len(articoli)
+
+    pezzo = _voci(10)
+    fatti = e._punteggia_pezzo(pezzo, "prompt", finto_score)
+    assert fatti == 10, "spezzando in due doveva recuperarli tutti"
+    assert visti[0] == 10 and 5 in visti, visti
+    assert all(v["modello_bilanciato"] == 0.3 for v in pezzo)
+
+
+def test_se_non_basta_spezzare_si_rinuncia_senza_insistere():
+    """
+    Un solo tentativo di divisione. Se non passa neanche a pochi per volta il
+    problema e' un altro, e riprovare consuma solo il piano gratuito.
+    """
+    chiamate = []
+
+    def sempre_rotto(articoli, prompt=None):
+        chiamate.append(len(articoli))
+        return None
+
+    fatti = e._punteggia_pezzo(_voci(10), "prompt", sempre_rotto)
+    assert fatti == 0
+    assert len(chiamate) < 10, f"troppe chiamate a vuoto: {chiamate}"
+
+
+def test_i_titoli_gia_fatti_non_si_ripunteggiano(tmp_path, monkeypatch, capsys):
+    """Rilanciare dopo un errore deve costare solo quello che manca."""
+    monkeypatch.setattr(e, "ARCHIVIO", str(tmp_path / "etichette.json"))
+    lavoro = [{"ticker": f"TK{i}", "titolo": f"titolo distinto numero {i}",
+               "gdelt": 0.1, "modello": 0.2, "umano": 0.3,
+               "illeggibile": False, "riserva": False} for i in range(30)]
+    for v in lavoro[:20]:
+        v["modello_bilanciato"] = 0.25
+    e.salva(lavoro)
+
+    chiesti = []
+
+    def finto_score(articoli, prompt=None):
+        chiesti.extend(a["title"] for a in articoli)
+        return [0.4] * len(articoli)
+
+    with patch("sentiment_groq.score_batch", side_effect=finto_score), \
+         patch("sentiment_groq.PROMPT_BILANCIATO", "x"):
+        e.prova_prompt()
+    assert len(chiesti) == 10, f"ne ha ripunteggiati {len(chiesti)} invece di 10"
+    assert "10 titoli" in capsys.readouterr().out
