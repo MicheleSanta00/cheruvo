@@ -104,6 +104,32 @@ async def get_current_user(
 PAYWALL_ATTIVO = os.environ.get("PAYWALL_ATTIVO", "").strip().lower() in ("1", "true", "yes")
 
 
+def tier_di(user: dict | None) -> str:
+    """
+    Il tier di chi sta chiedendo, compreso chi non ha un account.
+
+    CHI NON E' REGISTRATO VALE COME UN REGISTRATO SENZA ABBONAMENTO.
+
+    Il 16 agosto 2026, su r/ItaliaStartups: "Rimuovi il Login wall, voglio
+    vedere prima di iscrivermi". `App.jsx` rimandava alla schermata di accesso
+    CHIUNQUE, quindi del prodotto non si vedeva niente prima di registrarsi, e
+    chi non lo prova non si registra.
+
+    La prima versione di questa funzione inventava un tier "visita" con sette
+    giorni di storico. Era una decisione di prodotto travestita da correzione
+    di un difetto: il compito era togliere il muro, non riscrivere cosa si
+    compra registrandosi. Quel ragionamento si fa quando c'e' un motivo per
+    farlo, non di straforo mentre se ne sistema un altro.
+
+    Quindi niente livelli nuovi: chi passa vede quello che vede un iscritto
+    senza abbonamento. Registrarsi serve gia' per la watchlist, gli alert,
+    l'export, la chat e il pulsante di aggiornamento, che restano dove sono.
+    """
+    if not user or not user.get("sub"):
+        return "free"
+    return get_user_tier(user["sub"])
+
+
 def get_user_tier(user_id: str) -> str:
     if not PAYWALL_ATTIVO:
         return "pro"

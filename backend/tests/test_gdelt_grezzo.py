@@ -220,16 +220,45 @@ def test_la_misura_sceglie_l_elenco_giusto():
 # trentaquattro scartate, fra cui "Sony, TSMC confirm deal to set up smartphone
 # camera chip venture in Japan". Il suffisso "-USD" veniva usato come se fosse
 # una misura di ambiguita', e non lo e'.
-def test_finche_l_elenco_e_vuoto_non_cambia_niente():
+def test_l_elenco_resta_vuoto_finche_la_misura_non_basta():
     """
-    Il meccanismo si aggiunge prima della decisione. Se questo test si accende
-    vuol dire che qualcuno ha riempito NOMI_NETTI senza aggiornare i test che
-    documentano perche'.
+    Il 15 agosto 2026 `--modo contesto` ha girato su 24 ore vere e sembrava
+    dare una risposta: Nvidia 72 bocciate, AMD 69, e gli esempi mostrati
+    erano notizie finanziarie vere.
+
+    Sono stati aggiunti, e i test di `ingest_grezzo` hanno mostrato cosa
+    entrava insieme: le note di rilascio dei driver RTX e le schede prodotto
+    delle motherboard. Il resoconto stampa TRE esempi per titolo, e tre
+    esempi non descrivono settantadue righe.
+
+    Se questo test si accende, la domanda da farsi non e' "quale nome
+    aggiungo" ma "ho contato quante bocciate sono prodotto e quante
+    mercato", che e' la misura che ancora manca.
     """
     assert gg.NOMI_NETTI == set(), (
-        "NOMI_NETTI non e' piu' vuoto: aggiorna i test con le prove di "
-        "--modo contesto che hanno giustificato ogni nome aggiunto"
+        "NOMI_NETTI non e' piu' vuoto: serve il conteggio prodotto/mercato "
+        "per nome, non tre esempi presi dalla cima dell'elenco"
     )
+
+
+def test_i_nomi_rumorosi_non_ci_sono_finiti_dentro():
+    """
+    Amazon aveva 163 bocciature ed erano liste di vestiti, Meta 131 col
+    "meta" di Rainbow Six, Ferrari 48 di Formula 1. Numeri alti, ma di
+    rumore: sono esattamente i nomi che il filtro deve continuare a coprire.
+    """
+    for termine in ("Amazon", "Meta", "Ferrari", "Google", "Apple",
+                    "Intesa", "Santander", "Boeing", "Airbus"):
+        assert termine not in gg.NOMI_NETTI, termine
+
+
+def test_i_chip_non_sono_nomi_netti():
+    """
+    Sembravano i candidati migliori e sono i peggiori: "Nvidia" sta in ogni
+    driver, "AMD" in ogni scheda madre, "Micron" in ogni banco di memoria.
+    """
+    for tk, termine in (("NVDA", "Nvidia"), ("AMD", "AMD"), ("MU", "Micron")):
+        assert gg.serve_contesto(tk, termine) is True, termine
 
 
 def test_un_nome_netto_non_chiede_piu_il_contesto(monkeypatch):
@@ -341,3 +370,195 @@ def test_le_bocciate_restano_bocciate():
     from gdelt_source import TERMINE_QUERY
     for tk in ("V", "LDO.MI", "TRN.MI", "DIS", "PST.MI", "NFLX", "SIE.DE"):
         assert tk not in TERMINE_QUERY, f"{tk} adottata senza risolvere il suo problema"
+
+
+# ── La simmetria fra utili e perdite ──────────────────────────────────────
+#
+# Il 15 agosto 2026, provando CONTESTO su coppie costruite apposta, e' venuto
+# fuori che il filtro faceva passare "SAP meldet Gewinn" e bocciava "SAP
+# meldet Verlust". Nell'elenco c'erano gewinn, beneficios, ganancias, lucro e
+# utile netto, e nessuna parola per la perdita in nessuna lingua.
+#
+# Non era un buco di copertura: era uno sbilanciamento. Sulla stampa non
+# inglese entrava la notizia buona e restava fuori quella cattiva, quindi la
+# media del sentiment saliva per costruzione proprio sulla meta' europea
+# dell'archivio, che e' la parte che ci distingue.
+_COPPIE = [
+    ("deu", "SAP meldet Gewinn im zweiten Quartal",
+            "SAP meldet Verlust im zweiten Quartal"),
+    ("spa", "Santander anuncia beneficios record",
+            "Santander anuncia perdidas millonarias"),
+    ("ita", "Eni chiude con un utile netto in crescita",
+            "Eni chiude in perdita nel trimestre"),
+    ("por", "Vale anuncia lucro no trimestre",
+            "Vale anuncia prejuizo no trimestre"),
+    ("fra", "Airbus annonce des benefices en hausse",
+            "Airbus annonce des pertes nettes en hausse"),
+]
+
+
+def test_la_notizia_cattiva_entra_quanto_quella_buona():
+    for lingua, buona, cattiva in _COPPIE:
+        assert gg.CONTESTO.search(buona), f"{lingua}: persa la buona"
+        assert gg.CONTESTO.search(cattiva), f"{lingua}: persa la cattiva"
+
+
+# ── Le parole che mancavano, prese dalle bocciature vere ──────────────────
+_BOCCIATI_IL_15_AGOSTO = [
+    "Nvidia in talks to invest $3 billion in SB Energy",
+    "Tiger Global cuts stakes in major tech firms, adds AMD and SpaceX",
+    "Boeing reports 37 commercial aircraft orders and 51 deliveries for Jul-2026",
+    "Solana Kurs heute bei 76 Dollar, waehrend 29 Prozent des Netzwerks",
+    "YPF, Eni y XRG invertiran US$51.000 millones para exportar gas",
+    # Rimaste fuori al primo giro, viste rilanciando la misura il 16 agosto
+    "AMD raises $4.75bn in its biggest ever bond sale",
+    "Alphabet made 100x on SpaceX, now Nvidia reveals $21 billion stake",
+    "Solana Company Q2 Loss Hits $30.3 Million as SOL Treasury Suffers",
+]
+
+
+def test_le_notizie_perse_adesso_entrano():
+    for t in _BOCCIATI_IL_15_AGOSTO:
+        assert gg.CONTESTO.search(t), t
+
+
+# Ogni parola aggiunta e' un rischio di falso positivo, e queste sono le
+# frasi che l'aggiunta poteva far entrare per sbaglio. "Democracy is at
+# stake in the election" e' passata davvero al primo tentativo.
+_NON_SONO_NOTIZIE_DI_MERCATO = [
+    "Police open an investigation into the fire",
+    "Democracy is at stake in the election",
+    "The future of the party is at stake in Ohio",
+    "Judge orders the company to appear in court",
+    "Ich besuche einen Deutschkurs in Berlin",
+    "La Ferrari si ferma in mezzo alla strada",
+    "Perdita di gas in una palazzina del centro",
+    "Weight loss drug shows promise in new trial",
+    "Rainbow Six Siege Season 3 adds drone racing",
+    # "bond sale" da solo faceva entrare questa: e' il motivo per cui al suo
+    # posto c'e' la raccolta di capitale con la cifra.
+    "James Bond sale of memorabilia draws crowds in London",
+    "Q2 report of the school year published by the ministry",
+]
+
+
+def test_le_parole_nuove_non_aprono_la_porta_alla_cronaca():
+    for t in _NON_SONO_NOTIZIE_DI_MERCATO:
+        assert not gg.CONTESTO.search(t), t
+
+
+# ── La cache dei file GDELT ───────────────────────────────────────────────
+#
+# I file del GKG non cambiano piu' una volta pubblicati, ma il 16 agosto 2026
+# le stesse 24 ore, quasi un giga, sono state scaricate tre volte in una sera.
+def _riga_piena(titolo):
+    r = [""] * 27
+    r[gg.COL_DATA] = "20260815204500"
+    r[gg.COL_DOMINIO] = "ilsole24ore.com"
+    r[gg.COL_URL] = "http://esempio.it/x"
+    r[gg.COL_TONO] = "2.7,3.1,1.2,4.3,20,10,300"
+    r[gg.COL_TRADUZIONE] = "srclc:ita;eng:Moses"
+    r[gg.COL_TEMI] = "ECON_STOCKMARKET;TAX_FNCACT"
+    r[gg.COL_EXTRA] = f"<PAGE_TITLE>{titolo}</PAGE_TITLE><ALTRO>zzz</ALTRO>"
+    r[20] = "colonna che nessuno legge"
+    return r
+
+
+def test_la_riga_ridotta_risponde_come_quella_intera():
+    """
+    La cache tiene solo le colonne che qualcuno legge. Se una funzione legge
+    per indice, deve trovare le stesse cose al posto giusto.
+    """
+    intera = _riga_piena("Eni chiude in perdita, il titolo scende")
+    ridotta = gg._ridotta(intera)
+    assert len(ridotta) == len(intera)
+    assert gg.titolo(ridotta) == gg.titolo(intera)
+    assert gg.tono(ridotta) == gg.tono(intera)
+    assert gg.lingua(ridotta) == gg.lingua(intera)
+    assert ridotta[gg.COL_TEMI] == intera[gg.COL_TEMI]
+    # e quello che non serve non viene tenuto
+    assert ridotta[20] == ""
+
+
+def test_scrittura_e_rilettura_non_cambiano_i_titoli(tmp_path, monkeypatch):
+    """
+    Il primo tentativo usava csv.writer con escapechar e il lettore senza:
+    una barra rovescia tornava raddoppiata, le virgolette precedute da una
+    barra, e un tab spezzava la riga in due. Tre titoli su quattro tornavano
+    diversi da come erano partiti.
+    """
+    monkeypatch.setattr(gg, "cartella_cache", lambda: str(tmp_path))
+    difficili = [
+        "Titolo con \\ barra rovescia",
+        'Titolo con "virgolette" dentro',
+        "Titolo con | pipe e ; punto e virgola",
+        "Bitcoin'de haftalik kayip yuzde 3'u asti",
+        "Επιμένει η Apple: Ζητά προμήθεια έως 15%",
+    ]
+    gg._nella_cache("prova.gkg.csv", [gg._ridotta(_riga_piena(t)) for t in difficili])
+    lette = gg._dalla_cache("prova.gkg.csv")
+    assert lette is not None and len(lette) == len(difficili)
+    assert [gg.titolo(r) for r in lette] == difficili
+
+
+def test_un_tab_dentro_un_titolo_non_spezza_la_riga(tmp_path, monkeypatch):
+    """Il GKG stesso non ammette tab nei campi: qui diventa uno spazio."""
+    monkeypatch.setattr(gg, "cartella_cache", lambda: str(tmp_path))
+    gg._nella_cache("t.gkg.csv", [gg._ridotta(_riga_piena("Titolo con\ttab"))])
+    lette = gg._dalla_cache("t.gkg.csv")
+    assert len(lette) == 1
+    assert gg.titolo(lette[0]) == "Titolo con tab"
+
+
+def test_una_cache_illeggibile_si_ributta_via(tmp_path, monkeypatch):
+    """Un file monco non deve far fallire una misura da venti minuti."""
+    monkeypatch.setattr(gg, "cartella_cache", lambda: str(tmp_path))
+    rotto = tmp_path / "rotto.gkg.csv.tsv.gz"
+    rotto.write_bytes(b"questo non e' un gzip")
+    assert gg._dalla_cache("rotto.gkg.csv") is None
+    assert not rotto.exists(), "il file rotto va rimosso, non lasciato li'"
+
+
+def test_niente_file_parziali_se_la_scrittura_va_male(tmp_path, monkeypatch):
+    """
+    Si scrive a fianco e poi si rinomina: se il programma muore a meta' non
+    resta un file monco che la volta dopo viene letto come se fosse buono.
+    """
+    monkeypatch.setattr(gg, "cartella_cache", lambda: str(tmp_path))
+    gg._nella_cache("ok.gkg.csv", [gg._ridotta(_riga_piena("Titolo"))])
+    rimasti = [f.name for f in tmp_path.iterdir()]
+    assert rimasti == ["ok.gkg.csv.tsv.gz"], rimasti
+
+
+def test_svuota_cache_conta_quello_che_toglie(tmp_path, monkeypatch):
+    monkeypatch.setattr(gg, "cartella_cache", lambda: str(tmp_path))
+    for i in range(3):
+        gg._nella_cache(f"f{i}.gkg.csv", [gg._ridotta(_riga_piena("Titolo"))])
+    assert gg.misura_cache()[0] == 3
+    n, _ = gg.svuota_cache()
+    assert n == 3 and gg.misura_cache()[0] == 0
+
+
+def test_la_cache_tiene_tutto_quello_che_qualcuno_legge():
+    """
+    Se una colonna viene letta da qualche parte nel codice ma non e' fra
+    quelle conservate, con la cache accesa quella misura vedrebbe zeri e
+    sembrerebbe che GDELT abbia smesso di pubblicarla. Meglio una cache piu'
+    grande di una che mente a un modo su sei.
+    """
+    lette_dal_codice = {gg.COL_DATA, gg.COL_DOMINIO, gg.COL_URL, gg.COL_TEMI,
+                        gg.COL_ORGANIZZAZIONI, gg.COL_TONO, gg.COL_NOMI,
+                        gg.COL_TRADUZIONE}
+    mancanti = lette_dal_codice - set(gg.COLONNE_TENUTE)
+    assert not mancanti, f"colonne lette ma non conservate: {sorted(mancanti)}"
+    # COL_EXTRA e' trattata a parte: se ne tiene solo il PAGE_TITLE.
+    assert gg.COL_EXTRA not in gg.COLONNE_TENUTE
+
+
+def test_descrivi_formato_dice_le_stesse_cose_su_una_riga_dalla_cache(capsys):
+    intera = _riga_piena("Eni chiude in perdita")
+    gg.descrivi_formato([intera])
+    da_intera = capsys.readouterr().out
+    gg.descrivi_formato([gg._ridotta(intera)])
+    da_ridotta = capsys.readouterr().out
+    assert da_intera == da_ridotta

@@ -15,7 +15,7 @@ from datetime import datetime, date, timezone
 from fastapi import APIRouter, Depends
 
 import database
-from auth import get_current_user, get_user_tier
+from auth import get_current_user_optional, tier_di
 from cache import cache_get, cache_set
 
 logger = logging.getLogger(__name__)
@@ -177,8 +177,17 @@ def _upcoming_rows() -> list[dict]:
 
 
 @router.get("/upcoming")
-def upcoming(user: dict = Depends(get_current_user)):
-    """Calendario per tutti; sentiment/trend pre-conti solo Pro."""
+def upcoming(user: dict | None = Depends(get_current_user_optional)):
+    """
+    Calendario per tutti; sentiment/trend pre-conti solo Pro.
+
+    "Per tutti" comprende chi non ha un account, dal 16 agosto 2026. Prima
+    l'endpoint pretendeva un token e a un visitatore rispondeva 401: il
+    calendario spariva dalla schermata di mercato senza dire perche', perche'
+    chi chiama ignora l'errore di proposito. Le date dei conti sono pubbliche
+    e stanno in cache, quindi non c'e' niente da proteggere; il sentiment
+    pre-conti resta oscurato come prima.
+    """
     rows = cache_get("earnings:upcoming", ttl=CACHE_TTL)
     if rows is None:
         try:
@@ -188,7 +197,7 @@ def upcoming(user: dict = Depends(get_current_user)):
             rows = []
         cache_set("earnings:upcoming", rows, ttl=CACHE_TTL if rows else 60)
 
-    is_pro = get_user_tier(user["sub"]) == "pro"
+    is_pro = tier_di(user) == "pro"
     if not is_pro:
         rows = [{**r, "sentiment": None, "trend": None} for r in rows]
     return {"window_days": WINDOW_DAYS, "is_pro": is_pro, "rows": rows}

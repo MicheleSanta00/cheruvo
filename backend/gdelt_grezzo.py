@@ -42,6 +42,7 @@ import csv
 import html
 import io
 import logging
+import os
 import re
 import sys
 import zipfile
@@ -93,8 +94,151 @@ def url_gkg(elenco: list[str]) -> str | None:
     return None
 
 
+# ══ La cache dei file scaricati ══════════════════════════════════════════
+#
+# I file del GKG non cambiano mai una volta pubblicati: il file delle 20:45
+# del 15 agosto sara' identico fra un anno. Riscaricarlo e' tempo buttato, e
+# il 16 agosto 2026 le stesse ventiquattro ore, quasi un giga, sono state
+# scaricate tre volte in una sera per rispondere a tre domande diverse.
+#
+# DOVE STA, E PERCHE' NON NEL PROGETTO
+#
+# Nella cartella temporanea del sistema, non accanto al codice. Il progetto
+# vive dentro OneDrive: un giga di cache li' dentro finirebbe sincronizzato
+# in cloud, e sarebbe un danno fatto per fare un favore.
+#
+# COSA CONSERVA
+#
+# Non la riga intera: solo le colonne che qualcuno legge davvero, e di
+# V2EXTRASXML solo il pezzo <PAGE_TITLE>, che e' l'unica cosa che ci si
+# cerca. Il resto della riga (GCAM su tutti, che e' la parte grossa) sparisce.
+# Le colonne tenute restano al loro indice e la riga resta lunga 27, quindi
+# ogni funzione che legge per indice continua a funzionare identica.
+#
+# L'elenco comprende anche TEMI, ORGANIZZAZIONI e NOMI, che servono solo a
+# `--modo colonne`. Costano, ma tenerli vuol dire che TUTTE le misure danno
+# gli stessi numeri con la cache accesa o spenta. Una cache che funziona per
+# cinque modi su sei sarebbe una trappola: chi lancia il sesto vedrebbe zeri
+# e penserebbe che GDELT ha smesso di pubblicare quei campi.
+#
+# Se un domani serve piu' spazio, si toglie una colonna da qui SOLO dopo aver
+# tolto anche chi la legge, non prima.
+COLONNE_TENUTE = (COL_DATA, COL_DOMINIO, COL_URL, COL_TEMI,
+                  COL_ORGANIZZAZIONI, COL_TONO, COL_NOMI, COL_TRADUZIONE)
+
+CACHE_ATTIVA = os.environ.get("CHERUVO_GDELT_CACHE", "1") != "0"
+
+
+def cartella_cache() -> str:
+    import tempfile
+    d = os.path.join(tempfile.gettempdir(), "cheruvo_gdelt")
+    os.makedirs(d, exist_ok=True)
+    return d
+
+
+def _ridotta(riga: list[str]) -> list[str]:
+    """La riga con dentro solo quello che qualcuno legge."""
+    if len(riga) <= COL_EXTRA:
+        return riga
+    fuori = [""] * (COL_EXTRA + 1)
+    for c in COLONNE_TENUTE:
+        if c < len(riga):
+            fuori[c] = riga[c]
+    m = _TITOLO_RX.search(riga[COL_EXTRA] or "")
+    fuori[COL_EXTRA] = f"<PAGE_TITLE>{m.group(1)}</PAGE_TITLE>" if m else ""
+    return fuori
+
+
+def _dalla_cache(nome: str) -> list[list[str]] | None:
+    percorso = os.path.join(cartella_cache(), nome + ".tsv.gz")
+    if not os.path.exists(percorso):
+        return None
+    try:
+        import gzip
+        with gzip.open(percorso, "rt", encoding="utf-8", newline="") as f:
+            return [r.rstrip("\r\n").split("\t") for r in f]
+    except Exception as e:
+        # Una cache rotta non deve fermare una misura: si ributta via.
+        logger.warning("  cache illeggibile per %s (%s), la riscarico", nome, e)
+        try:
+            os.remove(percorso)
+        except OSError:
+            pass
+        return None
+
+
+def _nella_cache(nome: str, righe: list[list[str]]) -> None:
+    percorso = os.path.join(cartella_cache(), nome + ".tsv.gz")
+    temporaneo = percorso + f".{os.getpid()}.parziale"
+    try:
+        import gzip
+        # NIENTE csv.writer QUI.
+        #
+        # Il primo tentativo usava csv.writer con QUOTE_NONE e escapechar="\\",
+        # e il lettore invece non aveva l'escapechar: una barra rovescia
+        # tornava indietro raddoppiata, le virgolette tornavano precedute da
+        # una barra, e un titolo con dentro un tab spezzava la riga in due.
+        # Provato con quattro titoli difficili: tre su quattro tornavano
+        # diversi da come erano partiti.
+        #
+        # Il GKG stesso non ammette tab dentro i campi (viene letto con
+        # QUOTE_NONE e senza escape), quindi qui basta la stessa regola:
+        # unire con il tab, e sostituire i separatori se per assurdo ce ne
+        # fossero. Nessun escape, nessuna asimmetria possibile.
+        with gzip.open(temporaneo, "wt", encoding="utf-8", newline="") as f:
+            for riga in righe:
+                f.write("\t".join(
+                    (c or "").replace("\t", " ").replace("\r", " ").replace("\n", " ")
+                    for c in riga) + "\n")
+        # Scrittura e poi rinomina: se il programma muore a meta' scaricamento
+        # non resta in giro un file monco che la prossima volta viene letto
+        # come se fosse buono.
+        os.replace(temporaneo, percorso)
+    except Exception as e:
+        logger.warning("  non sono riuscito a mettere in cache %s (%s)", nome, e)
+        try:
+            os.remove(temporaneo)
+        except OSError:
+            pass
+
+
+def svuota_cache() -> tuple[int, float]:
+    """Cancella tutto. Restituisce (file, MB) tolti."""
+    d = cartella_cache()
+    n = peso = 0
+    for f in os.listdir(d):
+        p = os.path.join(d, f)
+        try:
+            peso += os.path.getsize(p)
+            os.remove(p)
+            n += 1
+        except OSError:
+            pass
+    return n, peso / 1e6
+
+
+def misura_cache() -> tuple[int, float]:
+    """(file, MB) attualmente in cache."""
+    d = cartella_cache()
+    n = peso = 0
+    for f in os.listdir(d):
+        try:
+            peso += os.path.getsize(os.path.join(d, f))
+            n += 1
+        except OSError:
+            pass
+    return n, peso / 1e6
+
+
 def leggi_gkg(url: str) -> list[list[str]]:
     """Scarica lo zip, lo apre in memoria e restituisce le righe."""
+    nome_cache = url.rsplit("/", 1)[-1].replace(".zip", "")
+    if CACHE_ATTIVA:
+        righe = _dalla_cache(nome_cache)
+        if righe is not None:
+            logger.info("  %s: dalla cache, %d righe", nome_cache, len(righe))
+            return righe
+
     r = requests.get(url, timeout=180, headers=_UA)
     r.raise_for_status()
     peso = len(r.content)
@@ -106,6 +250,9 @@ def leggi_gkg(url: str) -> list[list[str]]:
             # standard di Python un apice dentro un titolo spezzerebbe la riga.
             righe = [r for r in csv.reader(testo, delimiter="\t", quoting=csv.QUOTE_NONE)]
     logger.info("  %s: %.1f MB compressi, %d righe", nome, peso / 1e6, len(righe))
+
+    if CACHE_ATTIVA:
+        _nella_cache(nome_cache, [_ridotta(r) for r in righe])
     return righe
 
 
@@ -266,6 +413,40 @@ MAIUSCOLI = {"NEAR", "GE", "XRP"}
 # Finche' resta vuoto il comportamento e' identico a prima: la lista e' il
 # meccanismo, non la decisione.
 NOMI_NETTI: set[str] = set()
+# Deciso il 15 agosto 2026 leggendo `--modo contesto` su 24 ore di file,
+# 217.218 righe, 188 file su 192. Su tutta la lista il filtro ha fatto
+# entrare 336 righe e ne ha bocciate 1.764, cioe' l'84% di quelle che
+# combaciavano con un nome che seguiamo.
+#
+# ANCORA VUOTO, E STAVOLTA SI SA PERCHE'
+#
+# Il 15 agosto 2026 `--modo contesto` ha girato su 24 ore vere: 217.218
+# righe, 188 file su 192, 336 righe entrate e 1.764 bocciate, cioe' l'84%
+# di quelle che combaciavano con un nome seguito.
+#
+# Leggendo gli esempi sembrava una risposta chiara. Nvidia aveva 72
+# bocciate e le tre mostrate erano i 3 miliardi in SB Energy, la
+# partecipazione in SpaceX e i miliardi in Intel: notizie vere, buttate.
+# AMD 69, fra cui il 13F di Tiger Global. Sono stati messi in questo
+# elenco, e i test di `ingest_grezzo` si sono accesi subito:
+#
+#   Nvidia releases a new driver for the RTX line
+#   MSI PRO B550M PRO-VDH WIFI Micro ATX AMD Motherboard
+#
+# Ecco cosa entrava insieme. Nvidia e AMD non sono nomi netti: sono i
+# nomi che compaiono in ogni nota di rilascio di un driver e in ogni
+# scheda prodotto di una scheda madre. La misura del 10 agosto lo aveva
+# gia' scritto e ci si era passati sopra.
+#
+# Il difetto non era nei nomi, era in COME si e' letta la misura: il
+# resoconto stampa tre esempi per titolo, e tre esempi non descrivono
+# settantadue righe. Le tre mostrate erano finanziarie perche' erano le
+# prime, non perche' lo fossero tutte.
+#
+# Quindi la decisione resta sospesa, e per prenderla serve una misura
+# diversa: non tre esempi a caso, ma quante delle bocciate di un nome
+# sono prodotto e quante mercato, contate. Finche' non c'e' quel numero
+# questo elenco resta vuoto, che e' la scelta che sbaglia meno.
 
 # Il titolo deve contenere anche una parola di contesto finanziario.
 # L'elenco resta corto di proposito: allargarlo troppo rimette dentro il rumore
@@ -275,6 +456,47 @@ CONTESTO = re.compile(
     r"stock|shares?|trading|traders?|price|nasdaq|earnings|"
     r"nyse|ftse|dax|investor\w*|dividend\w*|ipo|revenue|profit\w*|"
     r"quarterly|valuation|analysts?|etf\w*|futures|"
+    # LE PAROLE CHE MANCAVANO IN INGLESE
+    #
+    # Dalla misura delle 24 ore del 15 agosto 2026, tutte bocciate:
+    #
+    #   Nvidia in talks to INVEST $3 billion in SB Energy
+    #   Tiger Global cuts STAKES in major tech firms, adds AMD
+    #   Boeing reports 37 commercial aircraft ORDERS and 51 DELIVERIES
+    #
+    # C'era "investor" ma non "invest", quindi passava chi commenta e non chi
+    # mette i soldi. Le terminazioni sono elencate a mano invece di usare
+    # \w*, se no "investigation" diventa una notizia finanziaria.
+    #
+    # "stake" da solo no: "democracy at stake" non parla di partecipazioni.
+    # Serve la preposizione, e non basta neanche quella: "democracy is at
+    # stake IN the election" passava lo stesso, quindi "at" va escluso a
+    # mano. Stessa logica per gli ordini: "orders" da solo e' anche un
+    # ordine del tribunale.
+    r"invest(?:s|ed|ing|ment|ments)?\b|(?<!at\s)stakes?\s+in\b|"
+    r"aircraft\s+(?:orders?|deliveries)|orders?\s+and\s+deliveries|"
+    r"net\s+loss(?:es)?|loss(?:es)?\s+widen\w*|posts?\s+a\s+loss|"
+    # SECONDO GIRO, 16 agosto 2026. Rilanciata la misura sulle stesse 24 ore
+    # dopo le prime aggiunte, e le bocciature rimaste hanno mostrato altre
+    # tre cose che sfuggivano:
+    #
+    #   AMD raises $4.75bn in its biggest ever bond sale
+    #   Alphabet made 100x on SpaceX, now Nvidia reveals $21 billion stake
+    #   Solana Company Q2 Loss Hits $30.3 Million
+    #
+    # Un collocamento obbligazionario, una partecipazione dichiarata e una
+    # perdita trimestrale. "stake" senza "in" ha bisogno della cifra davanti,
+    # se no torna dentro "democracy at stake"; il trimestre scritto "Q2" non
+    # lo prendeva nessuno, c'era solo "quarterly" per esteso.
+    #
+    # "bond sale" da solo faceva entrare "James Bond sale of memorabilia
+    # draws crowds", quindi non c'e': al suo posto c'e' la raccolta di
+    # capitale con la cifra, che prende lo stesso titolo AMD e in piu' tutta
+    # la classe (i 15 miliardi di Intel di cui si parla da giorni).
+    r"rais(?:e[sd]?|ing)\s+\$?\d[\d.,]*\s*(?:bn|billion|million|mln)|"
+    r"bond\s+(?:offering|issue|issuance)|"
+    r"(?:billion|bn|million|mln)\s+stake|"
+    r"q[1-4]\s+(?:loss|profit|results|earnings|revenue)|"
     # "market" al singolare e da solo NON basta: vedi la nota qui sotto.
     r"markets|(?:stock|crypto|bear|bull|equity|financial|currency)\s+market|"
     r"market\s+(?:cap|close|open|rally|selloff|sell-off)|"
@@ -296,16 +518,55 @@ CONTESTO = re.compile(
     r"investitor\w+|trimestral\w+|ricavi|analist\w+|"
     r"declass\w+|promuov\w+|giudizio|rendiment\w+|utile\s+netto|"
     r"prezzo|titol\w+|投資|bourse|aktie\w*|"
+    # LE PERDITE, CHE NON C'ERANO IN NESSUNA LINGUA
+    #
+    # Questo era uno sbilanciamento, non un buco. Nell'elenco c'erano
+    # "gewinn", "beneficios", "ganancias", "lucro", "utile netto", e nessuna
+    # parola per la perdita. Provato il 15 agosto 2026:
+    #
+    #   PASSA   SAP meldet Gewinn im zweiten Quartal
+    #   BOCCIA  SAP meldet Verlust im zweiten Quartal
+    #   PASSA   Santander anuncia beneficios record
+    #   BOCCIA  Santander anuncia perdidas millonarias
+    #   PASSA   Eni chiude con un utile netto in crescita
+    #   BOCCIA  Eni chiude in perdita nel trimestre
+    #
+    # Sulla stampa non inglese entrava la notizia buona e restava fuori
+    # quella cattiva, quindi la media del sentiment era spinta in alto per
+    # costruzione, proprio sulla meta' europea dell'archivio.
+    #
+    # La regola seguita e' una sola: ogni parola positiva gia' presente ha
+    # ora la sua negativa allo STESSO grado di precisione. "gewinn\w*" era
+    # generico e si porta dietro "Gewinnspiel", quindi "verlust\w*" e'
+    # altrettanto generico e si porta dietro "Gewichtsverlust": lo stesso
+    # rischio da tutte e due le parti, che e' il punto. Dove il positivo era
+    # specifico ("utile netto") lo e' anche il negativo.
+    #
+    # In italiano "perdita" da sola sarebbe stata una perdita di gas o di
+    # tempo, come "seduta" era anche quella parlamentare: serve "in perdita"
+    # o "perdita netta".
+    r"verlust\w*|p[ée]rdidas|preju[íi]zo\w*|"
+    r"in\s+perdita|perdit[ae]\s+nett[ae]|perdita\s+d'esercizio|"
     # tedesco
     r"anleger\w*|analysten|b[öo]rse|kursziel|herabgestuft|hochgestuft|"
     r"quartalszahlen|umsatz|gewinn\w*|"
+    # "Kurs" da solo e' anche un corso di tedesco. Con la preposizione o il
+    # verbo e' il prezzo di un titolo: "Solana Kurs heute bei 76 Dollar" era
+    # bocciato.
+    r"aktienkurs\w*|kurs\s+(?:von|bei|heute|steigt|f[äa]llt)|"
     # spagnolo e portoghese
     r"bolsa|acciones|inversor\w+|cotizaci[óo]n|criptomoneda\w*|"
     r"mercados|beneficios|ganancias|rebaja\s+de\s+calificaci[óo]n|"
     r"a[çc][õo]es|investidor\w+|cripto\w*|lucro\w*|"
+    # "YPF, Eni y XRG invertiran US$51.000 millones": c'era "inversor" ma non
+    # il verbo, quindi un investimento da 51 miliardi restava fuori.
+    r"inversi[óo]n\w*|invertir[áa]?n?|investiment\w*|"
     # francese
     r"actions?\s+(?:cot[ée]e?s?|du\s+groupe)|d[ée]gradation|rel[èe]vement|"
     r"analystes?|investisseur\w+|r[ée]sultats\s+trimestriels|"
+    # Il francese non aveva ne' gli utili ne' le perdite: era l'unica lingua
+    # sbilanciata a zero invece che verso l'alto.
+    r"b[ée]n[ée]fices?|pertes?\s+(?:nettes?|trimestrielles?)|"
     r"objectif\s+de\s+cours|cryptomonnaie\w*)\b", re.I)
 
 # IL DECLASSAMENTO DI JEFFERIES
@@ -1386,7 +1647,21 @@ if __name__ == "__main__":
                     help="quante ore di file leggere (default 6, cioè 48 "
                          "file). Un file solo non basta per misurare una cosa "
                          "rara: serve solo a vedere se il codice gira.")
+    ap.add_argument("--svuota-cache", action="store_true",
+                    help="cancella i file GDELT tenuti da parte e esce")
     args = ap.parse_args()
+
+    if args.svuota_cache:
+        n, mb = svuota_cache()
+        print(f"\n  Cache svuotata: {n} file, {mb:.0f} MB.")
+        print(f"  {cartella_cache()}\n")
+        sys.exit(0)
+
+    if CACHE_ATTIVA:
+        n, mb = misura_cache()
+        if n:
+            print(f"\n  In cache ci sono gia' {n} file ({mb:.0f} MB), "
+                  f"quelli non li riscarico.")
 
     modo = "colonne" if args.colonne else args.modo
     if modo == "colonne":

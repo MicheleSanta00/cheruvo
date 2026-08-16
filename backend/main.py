@@ -21,7 +21,8 @@ from fastapi import FastAPI, HTTPException, BackgroundTasks, Request, Depends
 from fastapi.middleware.cors import CORSMiddleware
 from starlette.middleware.base import BaseHTTPMiddleware
 from starlette.middleware.gzip import GZipMiddleware
-from auth import get_current_user, get_current_user_optional, require_pro, get_user_tier
+from auth import (get_current_user, get_current_user_optional, require_pro,
+                  get_user_tier, tier_di)
 from slowapi import Limiter, _rate_limit_exceeded_handler
 from slowapi.util import get_remote_address
 from slowapi.errors import RateLimitExceeded
@@ -211,9 +212,22 @@ def ticker_info(ticker: str, request: Request,
 @app.get("/api/news/{ticker}")
 @limiter.limit("20/minute")
 def get_news(ticker: str, request: Request, days: int = 30,
-             user: dict = Depends(get_current_user)):
-    # Enforce limite giorni lato server in base al tier
-    tier = get_user_tier(user["sub"])
+             user: dict | None = Depends(get_current_user_optional)):
+    # SI LEGGE ANCHE SENZA ACCOUNT
+    #
+    # Il 16 agosto 2026 un utente su Reddit ha scritto "rimuovi il login wall,
+    # voglio vedere prima di iscrivermi". Aveva ragione: dell'applicazione non
+    # si vedeva niente senza registrarsi, e chi non l'ha provata non si
+    # registra.
+    #
+    # Le notizie sono titoli GDELT con licenza aperta, gia' mostrati in home
+    # senza account: aprirle non regala niente che non fosse gia' visibile.
+    # Quello che resta chiuso e' cio' che SPENDE (/api/fetch e /api/chat
+    # passano da Groq) e cio' che e' personale (watchlist, alert, export).
+    #
+    # Il limite dei giorni e' quello di prima, invariato: `tier_di` tratta chi
+    # non ha un account come un iscritto senza abbonamento.
+    tier = tier_di(user)
     if tier != "pro":
         days = min(days, 30)
     cache_key = f"news:{ticker}:{days}"
@@ -248,12 +262,12 @@ def get_news(ticker: str, request: Request, days: int = 30,
 @app.get("/api/prices/{ticker}")
 @limiter.limit("20/minute")
 def prices_endpoint(ticker: str, request: Request, period: str = "3mo",
-                    user: dict = Depends(get_current_user)):
+                    user: dict | None = Depends(get_current_user_optional)):
     # Enforce periodi disponibili in base al tier.
     # "1d" (la vista Oggi) resta gratuita di proposito: è quello che fa
     # sembrare il prodotto vivo appena lo apri, e metterlo dietro il paywall
     # significherebbe nascondere l'unica cosa che si muove.
-    tier = get_user_tier(user["sub"])
+    tier = tier_di(user)
     FREE_PERIODS = {"1d", "1mo", "3mo"}
     if tier != "pro" and period not in FREE_PERIODS:
         raise HTTPException(
@@ -296,7 +310,7 @@ def prices_endpoint(ticker: str, request: Request, period: str = "3mo",
 @app.get("/api/sentiment/{ticker}")
 @limiter.limit("20/minute")
 def sentiment_daily(ticker: str, request: Request,
-                    user: dict = Depends(get_current_user)):
+                    user: dict | None = Depends(get_current_user_optional)):
     cache_key = f"sentiment:{ticker}"
     cached = cache_get(cache_key)
     if cached:

@@ -107,6 +107,54 @@ def test_gli_anni_non_contano_come_cifre():
     assert "15" in e._cifre("Intel raises $15 billion in 2026")
 
 
+# ── Rifare il campione senza buttare via il lavoro ────────────────────────
+def test_rifare_il_campione_conserva_i_giudizi_gia_dati(tmp_path, monkeypatch):
+    """
+    Il campione del 15 agosto era venuto con 25 righe per 15 titoli distinti.
+    Rifarlo era obbligatorio, ma diciannove giudizi erano gia' stati dati e
+    ributtarli via avrebbe reso il difetto piu' caro della sua correzione.
+    """
+    archivio = tmp_path / "etichette.json"
+    monkeypatch.setattr(e, "ARCHIVIO", str(archivio))
+
+    righe = _righe(400)
+    # Primo giro: si punteggiano i primi tre titoli, e uno risulta illeggibile.
+    with patch("calibra.coppie_complete", return_value=righe), \
+         patch("calibra._senza_doppioni", side_effect=lambda r: r):
+        primo = e.prepara()
+    primo[0]["umano"] = 0.5
+    primo[1]["umano"] = -1.0
+    primo[2]["illeggibile"] = True
+    attesi = {v["titolo"]: (v["umano"], v["illeggibile"]) for v in primo[:3]}
+    e.salva(primo)
+
+    # Secondo giro: stesso materiale, campione rifatto da zero.
+    with patch("calibra.coppie_complete", return_value=righe), \
+         patch("calibra._senza_doppioni", side_effect=lambda r: r):
+        secondo = e.prepara()
+
+    for v in secondo:
+        if v["titolo"] in attesi:
+            umano, illeggibile = attesi[v["titolo"]]
+            assert v["umano"] == umano, f"giudizio perso su {v['titolo']!r}"
+            assert v["illeggibile"] == illeggibile
+    ripresi = sum(1 for v in secondo if v["umano"] is not None)
+    assert ripresi == 2
+
+    # E il file di prima resta sul disco, in caso la ricucitura sbagli.
+    assert (tmp_path / "etichette.json.precedente").exists()
+
+
+def test_il_primo_campione_non_lascia_avanzi(tmp_path, monkeypatch):
+    """Senza un file precedente non c'e' niente da mettere da parte."""
+    archivio = tmp_path / "etichette.json"
+    monkeypatch.setattr(e, "ARCHIVIO", str(archivio))
+    with patch("calibra.coppie_complete", return_value=_righe(200)), \
+         patch("calibra._senza_doppioni", side_effect=lambda r: r):
+        e.prepara()
+    assert not (tmp_path / "etichette.json.precedente").exists()
+
+
 # ── Il campione ───────────────────────────────────────────────────────────
 def test_il_campione_e_di_cinquanta_piu_la_riserva():
     scelte = e._campione(_righe(400))

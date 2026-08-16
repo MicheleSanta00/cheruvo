@@ -39,6 +39,7 @@ quello che voleva sentirsi dire.
 
     python backend/etichetta.py            # prepara e comincia
     python backend/etichetta.py --riprendi # continua dove avevi lasciato
+    python backend/etichetta.py --rifai    # riscegli i titoli, tieni i giudizi
     python backend/etichetta.py --rapporto # chi ti somiglia di piu'
 """
 import argparse
@@ -254,9 +255,30 @@ def _campione(righe: list[tuple], seme: int = 11) -> list[tuple]:
     return fuori + riserva
 
 
+def _giudizi_gia_dati(lavoro: list[dict]) -> dict:
+    """
+    I giudizi umani gia' espressi, indicizzati per titolo normalizzato.
+
+    Servono a poter RIFARE il campione senza buttare via il lavoro fatto. Il
+    campione del 15 agosto 2026 era venuto male, 25 righe per 15 titoli
+    distinti, e a quel punto la scelta era fra tenersi un campione difettoso o
+    ributtare via diciannove giudizi. Nessuna delle due.
+
+    La chiave e' quella di `calibra`, cosi' un titolo ripescato domani da
+    un'altra testata con la stessa identica riga ritrova il suo giudizio.
+    """
+    from calibra import _chiave_titolo
+    fuori = {}
+    for v in lavoro:
+        if v.get("umano") is not None or v.get("illeggibile"):
+            fuori[_chiave_titolo(v["titolo"])] = (v.get("umano"),
+                                                  bool(v.get("illeggibile")))
+    return fuori
+
+
 def prepara() -> list[dict]:
     """Sceglie i titoli e li salva, senza i punteggi delle macchine in vista."""
-    from calibra import coppie_complete, _senza_doppioni
+    from calibra import coppie_complete, _senza_doppioni, _chiave_titolo
 
     righe = _senza_doppioni(coppie_complete())
     scelte = _campione(righe)
@@ -265,15 +287,30 @@ def prepara() -> list[dict]:
         print("  Prima:  python backend/calibra.py --campione 300 --scrivi\n")
         return []
 
+    # Quello che era gia' stato deciso resta deciso. Il vecchio file viene
+    # messo da parte invece che sovrascritto: se questa ricucitura sbaglia
+    # qualcosa, i giudizi sono ancora li'.
+    vecchi = _giudizi_gia_dati(carica())
+    if vecchi:
+        os.replace(ARCHIVIO, ARCHIVIO + ".precedente")
+
     attivi = QUANTI_LITIGIOSI + QUANTI_A_CASO + QUANTI_CONCORDI
-    lavoro = [{"ticker": r[0], "titolo": r[1],
-               "gdelt": float(r[2]), "modello": float(r[3]),
-               "umano": None,
-               "illeggibile": False,
-               "riserva": i >= attivi}
-              for i, r in enumerate(scelte)]
+    lavoro = []
+    for i, r in enumerate(scelte):
+        umano, illeggibile = vecchi.get(_chiave_titolo(r[1]), (None, False))
+        lavoro.append({"ticker": r[0], "titolo": r[1],
+                       "gdelt": float(r[2]), "modello": float(r[3]),
+                       "umano": umano,
+                       "illeggibile": illeggibile,
+                       "riserva": i >= attivi})
     with open(ARCHIVIO, "w", encoding="utf-8") as f:
         json.dump(lavoro, f, ensure_ascii=False, indent=1)
+
+    if vecchi:
+        recuperati = sum(1 for v in lavoro if v["umano"] is not None)
+        print(f"\n  Campione rifatto. Giudizi ripresi dal file precedente: "
+              f"{recuperati} su {len(vecchi)}.")
+        print(f"  Il vecchio file e' in {os.path.basename(ARCHIVIO)}.precedente\n")
     return lavoro
 
 
@@ -452,6 +489,8 @@ if __name__ == "__main__":
     ap = argparse.ArgumentParser(description=__doc__)
     ap.add_argument("--riprendi", action="store_true",
                     help="continua dal punto in cui avevi lasciato")
+    ap.add_argument("--rifai", action="store_true",
+                    help="riscegli i titoli tenendo i giudizi gia' dati")
     ap.add_argument("--rapporto", action="store_true",
                     help="i numeri su quello che hai gia' etichettato")
     args = ap.parse_args()
@@ -459,7 +498,9 @@ if __name__ == "__main__":
     if args.rapporto:
         sys.exit(rapporto())
 
-    lavoro = carica() if args.riprendi else (carica() or prepara())
+    # Senza --rifai il file esistente vince sempre: un campione a meta' non
+    # si ributta via per sbaglio, ci sono dentro delle ore di qualcuno.
+    lavoro = prepara() if args.rifai else (carica() or prepara())
     if not lavoro:
         sys.exit(1)
     sessione(lavoro)

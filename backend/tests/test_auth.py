@@ -77,20 +77,9 @@ class TestEndpointProtetti:
         yield
         app.dependency_overrides.clear()
 
-    def test_news_senza_token_401(self, app):
-        with TestClient(app, raise_server_exceptions=False) as c:
-            resp = c.get("/api/news/AAPL")
-        assert resp.status_code == 401
-
-    def test_prices_senza_token_401(self, app):
-        with TestClient(app, raise_server_exceptions=False) as c:
-            resp = c.get("/api/prices/AAPL")
-        assert resp.status_code == 401
-
-    def test_sentiment_senza_token_401(self, app):
-        with TestClient(app, raise_server_exceptions=False) as c:
-            resp = c.get("/api/sentiment/AAPL")
-        assert resp.status_code == 401
+    # news, prices e sentiment NON stanno piu' qui: dal 16 agosto 2026 si
+    # leggono anche senza account, con meno storico. Le loro prove stanno
+    # in TestLetturaSenzaAccount piu' sotto, insieme al motivo.
 
     def test_tickers_senza_token_401(self, app):
         with TestClient(app, raise_server_exceptions=False) as c:
@@ -134,6 +123,82 @@ class TestSubscriptionOwnership:
                 headers={"Authorization": "Bearer fake_token"},
             )
         assert resp.status_code == 403
+
+
+# ── Test: cosa si legge senza account, e cosa no ──────────────────────────
+#
+# Il 16 agosto 2026, su r/ItaliaStartups: "Rimuovi il Login wall, voglio vedere
+# prima di iscrivermi". `App.jsx` rimandava alla schermata di accesso CHIUNQUE,
+# quindi del prodotto non si vedeva niente prima di registrarsi, e chi non lo
+# prova non si registra.
+#
+# La riga di confine non e' "letto contro scritto", e' "costa contro non
+# costa". /api/fetch fa partire una raccolta e /api/chat passa da Groq: sono
+# le due che un visitatore potrebbe usare per bruciare il piano gratuito, e
+# restano chiuse. Leggere notizie che sono titoli GDELT con licenza aperta,
+# gia' visibili in home senza account, non toglie niente a nessuno.
+
+class TestLetturaSenzaAccount:
+
+    @pytest.fixture(autouse=True)
+    def setup(self, app):
+        """Nessun token: get_current_user_optional restituisce None."""
+        from auth import get_current_user_optional
+        app.dependency_overrides[get_current_user_optional] = lambda: None
+        yield
+        app.dependency_overrides.clear()
+
+    def test_le_notizie_si_leggono_senza_account(self, app):
+        with TestClient(app, raise_server_exceptions=False) as c:
+            resp = c.get("/api/news/AAPL")
+        assert resp.status_code != 401, "il muro e' tornato su"
+
+    def test_i_prezzi_si_leggono_senza_account(self, app):
+        with TestClient(app, raise_server_exceptions=False) as c:
+            resp = c.get("/api/prices/AAPL")
+        assert resp.status_code != 401
+
+    def test_il_sentiment_si_legge_senza_account(self, app):
+        with TestClient(app, raise_server_exceptions=False) as c:
+            resp = c.get("/api/sentiment/AAPL")
+        assert resp.status_code != 401
+
+    def test_un_periodo_lungo_resta_chiuso(self, app):
+        """
+        Aprire la lettura non vuol dire regalare il piano PRO: i periodi
+        lunghi restano dove stavano.
+        """
+        with TestClient(app, raise_server_exceptions=False) as c:
+            resp = c.get("/api/prices/AAPL?period=5y")
+        assert resp.status_code == 403
+
+
+class TestQuelloCheSpendeRestaChiuso:
+    """
+    /api/fetch fa partire una raccolta, /api/chat passa da Groq. Sono le due
+    porte da cui un visitatore anonimo puo' consumare il piano gratuito, e
+    devono restare chiuse anche adesso che il resto e' aperto.
+    """
+
+    @pytest.fixture(autouse=True)
+    def setup(self, app):
+        from auth import get_current_user
+        app.dependency_overrides[get_current_user] = _raise_401
+        yield
+        app.dependency_overrides.clear()
+
+    def test_la_raccolta_resta_chiusa(self, app):
+        with TestClient(app, raise_server_exceptions=False) as c:
+            assert c.post("/api/fetch/AAPL").status_code == 401
+
+    def test_la_chat_resta_chiusa(self, app):
+        with TestClient(app, raise_server_exceptions=False) as c:
+            resp = c.post("/api/chat", json={"messages": []})
+        assert resp.status_code == 401
+
+    def test_la_watchlist_resta_chiusa(self, app):
+        with TestClient(app, raise_server_exceptions=False) as c:
+            assert c.get("/api/tickers").status_code == 401
 
 
 # ── Test: endpoint pubblici non richiedono auth ────────────────────────────
