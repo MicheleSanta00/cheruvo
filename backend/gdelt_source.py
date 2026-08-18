@@ -258,10 +258,83 @@ def _parole_chiave(ticker: str, nome: str | None) -> list[str]:
     return parole or [base]
 
 
-def _e_pertinente(titolo: str, chiavi: list[str]) -> bool:
-    """Vero se il titolo contiene una delle chiavi come parola intera."""
-    t = titolo.lower()
-    return any(re.search(rf"\b{re.escape(k)}\b", t) for k in chiavi)
+def _e_pertinente(titolo: str, chiavi: list[str], ticker: str, termine: str) -> bool:
+    """
+    Vero se il titolo parla davvero di questo titolo.
+
+    DUE PERCORSI, UNA REGOLA SOLA
+
+    Fino al 18 agosto 2026 questa funzione faceva `titolo.lower()` e cercava
+    il nome a parola intera, punto. Le due difese costruite ad agosto stavano
+    solo in `gdelt_grezzo.py`, cioe' nel percorso dei file grezzi, e questo,
+    che e' il percorso dell'API, non ne aveva nessuna.
+
+    Non e' rimasto un difetto teorico. Da qui passano `quick_fetch` (il
+    workflow update_news, quattro volte al giorno, e il bottone di scarico) e
+    `backfill_gdelt`. Il 18 agosto NEAR-USD aveva 43 notizie in 48 ore, piu'
+    di Ethereum, e leggendole non ce n'era UNA sulla moneta:
+
+        Blondo Street construction mix-up causes traffic backups near Waterloo
+        Milwaukee fire near 18th and Mineral, house uninhabitable
+        Russia Builds Drone Bases Near NATO, Putting Poland Within Reach
+        Bihar tiger attack: Farmer killed near Valmiki reserve
+
+    Cinquantadue righe in due giorni, tutte dentro la media di NEAR e dentro
+    la classifica.
+
+    Le due regole:
+
+      1. I termini in MAIUSCOLI si confrontano rispettando le maiuscole. La
+         moneta si chiama "NEAR", la preposizione inglese si scrive "near", e
+         il `lower()` di prima le rendeva la stessa parola. Questa regola da
+         sola scarta TUTTE e cinquantadue le righe qui sopra, comprese quelle
+         che il contesto avrebbe fatto passare ("US stocks hang near their
+         record heights" ha "stocks", ma scrive "near" minuscolo).
+      2. I nomi che sono anche parole comuni (AMBIGUI: Avalanche, Stellar,
+         Cosmos, Optimism, Apple, Shell...) esigono una parola di contesto
+         finanziario. Senza, entra "Avalanche warning issued for the Alps".
+
+    QUELLO CHE QUI *NON* SI APPLICA, E PERCHE'
+
+    Nel percorso dei file grezzi il contesto e' obbligatorio anche per i nomi
+    NETTI delle societa' (Nvidia, Boeing, Eni). Li' e' giusto: si legge il
+    firehose del mondo intero, e il 7 agosto 2026 GOOGL e MSFT da soli facevano
+    il 53% delle righe con aggiornamenti di prodotto e disservizi.
+
+    Qui no, e non e' una dimenticanza. Su questo percorso GDELT ha gia'
+    ristretto la ricerca al termine, e CONTESTO e' un vocabolario tarato su
+    quel firehose: misurato il 18 agosto 2026 su titoli societari veri, scarta
+    "Nvidia hits record high as AI demand surges", "Boeing wins order from
+    Emirates", "Apple faces EU antitrust probe" ed "Eni firma un accordo in
+    Libia". Applicarlo qui butterebbe via piu' notizie vere di quante ne
+    tolga di finte, e non e' stato misurato quanto.
+
+    `bonifica_pertinenza.py` conta ticker per ticker cosa cambierebbe. Finche'
+    quel conto non c'e', questa riga resta com'era: allargare un filtro su una
+    supposizione e' come e' nato il problema che sta sopra.
+
+    `ticker` e `termine` sono obbligatori di proposito: con un valore
+    predefinito, un chiamante che se li dimentica perderebbe le difese in
+    silenzio, che e' esattamente com'e' nata questa storia.
+    """
+    # Importazione qui dentro e non in cima: `gdelt_grezzo` chiede
+    # TERMINE_QUERY a questo modulo, e in cima si chiuderebbe il cerchio.
+    from gdelt_grezzo import AMBIGUI, CONTESTO, MAIUSCOLI
+
+    if termine in MAIUSCOLI:
+        # Sul titolo originale, non su quello abbassato: e' tutto il punto.
+        nominato = bool(re.search(rf"\b{re.escape(termine)}\b", titolo))
+    else:
+        t = titolo.lower()
+        nominato = any(re.search(rf"\b{re.escape(k)}\b", t) for k in chiavi)
+
+    if not nominato:
+        return False
+
+    if termine in AMBIGUI:
+        return bool(CONTESTO.search(titolo))
+
+    return True
 
 
 def _vader(titolo: str) -> float:
@@ -485,7 +558,7 @@ def fetch_gdelt(ticker: str, nome: str | None = None,
             if a.get("language") not in lingue:
                 scartati += 1
                 continue
-            if not _e_pertinente(titolo, chiavi):
+            if not _e_pertinente(titolo, chiavi, ticker, termine):
                 scartati += 1
                 continue
             # Dedup per TITOLO, non solo per URL: lo stesso pezzo sindacato

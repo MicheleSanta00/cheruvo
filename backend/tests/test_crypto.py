@@ -86,7 +86,17 @@ def test_tutte_le_crypto_con_una_sola_chiamata():
     articoli = [
         {"title": "Bitcoin Flashes Death Cross", "language": "English",
          "domain": "coindesk.com", "url": "http://x/1", "seendate": "20260805T090000Z"},
-        {"title": "Solana network hits record throughput", "language": "English",
+        # Qui c'era "Solana network hits record throughput", e dal 18 agosto
+        # 2026 quel titolo non entra piu'. "Solana" sta in AMBIGUI, quindi
+        # esige una parola di contesto finanziario, e "network hits record
+        # throughput" non ne ha. Prima entrava SOLO da questo percorso, perche'
+        # l'API non applicava la regola che i file grezzi applicavano gia': e'
+        # la stessa divergenza che ha fatto entrare 52 righe di cronaca come
+        # notizie su NEAR.
+        #
+        # Il costo va detto: quella era una notizia vera su Solana, e adesso
+        # resta fuori da tutti e due i percorsi.
+        {"title": "Solana price surges as traders pile into SOL", "language": "English",
          "domain": "theblock.co", "url": "http://x/2", "seendate": "20260805T083000Z"},
     ]
     crypto = [tk for tk in g.TERMINE_QUERY if g.e_crypto(tk)]
