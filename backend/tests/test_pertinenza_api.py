@@ -158,6 +158,108 @@ class TestNessunaDivergenza:
                    come_i_grezzi(ticker, termine, titolo), \
                    f"i due percorsi non sono d'accordo su: {titolo}"
 
+    def test_gli_eventi_societari_veri_non_vengono_buttati(self):
+        """
+        Titoli VERI segnati da cancellare dalla mia prima versione della
+        regola, il 18 agosto 2026. Sono cause, sentenze, cessioni e
+        violazioni di dati: gli eventi che muovono un titolo.
+
+        CONTESTO non li riconosce perche' e' un vocabolario nato per separare
+        la finanza dalla cronaca, non per riconoscere un evento societario.
+        Applicarlo ai nomi di societa' su questo percorso costava 190 righe su
+        453 a META e 34 su 45 a SHEL.L.
+        """
+        for termine, ticker, titolo in [
+            ("Meta", "META", "US states seek $200 billion penalty in blockbuster Meta lawsuit"),
+            ("Meta", "META", "How New Mexico $567 Million Ruling Could Change Meta"),
+            ("Meta", "META", "Jury selection begins in Meta youth harms trial in federal court"),
+            ("Meta", "META", "Manus founders to return to China as Meta unwinds buyout deal"),
+            ("Shell", "SHEL.L", "Shell to sell BG Cyprus and Aphrodite gas stake to MOL Group"),
+            ("Shell", "SHEL.L", "Shell Sells European Onshore Renewables Portfolio to TotalEnergies"),
+            ("Shell", "SHEL.L", "South Africa top court blocks Shell offshore oil exploration"),
+            ("Apple", "AAPL", "Apple now has 65% of global premium smartphone market: report"),
+        ]:
+            assert pertinente(ticker, termine, titolo), titolo
+
+    def test_le_monete_ambigue_tengono_la_regola(self):
+        """
+        Su queste il conto dava ragione al filtro: NEAR 299 righe su 302,
+        Avalanche 27 su 32, Cosmos 21 su 25.
+        """
+        assert not pertinente("AVAX-USD", "Avalanche",
+                              "Avalanche warning issued for the Alps this weekend")
+        assert not pertinente("ATOM-USD", "Cosmos",
+                              "Cosmos DB outage hits Azure customers")
+
+    def test_quello_che_torna_dentro_va_detto(self):
+        """
+        Togliendo la regola ai nomi di societa' rientra anche il rumore che
+        prendeva. Non e' risolto, e' tornato com'era: serve un meccanismo che
+        sappia cos'e' una societa'.
+        """
+        assert pertinente("SHEL.L", "Shell", "The Ghost in the Shell Episode #06 Anime Review")
+
+    def test_una_sigla_latina_dentro_un_testo_cinese_viene_riconosciuta(self):
+        """
+        `\\b` e' Unicode, e un ideogramma e' un carattere di parola: in
+        "AMD公佈2026年第2季財務報告" il confine dopo "AMD" non esiste e la
+        ricerca falliva. Erano il bilancio trimestrale di AMD in cinese e
+        l'acquisizione di Taalas, segnati da cancellare il 18 agosto 2026.
+        """
+        for titolo in ["AMD公佈2026年第2季財務報告",
+                       "AMD收购Taalas：将AI模型直接硬编码进芯片"]:
+            assert pertinente("AMD", "AMD", titolo), titolo
+
+    def test_il_confine_di_parola_resta_severo_sulle_lettere_latine(self):
+        """La ragione per cui il confine esisteva: "beni" non contiene "eni"."""
+        assert not pertinente("ENI.MI", "Eni", "Il governo tutela i beni culturali")
+        assert pertinente("ENI.MI", "Eni", "Eni shares rise on Libya deal")
+
+    def test_le_due_sigle_grandi_col_contesto(self):
+        """
+        Le chiavi vengono dal NOME: per ETH-USD escono 'ethereum' e
+        'eth-usd', mai 'eth'. Chi scriveva solo la sigla non veniva
+        riconosciuto, come i file grezzi fanno gia' da SIGLE_AMMESSE.
+        """
+        assert pertinente("ETH-USD", "Ethereum",
+                          "Lido Staked ETH (stETH) Trading Up 2% Over Last Week")
+        assert pertinente("BTC-USD", "Bitcoin",
+                          "BTC breaks $60,000 as ETF inflows surge")
+
+    def test_la_sigla_da_sola_non_basta_senza_contesto(self):
+        """
+        Senza contesto "BTC Development (NASDAQ:BDCIW)" e' un'altra azienda,
+        ed e' la condizione con cui le due sigle sono state ammesse.
+        """
+        assert not pertinente("BTC-USD", "Bitcoin", "BTC Development names new CFO")
+
+    def test_il_nome_col_simbolo_accanto_basta(self):
+        """
+        Titoli veri segnati da cancellare il 18 agosto 2026 perche' CONTESTO
+        non conosce "volume of". La sigla accanto al nome li rende
+        inequivocabili: nessun articolo di astronomia scrive "Stellar (XLM)".
+        """
+        assert pertinente("XLM-USD", "Stellar",
+                          "Stellar ( XLM ) Reaches 24 - Hour Volume of $459 . 41 Million")
+        assert pertinente("AVAX-USD", "Avalanche",
+                          "Avalanche ( AVAX ) developer activity climbs")
+
+    def test_la_sigla_da_sola_non_basta_sulle_monete_ambigue(self):
+        """Servono tutti e due: il nome E la sigla."""
+        assert not pertinente("AVAX-USD", "Avalanche",
+                              "Five climbers killed in Broad Peak avalanche")
+        assert not pertinente("ATOM-USD", "Cosmos",
+                              "Painting the Cosmos earns scholarly praise")
+
+    def test_le_altre_sigle_restano_fuori(self):
+        """
+        Misurato ad agosto 2026: DOGE e' il Department of Government
+        Efficiency, OP l'operazione chirurgica in tedesco, SOL il sole in
+        spagnolo, MU un podcast di ufologia. Solo BTC ed ETH sono ammesse.
+        """
+        assert not pertinente("SOL-USD", "Solana", "SOL brilla en el cielo de agosto")
+        assert not pertinente("DOGE-USD", "Dogecoin", "DOGE cuts 400 federal jobs")
+
     def test_sui_nomi_netti_la_divergenza_e_voluta_e_documentata(self):
         """
         CONTESTO e' un vocabolario tarato sul firehose. Misurato il 18 agosto
@@ -171,12 +273,14 @@ class TestNessunaDivergenza:
         di `bonifica_pertinenza.py` resta cosi'. Questo test protegge la
         scelta: se un giorno la si cambia, la si cambia sapendolo.
         """
-        for titolo in ["Nvidia hits record high as AI demand surges",
+        for titolo in ["Boeing wins order from Emirates",
                        "Nvidia unveils new Blackwell chip at GTC"]:
-            assert pertinente("NVDA", "Nvidia", titolo), titolo
+            assert pertinente("BA" if "Boeing" in titolo else "NVDA",
+                              "Boeing" if "Boeing" in titolo else "Nvidia",
+                              titolo), titolo
 
         from gdelt_grezzo import CONTESTO
-        assert not CONTESTO.search("Nvidia hits record high as AI demand surges"), (
+        assert not CONTESTO.search("Boeing wins order from Emirates"), (
             "se CONTESTO ha imparato questa frase, la divergenza si e' chiusa "
             "da sola e questo test va riscritto")
 

@@ -39,7 +39,14 @@ sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 
 logger = logging.getLogger("bonifica")
 
-ESEMPI = 3        # quanti titoli scartati mostrare per ticker
+# Quanti titoli scartati mostrare per ticker.
+#
+# Tre bastano quando il verdetto e' ovvio: su NEAR-USD ne bastava uno. Non
+# bastano per decidere su META, dove il 18 agosto 2026 fra i tre esempi ce
+# n'era uno giusto ("Apple Vision Pro vs Meta Ray-Bans") e uno sbagliatissimo
+# ("US states seek $200 billion penalty in blockbuster Meta lawsuit"). Con tre
+# righe si cancellano 190 notizie senza sapere quante fossero vere.
+ESEMPI = 3
 
 
 def _righe(ticker: str | None) -> list[tuple]:
@@ -60,7 +67,7 @@ def _righe(ticker: str | None) -> list[tuple]:
     return righe
 
 
-def esamina(righe: list[tuple]) -> dict:
+def esamina(righe: list[tuple], esempi: int = ESEMPI) -> dict:
     """
     Per ogni ticker: quante righe ci sono, quante non reggono, e tre esempi.
 
@@ -83,7 +90,7 @@ def esamina(righe: list[tuple]) -> dict:
         v["totale"] += 1
         if not _e_pertinente(titolo or "", _chiavi[tk], tk, termine):
             v["da_togliere"].append(id_)
-            if len(v["esempi"]) < ESEMPI:
+            if len(v["esempi"]) < esempi:
                 v["esempi"].append(titolo)
     return per_ticker
 
@@ -108,9 +115,10 @@ def _elimina(ids: list[int]) -> int:
     return tolte
 
 
-def main(ticker: str | None = None, elimina: bool = False) -> int:
+def main(ticker: str | None = None, elimina: bool = False,
+         esempi: int = ESEMPI) -> int:
     righe = _righe(ticker)
-    per_ticker = esamina(righe)
+    per_ticker = esamina(righe, esempi)
 
     print("=" * 72)
     print("  PERTINENZA DELL'ARCHIVIO")
@@ -140,7 +148,7 @@ def main(ticker: str | None = None, elimina: bool = False) -> int:
         print(f"  Righe non giudicabili (simbolo fuori elenco): {non_giudicate}")
 
     print("\n  Esempi, dai titoli piu' colpiti:")
-    for tk, v in ordinati[:5]:
+    for tk, v in ordinati[:5 if not ticker else len(ordinati)]:
         if not v["esempi"]:
             continue
         print(f"\n    {tk}")
@@ -176,5 +184,8 @@ if __name__ == "__main__":
     ap.add_argument("--ticker", help="guarda un titolo solo")
     ap.add_argument("--elimina", action="store_true",
                     help="cancella davvero (senza, conta e basta)")
+    ap.add_argument("--esempi", type=int, default=ESEMPI,
+                    help="quanti titoli scartati mostrare per ticker "
+                         f"(default {ESEMPI}; su un ticker solo alzalo a 30)")
     args = ap.parse_args()
-    sys.exit(main(args.ticker, args.elimina))
+    sys.exit(main(args.ticker, args.elimina, args.esempi))

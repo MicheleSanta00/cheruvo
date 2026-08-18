@@ -394,6 +394,41 @@ AMBIGUI = {"Avalanche", "Polygon", "Cosmos", "Stellar", "Optimism", "NEAR",
            "Solana", "Cardano", "Aptos", "Shiba",
            "Apple", "Amazon", "Meta", "Shell", "GE"}
 
+# Gli ambigui che sono anche NOMI DI SOCIETA', e che sul percorso dell'API
+# NON prendono la regola del contesto.
+#
+# Sui file grezzi la prendono, e li' e' giusto: quel percorso legge il
+# firehose del mondo intero, dove "apple" e "shell" sono soprattutto frutta e
+# gusci.
+#
+# Sul percorso dell'API la ricerca e' gia' ristretta al nome, e il 18 agosto
+# 2026 il conto di `bonifica_pertinenza.py` ha detto che il costo e' molto
+# piu' alto del guadagno. Su META segnava 190 righe su 453, e fra le prime
+# trenta c'erano:
+#
+#     US states seek $200 billion penalty in blockbuster Meta lawsuit
+#     How New Mexico $567 Million Ruling Could Change Meta
+#     Jury selection begins in Meta youth harms trial in federal court
+#     Manus founders to return to China as Meta unwinds buyout deal
+#
+# Su SHEL.L segnava 34 righe su 45, e fra queste:
+#
+#     Shell to sell BG Cyprus and Aphrodite gas stake to MOL Group
+#     Shell Sells European Onshore Renewables Portfolio to TotalEnergies
+#     South Africa top court blocks Shell offshore oil exploration
+#     Hacking Group Claims Mass Data Theft From Shell, Philips, GE
+#
+# Cioe' proprio cause, sentenze, cessioni e violazioni: gli eventi che
+# muovono un titolo. CONTESTO non conosce "penalty", "lawsuit", "ruling" ne'
+# "sells ... to", perche' e' un vocabolario nato per distinguere la finanza
+# dalla cronaca, non per riconoscere un evento societario.
+#
+# Resta il rumore che questa regola prendeva ("Ghost in the Shell", le uova,
+# le shell companies): non e' risolto, e' solo tornato com'era. Va affrontato
+# con un meccanismo che sappia cos'e' una societa', non allargando un filtro
+# lessicale finche' non taglia piu' niente di buono.
+AMBIGUI_SOCIETA = {"Apple", "Amazon", "Meta", "Shell", "GE"}
+
 # Due termini sono sigle scritte SEMPRE in maiuscolo quando indicano la cosa
 # giusta: la moneta si chiama "NEAR", la preposizione inglese si scrive "near".
 # Per questi il confronto tiene conto delle maiuscole, ed è l'unico modo di
@@ -453,6 +488,79 @@ NOMI_NETTI: set[str] = set()
 # che serviva a togliere.
 CONTESTO = re.compile(
     r"\b(crypto|cryptocurrenc\w*|token|coin|blockchain|defi|wallet|"
+    # IL VOCABOLARIO CRIPTO CHE NON C'ERA, 18 agosto 2026.
+    #
+    # `bonifica_pertinenza.py --ticker SOL-USD --esempi 30` ha segnato da
+    # cancellare 34 righe su 127, e leggendole erano quasi tutte notizie
+    # vere. Delle prime trenta ne passavano ZERO:
+    #
+    #   Morgan Stanley Launches Ether and Solana ETPs with Staking
+    #   Goldman Sachs Dumps XRP and Solana, Cuts Ethereum Exposure by 70%
+    #   Bank of America discloses exposure to Bitcoin, XRP, Ether, Solana
+    #   Solana Q1 2026 Report: Chain GDP Hits $342M, RWAs Top $2B
+    #   Krypto News zu SOLANA und dem Burn-Votum
+    #
+    # Tre buchi diversi, tutti dello stesso tipo: il vocabolario e' nato
+    # leggendo notizie azionarie e non conosce la lingua delle monete.
+    #
+    #   1. I termini nativi: staking, ETP, RWA, stablecoin, validator,
+    #      on-chain. "etf" c'era, "etp" no.
+    #   2. I plurali e le derivate. "token" con \b non prende "tokenized",
+    #      "coin" non prende "meme coins", e "coin" non prende neanche
+    #      "Bitcoin" perche' il confine di parola cade prima di "Bit".
+    #      Da qui i nomi delle due monete grandi scritti per esteso: se un
+    #      titolo nomina Bitcoin o Ethereum, e' una notizia cripto.
+    #   3. Il tedesco. C'era Verlust e Aktienkurs, non Krypto ne' Prognose.
+    #
+    # Misurato sulle righe vere dell'archivio: le notizie buone passano da
+    # 0 su 14 a 12 su 14, e la spazzatura ammessa resta 0 su 12 (valanghe
+    # dell'NHL, il paese spagnolo di La Solana, Solana Beach in California,
+    # Cosmos DB, Stellar AfricaGold).
+    #
+    # Le due che restano fuori non hanno UNA parola di mercato: "Where Will
+    # Solana Be in 5 Years?" e "Solana Institute urges CLARITY Act developer
+    # protections". Un filtro che prendesse anche quelle prenderebbe tutto.
+    r"krypto\w*|staking|staked|etps?\b|rwas?\b|stablecoin\w*|token\w*|"
+    r"on-?chain|validator\w*|exposure\s+to\b|bitcoin|ethereum|ether\b|"
+    r"altcoin\w*|memecoin\w*|coins\b|prognose\w*|\ba\s+buy\b|holders?\b|"
+    # SECONDO GIRO SULLE MONETE, sempre 18 agosto 2026. Ricontato dopo le
+    # aggiunte qui sopra, ADA-USD segnava ancora 10 righe su 60 e fra le
+    # prime tre ce n'erano due vere:
+    #
+    #   Cardano Crashes To 5-Year Lows As Hoskinson Warning Sparks Market Fear
+    #   Microsoft Copilot Predicts $0.65 Cardano by 2027. Whales Are Also Buying
+    #   So lohnend waere eine Investition in Solana von vor 5 Jahren gewesen
+    #
+    # La prima e' la notizia piu' importante che possa esistere su Cardano.
+    # Mancava il linguaggio del movimento di prezzo (minimi, massimi,
+    # previsioni) e ancora il tedesco, dove non c'era "Investition" accanto
+    # all'inglese "invest".
+    #
+    # "market" AL SINGOLARE NON SI AGGIUNGE, e non e' una svista.
+    #
+    # Il primo tentativo lo aveva messo, ed e' stato `test_ingest_grezzo.py
+    # ::test_market_da_solo_non_e_un_contesto_finanziario` a fermarlo. Quel
+    # test viene dall'8 agosto 2026, da uno screenshot del sito dove questa
+    # riga era archiviata come notizia su Optimism con punteggio +0,20:
+    #
+    #     New York Shoe Market Week 2026: Fashion Styles Spur Optimism
+    #
+    # Con il singolare tornano dentro il mercato delle scarpe, quello
+    # immobiliare e quello contadino. Il titolo di Cardano passa lo stesso,
+    # perche' ha "Crashes To" e "5-Year Lows".
+    #
+    # Per lo stesso motivo non ci sono "crash" e "lows" da soli: farebbero
+    # entrare gli incidenti stradali e le temperature massime, due delle
+    # famiglie di rumore trovate oggi. Servono nella forma che usa la
+    # finanza, cioe' "crashes TO" e "5-year lows".
+    #
+    # Verificato su 5 notizie vere e 15 titoli di spazzatura di oggi:
+    # entrano 5 su 5, e la spazzatura ammessa resta 0 su 15.
+    r"forecast\w*|predict(?:s|ed|ion|ions)?\b|"
+    r"crash(?:es|ed|ing)?\s+to\b|sell\s*-?\s*off|"
+    r"\d\s*-?\s*year\s+(?:low|high)s?|record\s+(?:low|high)s?|"
+    r"all\s*-?\s*time\s+(?:low|high)s?|bullish|bearish|"
+    r"investition\w*|investieren|anleger\w*|"
     r"stock|shares?|trading|traders?|price|nasdaq|earnings|"
     r"nyse|ftse|dax|investor\w*|dividend\w*|ipo|revenue|profit\w*|"
     r"quarterly|valuation|analysts?|etf\w*|futures|"

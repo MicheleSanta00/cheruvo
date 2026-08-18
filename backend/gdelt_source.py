@@ -258,6 +258,24 @@ def _parole_chiave(ticker: str, nome: str | None) -> list[str]:
     return parole or [base]
 
 
+def _nomina(titolo_minuscolo: str, chiave: str) -> bool:
+    """
+    La chiave compare come parola intera, anche dentro un testo CJK.
+
+    `\\b` e' Unicode: in "AMD公佈2026年第2季財務報告" il carattere dopo "AMD"
+    e' un ideogramma, che per Python e' un carattere di parola, quindi il
+    confine non c'e' e la ricerca fallisce. Il 18 agosto 2026 questo mandava
+    fra le righe da cancellare il bilancio trimestrale di AMD in cinese e la
+    notizia dell'acquisizione di Taalas.
+
+    Il confine giusto per una sigla latina non e' "non una lettera qualsiasi",
+    e' "non una lettera latina o una cifra": cosi' un ideogramma separa, e
+    "beni" continua a non contenere "eni".
+    """
+    return bool(re.search(rf"(?<![A-Za-z0-9]){re.escape(chiave)}(?![A-Za-z0-9])",
+                          titolo_minuscolo))
+
+
 def _e_pertinente(titolo: str, chiavi: list[str], ticker: str, termine: str) -> bool:
     """
     Vero se il titolo parla davvero di questo titolo.
@@ -290,9 +308,11 @@ def _e_pertinente(titolo: str, chiavi: list[str], ticker: str, termine: str) -> 
          sola scarta TUTTE e cinquantadue le righe qui sopra, comprese quelle
          che il contesto avrebbe fatto passare ("US stocks hang near their
          record heights" ha "stocks", ma scrive "near" minuscolo).
-      2. I nomi che sono anche parole comuni (AMBIGUI: Avalanche, Stellar,
-         Cosmos, Optimism, Apple, Shell...) esigono una parola di contesto
+      2. I nomi di MONETE che sono anche parole comuni (Avalanche, Stellar,
+         Cosmos, Optimism, Shiba...) esigono una parola di contesto
          finanziario. Senza, entra "Avalanche warning issued for the Alps".
+         I nomi di societa' ambigui (Apple, Meta, Shell, GE) no: il perche',
+         coi numeri, sta accanto a AMBIGUI_SOCIETA in gdelt_grezzo.py.
 
     QUELLO CHE QUI *NON* SI APPLICA, E PERCHE'
 
@@ -319,19 +339,50 @@ def _e_pertinente(titolo: str, chiavi: list[str], ticker: str, termine: str) -> 
     """
     # Importazione qui dentro e non in cima: `gdelt_grezzo` chiede
     # TERMINE_QUERY a questo modulo, e in cima si chiuderebbe il cerchio.
-    from gdelt_grezzo import AMBIGUI, CONTESTO, MAIUSCOLI
+    from gdelt_grezzo import (AMBIGUI, AMBIGUI_SOCIETA, CONTESTO, MAIUSCOLI,
+                              SIGLE_AMMESSE)
 
     if termine in MAIUSCOLI:
         # Sul titolo originale, non su quello abbassato: e' tutto il punto.
         nominato = bool(re.search(rf"\b{re.escape(termine)}\b", titolo))
     else:
         t = titolo.lower()
-        nominato = any(re.search(rf"\b{re.escape(k)}\b", t) for k in chiavi)
+        nominato = any(_nomina(t, k) for k in chiavi)
 
+    # LA SIGLA DELLE DUE MONETE GRANDI
+    #
+    # `_parole_chiave` costruisce le chiavi dal NOME, e per le monete aggiunge
+    # il simbolo intero: per ETH-USD esce ['ethereum', 'eth-usd'], mai 'eth'.
+    # Quindi un titolo che scrive solo la sigla non veniva riconosciuto:
+    #
+    #   Lido Staked ETH (stETH) Trading Up 2% Over Last Week
+    #   BTC breaks $60,000 as ETF inflows surge
+    #
+    # Sono le stesse due sigle che i file grezzi accettano gia' (SIGLE_AMMESSE)
+    # e con la stessa condizione: solo col contesto finanziario, perche' senza
+    # "BTC Development (NASDAQ:BDCIW)" e' un'altra azienda.
     if not nominato:
+        sigla = SIGLE_AMMESSE.get(ticker.upper())
+        if sigla and re.search(rf"\b{re.escape(sigla)}\b", titolo):
+            return bool(CONTESTO.search(titolo))
         return False
 
-    if termine in AMBIGUI:
+    # IL SIMBOLO ACCANTO AL NOME E' LA PROVA PIU' FORTE CHE CI SIA
+    #
+    # "Stellar (XLM) Reaches 24-Hour Volume of $459.41 Million" veniva
+    # scartato perche' CONTESTO non conosce "volume of", mentre la cosa che
+    # rende quel titolo inequivocabile e' li' in mezzo: la sigla della moneta
+    # accanto al suo nome. Nessun articolo di astronomia scrive "Stellar
+    # (XLM)", nessuna partita di hockey scrive "Avalanche (AVAX)".
+    #
+    # Vale solo se il nome ha gia' combaciato, quindi servono tutti e due:
+    # la sigla da sola non basta, come per DOGE e OP che sono altre cose.
+    if e_crypto(ticker):
+        simbolo = ticker.upper().split("-")[0]
+        if re.search(rf"\b{re.escape(simbolo)}\b", titolo):
+            return True
+
+    if termine in AMBIGUI and termine not in AMBIGUI_SOCIETA:
         return bool(CONTESTO.search(titolo))
 
     return True
