@@ -87,6 +87,18 @@ MAX_ROWS = 60
 # dieci news, questa soglia va alzata invece che lasciata lì per inerzia.
 MIN_NEWS = 5
 
+# La normalizzazione del titolo per fondere le riprese della stessa notizia.
+#
+# Sta qui, in una costante sola, perché tre punti del prodotto la usano e
+# DEVONO usarla identica: la classifica, il conteggio di copertura che il
+# selettore mostra, e `giornaliero.chiave_titolo`. Se divergono, il selettore
+# promette un numero di notizie e la pagina ne mostra un altro, che è
+# esattamente il tipo di contraddizione che questo endpoint esiste per
+# togliere di mezzo.
+CHIAVE_TITOLO_SQL = ("left(btrim(regexp_replace(regexp_replace("
+                     "lower(coalesce(title, '')), '[^[:alnum:][:space:]]', ' ', 'g'"
+                     "), '\\s+', ' ', 'g')), 90)")
+
 
 def _fetch_market() -> list[dict]:
     pool = get_pool()
@@ -119,9 +131,7 @@ def _fetch_market() -> list[dict]:
         # Un titolo vuoto non si fonde con gli altri titoli vuoti: senza testo
         # non si puo' dire che due notizie siano la stessa, e fonderle
         # cancellerebbe righe vere. Per questo c'e' il ripiego sull'id.
-        chiave = ("left(btrim(regexp_replace(regexp_replace("
-                  "lower(coalesce(title, '')), '[^[:alnum:][:space:]]', ' ', 'g'"
-                  "), '\\s+', ' ', 'g')), 90)")
+        chiave = CHIAVE_TITOLO_SQL
         cur.execute(f"""
             WITH distinte AS (
                 SELECT ticker,
@@ -250,6 +260,84 @@ def market_anomalie():
                    "anomalie": [], "righe": []}
 
     cache_set(chiave, payload, ttl=ANOMALIE_TTL if payload["righe"] else 60)
+    return payload
+
+
+def _fetch_copertura() -> dict:
+    """
+    Quante notizie DISTINTE ci sono dietro ogni titolo.
+
+    Stesso conteggio della classifica, riprese fuse, cosi' il numero che il
+    selettore mostra e quello che la pagina mostra non possono divergere.
+    """
+    pool = get_pool()
+    conn = pool.getconn()
+    try:
+        cur = conn.cursor()
+        cur.execute(f"""
+            WITH distinte AS (
+                SELECT ticker,
+                       COALESCE(NULLIF({CHIAVE_TITOLO_SQL}, ''),
+                                'id:' || id::text) AS chiave,
+                       MAX(published_date) AS quando
+                FROM news
+                WHERE published_date >= NOW() - INTERVAL '{int(BASELINE_DAYS)} days'
+                GROUP BY ticker, 2
+            )
+            SELECT ticker,
+                   COUNT(*) FILTER (
+                       WHERE quando >= NOW() - INTERVAL '{int(WINDOW_HOURS)} hours'
+                   ) AS ora,
+                   COUNT(*) AS settimana
+            FROM distinte
+            GROUP BY ticker
+        """)
+        righe = cur.fetchall()
+        cur.close()
+    finally:
+        pool.putconn(conn)
+    return {t: {"ora": int(o or 0), "settimana": int(s or 0)} for t, o, s in righe}
+
+
+@router.get("/copertura")
+def market_copertura():
+    """
+    Cosa c'e' davvero dietro ogni nome della lista, prima che uno ci clicchi.
+
+    PERCHE' ESISTE
+
+    Il selettore offre 302 titoli. L'archivio ne raccoglie di continuo 52, e
+    il 18 agosto 2026 solo 27 arrivavano a MIN_NEWS notizie distinte in 48
+    ore. Quindi chi apriva la lista e sceglieva un nome a caso aveva meno di
+    una probabilita' su dieci di trovarci qualcosa, e nessun modo di saperlo
+    prima di cliccare.
+
+    Era l'unico posto del prodotto che prometteva senza dire quanto: la
+    correlazione si rifiuta di comparire sotto i venti giorni, il rilevatore
+    di anomalie dichiara "in apprendimento", i giorni senza notizie restano
+    vuoti invece di diventare zeri. Il selettore no.
+
+    Pubblico e in cache come il resto: e' lo stesso dato della classifica,
+    contato allo stesso modo.
+    """
+    chiave = f"market:copertura:{_finestra(MARKET_TTL)}"
+    cached = cache_get(chiave, ttl=MARKET_TTL)
+    if cached is not None:
+        return cached
+
+    try:
+        titoli = _fetch_copertura()
+    except Exception as e:
+        logger.error("market copertura error: %s", e)
+        titoli = {}
+
+    payload = {
+        "min_news": MIN_NEWS,
+        "finestra_ore": WINDOW_HOURS,
+        "giorni_base": BASELINE_DAYS,
+        "titoli": titoli,
+    }
+    cache_set(chiave, payload, ttl=MARKET_TTL if titoli else 60)
     return payload
 
 

@@ -22,6 +22,8 @@ import Icon               from './components/Icon.jsx'
 import MarketToday        from './components/MarketToday.jsx'
 import { useFinData } from './hooks/useFinData.js'
 import { generateReport } from './utils/generatePDF.js'
+import { statoCopertura, etichettaCopertura, coloreCopertura, offriScarico, PIENA, VUOTA }
+  from './utils/copertura.js'
 import { identifyUser, resetUser, track } from './analytics.js'
 import { TICKERS } from './data/tickers.js'
 import LogoCrypto, { eCrypto, nelMercato, leggiMercato, salvaMercato, PREDEFINITO }
@@ -149,6 +151,11 @@ export default function App() {
   // dashboard e barra di stato: prima ogni pezzo se li sarebbe ripresi da solo.
   const [mercato, setMercato] = useState(null)
   const [mktStats, setMktStats] = useState(null)
+  // Quanto c'è dietro ogni nome della lista. Il selettore ne offre 302,
+  // l'archivio ne segue 52, e il 18 agosto 2026 ventisette arrivavano a
+  // cinque notizie in 48 ore: senza questo dato chi sceglie un nome a caso
+  // non ha modo di saperlo prima di cliccarci.
+  const [copertura, setCopertura] = useState(null)
   // Vero quando il backend non risponde: quasi sempre significa che Render lo
   // ha spento per inattività (succede dopo un quarto d'ora) e ci mette circa un
   // minuto a ripartire. Prima l'errore veniva ingoiato in silenzio e l'utente
@@ -174,11 +181,16 @@ export default function App() {
       Promise.all([
         apiFetch('/market/today'),
         apiFetch('/market/stats'),
+        // Se la copertura non arriva, il selettore resta com'era prima e non
+        // dice niente: peggiora, non si rompe. Per questo ha un catch suo e
+        // non fa fallire le altre due.
+        apiFetch('/market/copertura').catch(() => null),
       ])
-        .then(([oggi, stat]) => {
+        .then(([oggi, stat, cop]) => {
           if (!vivo) return
           setMercato(oggi)
           setMktStats(stat)
+          if (cop) setCopertura(cop)
           setRisveglio(false)
         })
         .catch(() => {
@@ -492,6 +504,7 @@ export default function App() {
               ? (lang === 'it' ? 'Cerca' : 'Search') : t.header.enterTicker}
             mercatoAttivo={mercatoAttivo}
             days={days} period={period}
+            copertura={copertura}
             onLoad={handleLoad} onTickerChange={setTicker}
           />
 
@@ -939,8 +952,38 @@ export default function App() {
                   {giaProvati.current.has(loadedTicker) ? (
                     <>
                       <div style={{ fontSize: 14, color: 'var(--azure)', marginBottom: 8 }}>{t.main.noNews}</div>
-                      <div style={{ fontSize: 12, color: 'var(--muted)' }}>
-                        {t.main.noNewsHint} <b style={{ color: 'var(--white)' }}>{t.main.refreshNews}</b> {t.main.noNewsHint2}
+                      {/* PERCHE' e' vuoto, non solo che e' vuoto.
+                          Chi arriva qui ha scelto un nome dalla lista dei 302
+                          o l'ha scritto a mano, e senza questa riga pensa che
+                          il prodotto sia rotto invece che non seguire quel
+                          titolo. Il 17 agosto 2026 la sessione piu' attiva
+                          mai registrata ha scritto ADIL e BB, che nella
+                          lista non ci sono nemmeno. */}
+                      {offriScarico(statoCopertura(copertura, loadedTicker)) && (
+                        <div style={{ fontSize: 12, color: 'var(--muted)', marginBottom: 8 }}>
+                          {lang === 'it'
+                            ? 'Questo titolo non è fra quelli raccolti di continuo, quindi in archivio non c\'è niente di suo.'
+                            : 'This ticker is not one of those collected continuously, so there is nothing of its own in the archive.'}
+                        </div>
+                      )}
+                      <button
+                        onClick={() => handleFetch(loadedTicker)}
+                        disabled={fetching}
+                        style={{
+                          fontSize: 12.5, padding: '7px 14px', borderRadius: 7,
+                          border: '1px solid var(--border-br)',
+                          background: 'rgba(var(--rgb-contrasto), 0.04)',
+                          color: 'var(--white)',
+                          cursor: fetching ? 'default' : 'pointer',
+                          opacity: fetching ? 0.6 : 1,
+                        }}
+                      >
+                        {fetching ? t.sidebar.updating : t.main.refreshNews}
+                      </button>
+                      <div style={{ fontSize: 11.5, color: 'var(--muted)', marginTop: 8 }}>
+                        {lang === 'it'
+                          ? 'Cerca adesso su questo titolo. Può non trovare niente.'
+                          : 'Searches for this ticker now. It may find nothing.'}
                       </div>
                     </>
                   ) : (
@@ -1011,11 +1054,12 @@ export default function App() {
 // ── Sub-components ────────────────────────────────────────────────────────────
 
 // ── Ricerca ticker nell'header (con suggerimenti, come la sidebar) ─────────
-function HeaderSearch({ placeholder, days, period, onLoad, onTickerChange, mercatoAttivo }) {
+function HeaderSearch({ placeholder, days, period, onLoad, onTickerChange, mercatoAttivo, copertura }) {
   const [q, setQ] = useState('')
   const [sugg, setSugg] = useState([])
   const [open, setOpen] = useState(false)
   const campo = useRef(null)
+  const { lang } = useLang()
 
   // Ctrl+K (o Cmd+K) porta il cursore qui da qualunque punto dell'app: è il
   // gesto che chi usa strumenti professionali si aspetta di trovare.
@@ -1087,7 +1131,13 @@ function HeaderSearch({ placeholder, days, period, onLoad, onTickerChange, merca
           borderRadius: 8, zIndex: 100, overflow: 'hidden',
           boxShadow: 'var(--ombra)',
         }}>
-          {sugg.map(tk => (
+          {sugg.map(tk => {
+            // Quanto c'è dietro questo nome, detto PRIMA del clic. Finché il
+            // dato non è arrivato l'etichetta è vuota: uno "0 notizie"
+            // mostrato per un secondo fa scartare un titolo che ne ha novanta.
+            const c = statoCopertura(copertura, tk.symbol)
+            const etichetta = etichettaCopertura(c, lang)
+            return (
             <div
               key={tk.symbol}
               onMouseDown={() => go(tk.symbol)}
@@ -1099,8 +1149,27 @@ function HeaderSearch({ placeholder, days, period, onLoad, onTickerChange, merca
               {eCrypto(tk.symbol) && <LogoCrypto ticker={tk.symbol} size={15} />}
               <b>{eCrypto(tk.symbol) ? tk.symbol.replace('-USD', '') : tk.symbol}</b>
               <span style={{ color: 'var(--muted)', fontSize: 12, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{tk.name}</span>
+              {etichetta && (
+                <span style={{
+                  marginLeft: 'auto', flexShrink: 0, display: 'flex',
+                  alignItems: 'center', gap: 5,
+                  fontFamily: 'var(--mono)', fontSize: 10,
+                  color: c.stato === PIENA ? 'var(--white)' : 'var(--muted)',
+                }}>
+                  <span style={{
+                    width: 5, height: 5, borderRadius: '50%',
+                    background: coloreCopertura(c.stato),
+                    // Il vuoto ha il cerchio solo contornato: si distingue
+                    // dallo scarso anche senza leggere il testo.
+                    boxShadow: c.stato === VUOTA
+                      ? 'inset 0 0 0 1px var(--muted)' : 'none',
+                  }} />
+                  {etichetta}
+                </span>
+              )}
             </div>
-          ))}
+            )
+          })}
         </div>
       )}
     </div>
