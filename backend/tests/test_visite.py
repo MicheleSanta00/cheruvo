@@ -111,3 +111,175 @@ def test_se_la_scrittura_fallisce_i_conteggi_non_si_perdono():
     assert visite._conteggio.get(("sessione-x", "/api/market/today")) == 7, (
         "i conteggi sono stati persi invece di essere rimessi in coda")
     visite._conteggio.clear()
+
+
+# ── Leggere il numero senza farsi ingannare dal timer ─────────────────────
+#
+# Il frontend si ricarica da solo: la classifica ogni 15 minuti, il titolo
+# aperto ogni 10, i prezzi del grafico giornaliero ogni 60 secondi. Quindi
+# `richieste` sale anche con una scheda dimenticata aperta e NON misura
+# l'interesse, per quanto il docstring di questo file l'abbia sostenuto fino
+# al 18 agosto 2026. Quello che un timer non gonfia sono i percorsi distinti.
+class _CursoreFinto:
+    def __init__(self, righe):
+        self._righe = righe
+
+    def execute(self, *_a, **_k):
+        pass
+
+    def fetchall(self):
+        return self._righe
+
+    def close(self):
+        pass
+
+
+def _con_righe(righe):
+    from unittest.mock import MagicMock, patch
+    conn = MagicMock()
+    conn.cursor.return_value = _CursoreFinto(righe)
+    pool = MagicMock()
+    pool.getconn.return_value = conn
+    return patch("database.get_pool", return_value=pool)
+
+
+def test_una_scheda_lasciata_aperta_non_sembra_una_visita_attiva():
+    """
+    Il 17 agosto 2026 il rapporto richieste/sessioni era 78 a 1, il piu' alto
+    mai registrato, e sembrava il visitatore piu' interessato di sempre. Erano
+    i prezzi del grafico giornaliero richiesti una volta al minuto.
+    """
+    righe = [("s1", "/api/prices/NVDA", 62),
+             ("s1", "/api/market/today", 5),
+             ("s1", "/api/news/NVDA", 4),
+             ("s1", "/api/sentiment/NVDA", 4)]
+    with _con_righe(righe):
+        d = visite.dettaglio("2026-08-17")
+
+    assert len(d) == 1
+    assert d[0]["richieste"] == 75, "le richieste restano tante"
+    assert d[0]["percorsi"] == 4, (
+        "i percorsi distinti devono restare quattro: sessantadue chiamate "
+        "allo stesso indirizzo sono un timer, non una persona")
+
+
+def test_chi_gira_davvero_nel_sito_si_vede_dai_percorsi():
+    """Tre titoli guardati fanno tre terzine di percorsi diversi."""
+    righe = [(f"s2", f"/api/{cosa}/{t}", 1)
+             for t in ("NVDA", "ENI.MI", "BTC-USD")
+             for cosa in ("news", "prices", "sentiment")]
+    with _con_righe(righe):
+        d = visite.dettaglio("2026-08-17")
+
+    assert d[0]["percorsi"] == 9
+    assert d[0]["richieste"] == 9, (
+        "nove richieste e nove percorsi: meno traffico del caso qui sopra "
+        "ma molto piu' interesse")
+
+
+def test_il_dettaglio_tiene_separate_le_sessioni():
+    righe = [("s1", "/api/market/today", 3),
+             ("s2", "/api/market/today", 1),
+             ("s2", "/api/news/ENI.MI", 1)]
+    with _con_righe(righe):
+        d = {x["sessione"]: x for x in visite.dettaglio("2026-08-17")}
+
+    assert d["s1"]["percorsi"] == 1 and d["s1"]["richieste"] == 3
+    assert d["s2"]["percorsi"] == 2 and d["s2"]["richieste"] == 2
+
+
+def test_il_riepilogo_porta_anche_i_percorsi():
+    """
+    Senza questa colonna il rapporto mostra solo il numero gonfiabile, ed e'
+    quello che si guarda per decidere se la promozione funziona.
+    """
+    from datetime import date
+    with _con_righe([(date(2026, 8, 17), 1, 78, 4)]):
+        r = visite.riepilogo(14)
+
+    assert r[0]["percorsi"] == 4
+    assert r[0]["richieste"] == 78
+
+
+def test_un_giorno_senza_visite_non_inventa_niente():
+    with _con_righe([]):
+        assert visite.dettaglio("2026-08-12") == []
+
+
+# ── La promessa sulla privacy, imposta invece che dichiarata ──────────────
+def test_la_schermata_iniziale_non_e_una_scelta():
+    """
+    Il 16 agosto 2026 DIA e GOOG comparivano in sei sessioni su nove, sempre
+    con un solo `/news/`, mai con prezzi o sentiment. Non li cercava nessuno:
+    sono nella watchlist predefinita e la sidebar li chiede da sola.
+    """
+    iniziale = ["/api/market/today", "/api/market/stats", "/api/fear-greed",
+                "/api/news/DIA", "/api/news/GOOG"]
+    assert visite.titoli_scelti(iniziale) == set()
+
+
+def test_un_titolo_aperto_si_riconosce_dal_validate():
+    """`useFinData` chiama /validate/ come prima cosa, e solo li'."""
+    percorsi = ["/api/market/today", "/api/news/DIA", "/api/news/GOOG",
+                "/api/validate/SOL-USD", "/api/news/SOL-USD",
+                "/api/prices/SOL-USD", "/api/sentiment/SOL-USD"]
+    assert visite.titoli_scelti(percorsi) == {"SOL-USD"}
+
+
+def test_la_sessione_da_sei_percorsi_del_16_agosto_aveva_scelto_solana():
+    """
+    Con la vecchia regola (percorsi <= 6) questa sessione veniva stampata
+    come "ha aperto e basta". Aveva aperto Solana.
+    """
+    percorsi = ["/api/market/today", "/api/market/stats", "/api/fear-greed",
+                "/api/news/SOL-USD", "/api/prices/SOL-USD",
+                "/api/sentiment/SOL-USD", "/api/validate/SOL-USD"]
+    assert visite.titoli_scelti(percorsi) == {"SOL-USD"}
+
+
+def test_piu_titoli_aperti_si_contano_tutti():
+    percorsi = [f"/api/validate/{t}" for t in
+                ("ETH-USD", "DOGE-USD", "SOL-USD", "ETH-USD")]
+    assert visite.titoli_scelti(percorsi) == {"ETH-USD", "DOGE-USD", "SOL-USD"}
+
+
+def test_l_identificativo_dell_utente_non_finisce_nella_tabella():
+    """
+    Il docstring promette che il conteggio non e' legato a un account. Il 18
+    agosto 2026 il dettaglio dei percorsi ha mostrato
+    `/api/subscription/b86cd4db-...` salvato accanto al gettone di sessione:
+    da li' si risaliva alla persona con una join.
+    """
+    visite._conteggio.clear()
+    visite.registra("s1", "/api/subscription/b86cd4db-7a1e-43b3-8042-9976dd921579")
+    chiavi = list(visite._conteggio)
+    visite._conteggio.clear()
+
+    assert chiavi == [("s1", "/api/subscription/:id")], chiavi
+    assert not any("b86cd4db" in p for _, p in chiavi)
+
+
+def test_i_percorsi_normali_restano_intatti():
+    """Mascherare troppo vorrebbe dire perdere proprio quello che serve."""
+    for p in ("/api/news/NVDA", "/api/prices/ENI.MI", "/api/summary/BTC-USD",
+              "/api/market/today", "/api/validate/ADIL"):
+        assert visite.senza_identificativi(p) == p, p
+
+
+def test_l_identificativo_sparisce_anche_in_mezzo_al_percorso():
+    assert visite.senza_identificativi(
+        "/api/utenti/b86cd4db-7a1e-43b3-8042-9976dd921579/watchlist"
+    ) == "/api/utenti/:id/watchlist"
+
+
+def test_due_utenti_diversi_sullo_stesso_indirizzo_si_sommano():
+    """
+    Mascherare non deve creare righe doppie: due sessioni sullo stesso
+    endpoint devono restare due chiavi, la stessa sessione una sola.
+    """
+    visite._conteggio.clear()
+    visite.registra("s1", "/api/subscription/aaaaaaaa-1111-2222-3333-444444444444")
+    visite.registra("s1", "/api/subscription/bbbbbbbb-1111-2222-3333-444444444444")
+    assert visite._conteggio[("s1", "/api/subscription/:id")] == 2
+    assert len(visite._conteggio) == 1
+    visite._conteggio.clear()

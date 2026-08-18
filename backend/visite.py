@@ -43,11 +43,27 @@ COME SI LEGGE IL NUMERO, ONESTAMENTE
 apre il sito la mattina e il pomeriggio conta due volte, e una che tiene la
 scheda aperta tutto il giorno conta una volta sola. È una stima, non un censimento.
 
-`richieste` è sempre più grande e serve solo a capire se qualcuno sta usando
-davvero il sito o l'ha solo aperto: molte richieste per poche sessioni vuol
-dire che la gente ci clicca dentro. Nelle prime quattro giornate raccolte il
-rapporto era 46, 6, 37 e 30: solo la seconda è un rimbalzo, le altre sono
-qualcuno che ha cambiato titolo più volte.
+`richieste` NON dice quanto interesse c'è, e per un po' questo file ha scritto
+il contrario. Diceva che molte richieste per poche sessioni vogliono dire che
+la gente ci clicca dentro, e citava i rapporti 46, 6, 37 e 30 delle prime
+giornate come prova.
+
+È sbagliato, e il motivo sta nel frontend. `App.jsx` si ricarica da solo: la
+classifica ogni 15 minuti, i dati del titolo aperto ogni 10, e i prezzi del
+grafico giornaliero ogni 60 secondi finché la borsa è aperta. Una scheda
+lasciata aperta un'ora, con nessuno davanti, produce da sola una sessantina di
+richieste. Il 17 agosto 2026 il rapporto era 78 a 1, il più alto mai visto, ed
+è esattamente ciò che si vede quando qualcuno apre il sito e se ne va.
+
+Quello che un ciclo automatico non può gonfiare sono i PERCORSI DISTINTI, cioè
+la colonna `percorsi`. Un timer chiede sempre le stesse cose e non ne aggiunge
+una; una persona che cambia titolo ne aggiunge tre ogni volta. Aprire il sito
+e guardare il titolo predefinito costa cinque o sei percorsi: sotto quella
+soglia nessuno ha fatto niente, sopra qualcuno si è mosso.
+
+    python backend/visite.py --dettaglio 2026-08-17
+
+stampa, per ogni sessione di quel giorno, che cosa ha chiesto davvero.
 
 CHI SVILUPPA NON DEVE CONTARSI
 
@@ -64,12 +80,29 @@ chiaro nel bundle. Si annulla con `?noncontarmi=0`.
     python backend/visite.py            # stampa gli ultimi 14 giorni
 """
 import logging
+import re
 import sys
 import threading
 import time
 from datetime import datetime, timezone
 
 logger = logging.getLogger(__name__)
+
+# Qui sopra c'e' scritto che il conteggio non e' legato a un account. Il 18
+# agosto 2026 non era piu' vero: `/api/subscription/{user_id}` porta
+# l'identificativo dell'utente dentro il percorso, e finiva nella tabella
+# accanto al gettone di sessione. Bastava una join per sapere chi era.
+#
+# Nessuno l'aveva messo li' apposta: l'indirizzo esiste da mesi ed e' il
+# conteggio dei percorsi ad averlo fatto vedere. Una promessa sulla privacy
+# scritta nel docstring non si mantiene da sola, va imposta dal codice.
+_IDENTIFICATIVO = re.compile(
+    r"/[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}", re.I)
+
+
+def senza_identificativi(percorso: str) -> str:
+    """Toglie dal percorso gli UUID, che dicono CHI invece di COSA."""
+    return _IDENTIFICATIVO.sub("/:id", percorso or "")
 
 # Solo il traffico che indica una persona davanti a uno schermo.
 # `/ping` e `/health` sono la sveglia esterna che chiama ogni pochi minuti:
@@ -149,7 +182,7 @@ def registra(sessione: str, percorso: str) -> None:
         return
 
     global _ultimo_scarico
-    chiave = (sessione[:64], percorso[:120])
+    chiave = (sessione[:64], senza_identificativi(percorso)[:120])
     scarica = False
 
     with _serratura:
@@ -218,10 +251,14 @@ def riepilogo(giorni: int = 14) -> list[dict]:
     try:
         cur = conn.cursor()
         _tabella(cur)
+        # COUNT(*) sono i percorsi distinti: la chiave primaria è
+        # (giorno, sessione, percorso), quindi ogni riga è una cosa diversa
+        # chiesta almeno una volta. È il numero che un timer non gonfia.
         cur.execute("""
             SELECT giorno,
                    COUNT(DISTINCT sessione) AS sessioni,
-                   SUM(quante)              AS richieste
+                   SUM(quante)              AS richieste,
+                   COUNT(*)                 AS percorsi
             FROM visite
             WHERE giorno >= CURRENT_DATE - %s::integer
             GROUP BY giorno
@@ -231,8 +268,64 @@ def riepilogo(giorni: int = 14) -> list[dict]:
         cur.close()
     finally:
         pool.putconn(conn)
-    return [{"giorno": g.isoformat(), "sessioni": int(s), "richieste": int(r)}
-            for g, s, r in righe]
+    return [{"giorno": g.isoformat(), "sessioni": int(s),
+             "richieste": int(r), "percorsi": int(p)}
+            for g, s, r, p in righe]
+
+
+def titoli_scelti(percorsi) -> set:
+    """
+    I titoli che la persona ha scelto, distinti da quelli che carica l'app.
+
+    `useFinData` chiama `/validate/{ticker}` come PRIMA cosa quando si apre un
+    titolo, e non lo chiama in nessun altro caso. Quindi un `validate` e' una
+    scelta, mentre `/news/{tk}` da solo non lo e': la sidebar lo chiede da
+    sola per ogni titolo della watchlist predefinita, ed e' il motivo per cui
+    DIA e GOOG comparivano in quasi tutte le sessioni del 16 agosto 2026
+    senza che nessuno li avesse cercati.
+
+    Contare i percorsi invece delle scelte faceva sbagliare in tutte e due le
+    direzioni: la schermata iniziale ne costa cinque senza che nessuno tocchi
+    niente, e una sessione da sei percorsi veniva marcata "ha aperto e basta"
+    quando aveva aperto Solana.
+    """
+    return {p.rsplit("/", 1)[-1] for p in percorsi if "/validate/" in p}
+
+
+def dettaglio(giorno: str) -> list[dict]:
+    """
+    Cosa ha chiesto davvero ogni sessione di un certo giorno.
+
+    Serve a distinguere le due cose che la colonna `richieste` confonde: una
+    persona che si muove nel sito e una scheda dimenticata aperta che si
+    ricarica da sola.
+    """
+    from database import get_pool
+    pool = get_pool()
+    conn = pool.getconn()
+    try:
+        cur = conn.cursor()
+        _tabella(cur)
+        cur.execute("""
+            SELECT sessione, percorso, quante
+            FROM visite
+            WHERE giorno = %s::date
+            ORDER BY sessione, quante DESC, percorso
+        """, (giorno,))
+        righe = cur.fetchall()
+        cur.close()
+    finally:
+        pool.putconn(conn)
+
+    sessioni: dict[str, list] = {}
+    for s, p, n in righe:
+        sessioni.setdefault(s, []).append((p, int(n)))
+    return [{"sessione": s,
+             "percorsi": len(v),
+             "richieste": sum(n for _, n in v),
+             "scelti": titoli_scelti(p for p, _ in v),
+             "cosa": v}
+            for s, v in sessioni.items()]
 
 
 def main(giorni: int = 14) -> int:
@@ -245,10 +338,11 @@ def main(giorni: int = 14) -> int:
         print("  Se il frontend aggiornato non e' ancora online, e' normale.")
         return 0
 
-    print(f"\n  {'giorno':<12}{'sessioni':>10}{'richieste':>12}")
-    print("  " + "-" * 34)
+    print(f"\n  {'giorno':<12}{'sessioni':>10}{'richieste':>12}{'percorsi':>11}")
+    print("  " + "-" * 45)
     for r in righe:
-        print(f"  {r['giorno']:<12}{r['sessioni']:>10}{r['richieste']:>12}")
+        print(f"  {r['giorno']:<12}{r['sessioni']:>10}"
+              f"{r['richieste']:>12}{r['percorsi']:>11}")
 
     tot = sum(r["sessioni"] for r in righe)
     print(f"\n  totale sessioni nel periodo: {tot}")
@@ -256,6 +350,32 @@ def main(giorni: int = 14) -> int:
     print("  un giorno conta due volte, chi lascia la scheda aperta conta una")
     print("  volta sola. E' la stima piu' onesta che si possa fare senza")
     print("  seguire nessuno.")
+    print("\n  Guarda `percorsi`, non `richieste`. Il frontend si ricarica da")
+    print("  solo ogni minuto sul grafico giornaliero, quindi le richieste le")
+    print("  fa anche una scheda dimenticata aperta. I percorsi distinti no.")
+    print("  Aprire il sito e fermarsi li' costa cinque o sei percorsi.")
+    return 0
+
+
+def mostra_dettaglio(giorno: str) -> int:
+    sessioni = dettaglio(giorno)
+    print("=" * 52)
+    print(f"  DETTAGLIO — {giorno}")
+    print("=" * 52)
+    if not sessioni:
+        print("\n  Nessuna visita quel giorno.")
+        return 0
+
+    for s in sorted(sessioni, key=lambda x: -len(x["scelti"])):
+        print(f"\n  sessione {s['sessione'][:12]}...  "
+              f"{len(s['scelti'])} titoli scelti, "
+              f"{s['percorsi']} percorsi, {s['richieste']} richieste")
+        if s["scelti"]:
+            print(f"      -> {', '.join(sorted(s['scelti']))}")
+        else:
+            print("      -> nessuno: ha visto la schermata iniziale e basta")
+        for p, n in s["cosa"]:
+            print(f"      {n:>5}x  {p}")
     return 0
 
 
@@ -274,5 +394,10 @@ if __name__ == "__main__":
     ap = argparse.ArgumentParser(description="Quante sessioni distinte al giorno")
     ap.add_argument("--giorni", type=int, default=14,
                     help="quanti giorni indietro guardare (default 14)")
+    ap.add_argument("--dettaglio", metavar="GIORNO",
+                    help="cosa ha chiesto ogni sessione di quel giorno "
+                         "(formato 2026-08-17)")
     args = ap.parse_args()
+    if args.dettaglio:
+        sys.exit(mostra_dettaglio(args.dettaglio))
     sys.exit(main(args.giorni))
