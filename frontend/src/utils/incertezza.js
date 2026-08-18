@@ -60,6 +60,114 @@ export const MIN_COPPIE = 20
 const round3 = (v) => parseFloat(v.toFixed(3))
 
 /**
+ * La dispersione dei punteggi ARTICOLO PER ARTICOLO, misurata sull'archivio.
+ *
+ * Serve per sapere quanto vale la media giornaliera di un titolo: l'errore di
+ * una media di n articoli e' SIGMA/radice(n). E' lo stesso numero da cui viene
+ * MIN_NEWS = 5 in market.py, e i due devono restare d'accordo.
+ */
+export const SIGMA_ARTICOLO = 0.45
+
+/**
+ * Le fasce della classifica, invece delle posizioni.
+ *
+ * PERCHE'
+ *
+ * Il 18 agosto 2026, sulla classifica vera in produzione, NESSUNA delle 25
+ * coppie adiacenti era distinguibile. Il quarto e il quinto posto erano
+ * separati da 0,005 su una dispersione per articolo di 0,45; fra Microsoft e
+ * UniCredit c'era un millesimo.
+ *
+ * E' stato calcolato quanto volume servirebbe per ordinarle davvero: in
+ * mediana 7.938 notizie distinte per titolo ogni 48 ore, contro le 23 di
+ * allora. Un fattore trecentocinquanta. Non e' un problema di fonti, e' che
+ * quei distacchi sono piu' piccoli del rumore di misura, quindi il numero di
+ * posizione promette una precisione che non esistera' mai.
+ *
+ * Quello che i dati reggono invece sono le fasce: gruppi di titoli contigui
+ * tali che ogni fascia sia distinguibile dalla successiva. Dentro una fascia
+ * l'ordine e' casuale e non va mostrato; fra una fascia e l'altra la
+ * differenza esclude lo zero. Sulla classifica di quel giorno ne uscivano
+ * cinque, con distacchi da +0,089 a +0,176, tutti con la banda sopra zero.
+ *
+ * COME
+ *
+ * Si cerca la partizione PIU' FINE che regge, non una a numero fisso: tre
+ * fasce decise a tavolino sarebbero lo stesso errore delle ventisei
+ * posizioni, solo piu' piccolo. Se un giorno il volume cresce, le fasce
+ * aumentano da sole; se cala, si fondono.
+ *
+ * Ritorna [{ righe, media, lo, hi, n }], gia' in ordine.
+ */
+export function fasce(righe, sigma = SIGMA_ARTICOLO) {
+  const r = (righe || []).filter(
+    (x) => x && x.sentiment != null && Number(x.news) > 0,
+  )
+  if (r.length === 0) return []
+
+  const N = r.length
+  // Somme cumulate: media e numerosita' di un blocco in tempo costante.
+  const cumN = [0]
+  const cumS = [0]
+  for (let i = 0; i < N; i++) {
+    cumN.push(cumN[i] + Number(r[i].news))
+    cumS.push(cumS[i] + Number(r[i].sentiment) * Number(r[i].news))
+  }
+  const blocco = (a, b) => {
+    const n = cumN[b] - cumN[a]
+    return { media: (cumS[b] - cumS[a]) / n, n, se: sigma / Math.sqrt(n) }
+  }
+  // Due blocchi contigui si distinguono se il distacco esclude lo zero.
+  const separa = (a, b, c) => {
+    const p = blocco(a, b)
+    const q = blocco(b, c)
+    return p.media - q.media > 1.96 * Math.hypot(p.se, q.se)
+  }
+
+  // Quante fasce al massimo, dato il blocco precedente. Memoizzata: senza,
+  // su sessanta titoli l'esplorazione diventa esponenziale.
+  const memo = new Map()
+  const meglio = (a, b) => {
+    if (b === N) return { k: 0, taglio: null }
+    const chiave = a * (N + 1) + b
+    if (memo.has(chiave)) return memo.get(chiave)
+    let ott = { k: -Infinity, taglio: null }
+    for (let c = b + 1; c <= N; c++) {
+      if (!separa(a, b, c)) continue
+      const dopo = meglio(b, c)
+      if (dopo.k + 1 > ott.k) ott = { k: dopo.k + 1, taglio: c }
+    }
+    memo.set(chiave, ott)
+    return ott
+  }
+
+  let primo = { k: -Infinity, b: N }
+  for (let b = 1; b <= N; b++) {
+    const k = meglio(0, b).k + 1
+    if (k > primo.k) primo = { k, b }
+  }
+
+  const out = []
+  let a = 0
+  let b = primo.b
+  for (;;) {
+    const s = blocco(a, b)
+    out.push({
+      righe: r.slice(a, b),
+      media: round3(s.media),
+      lo: round3(s.media - 1.96 * s.se),
+      hi: round3(s.media + 1.96 * s.se),
+      n: s.n,
+    })
+    const dopo = meglio(a, b)
+    if (dopo.taglio == null) break
+    a = b
+    b = dopo.taglio
+  }
+  return out
+}
+
+/**
  * Correlazione di Pearson fra due serie, con la banda al 95%.
  *
  * Le due serie possono contenere buchi (null o undefined): vengono tenute solo

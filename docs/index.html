@@ -1,19 +1,20 @@
 <!DOCTYPE html>
-<html lang="it">
+<html lang="en">
 <head>
   <meta charset="UTF-8"/>
   <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
-  <title>Cheruvo — Il sentiment delle notizie, con la sua incertezza | Azioni e criptovalute</title>
-  <meta name="description" content="Cheruvo legge le notizie su azioni e criptovalute e le trasforma in un numero, sempre accompagnato dalla sua incertezza. Quando i dati non bastano per dire qualcosa, lo scrive invece di inventarsi una cifra. Piazza Affari inclusa. Gratis, senza carta."/>
+  <title>Cheruvo — News sentiment for stocks and crypto, with its uncertainty</title>
+  <meta name="description" content="Cheruvo reads financial news on stocks and crypto and turns each headline into a number, always shown with its uncertainty. When the data is not enough to say anything, it says so instead of inventing a figure. European listings included. Free, no card."/>
   <link rel="canonical" href="https://cheruvo.com/"/>
-  <meta property="og:title" content="Cheruvo — Il sentiment delle notizie, con la sua incertezza"/>
-  <meta property="og:description" content="Legge le notizie su azioni e criptovalute e ti dice che aria tira. Ogni numero arriva con la sua incertezza, e quando i dati non bastano la pagina lo scrive. Gratis."/>
+  <meta property="og:title" content="Cheruvo — News sentiment for stocks and crypto, with its uncertainty"/>
+  <meta property="og:description" content="Every number comes with its confidence band, and when the data is not enough the page says so instead of showing a figure. Open data from GDELT. Free, no card."/>
   <meta property="og:url" content="https://cheruvo.com"/>
   <meta property="og:type" content="website"/>
   <meta property="og:image" content="https://cheruvo.com/og-image.png"/>
   <meta property="og:image:width" content="1200"/>
   <meta property="og:image:height" content="630"/>
-  <meta property="og:locale" content="it_IT"/>
+  <meta property="og:locale" content="en_US"/>
+  <meta property="og:locale:alternate" content="it_IT"/>
   <meta name="twitter:image" content="https://cheruvo.com/og-image.png"/>
   <meta name="twitter:card" content="summary_large_image"/>
   <script type="application/ld+json">
@@ -329,7 +330,7 @@ document.querySelectorAll('[data-i18n],[data-i18n-html]').forEach(el => {
   const k = el.dataset.i18n || el.dataset.i18nHtml
   ORIG.set(k, el.dataset.i18nHtml ? el.innerHTML : el.textContent)
 })
-let lang = localStorage.getItem('lang') || 'it'
+let lang = localStorage.getItem('lang') || 'en'
 function applyLang(){
   document.querySelectorAll('[data-i18n],[data-i18n-html]').forEach(el => {
     const html = !!el.dataset.i18nHtml
