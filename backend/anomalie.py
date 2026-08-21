@@ -37,6 +37,19 @@ TRE SCELTE STATISTICHE, E IL MOTIVO
    niente. Quel √mediana è il minimo di rumore che un conteggio ha per natura,
    e usarlo come pavimento evita di gridare al picco per un +1.
 
+2-bis. Un pavimento anche sul TONO, per lo stesso motivo.
+   Mancava, e si è visto il primo giorno in cui il rilevatore ha parlato. Il
+   21 agosto 2026 AMD aveva uno scarto sul tono di 2,78 calcolato su UN
+   articolo: la "media giornaliera" di quel titolo era il punteggio di quel
+   singolo pezzo. GOOGL era dichiarato anomalo con z 4,06 su dieci articoli,
+   ma lo scostamento era 0,166 contro un errore naturale di 0,45/√10 = 0,14,
+   cioè poco più di un errore standard.
+
+   Il volume il pavimento ce l'aveva (il punto qui sopra), il tono no. Una
+   media di n articoli oscilla di SIGMA_ARTICOLO/√n anche se non succede
+   niente, ed è lo stesso ragionamento del √mediana: il rumore che una misura
+   ha per natura non va confuso con una notizia.
+
 3. Si confronta la QUOTA, non il conteggio nudo.
    Il sabato escono meno notizie su tutto. Senza correzione ogni sabato
    sembrerebbe un crollo di interesse per ogni moneta, e ogni lunedì un boom.
@@ -91,6 +104,22 @@ DA_QUANDO = date(2026, 8, 7)
 MINIMO_MEDIANA = 2.0     # una moneta con meno di 2 articoli al giorno tipici
                          # non ha una normalità da cui scostarsi
 FATTORE_MAD = 1.4826     # porta il MAD sulla scala di una deviazione standard
+
+# La dispersione dei punteggi ARTICOLO PER ARTICOLO, misurata sull'archivio.
+#
+# E' lo stesso numero da cui viene MIN_NEWS = 5 in market.py e che sta in
+# SIGMA_ARTICOLO dentro frontend/src/utils/incertezza.js. Serve qui perché la
+# media del tono di n articoli ha un errore naturale di SIGMA/√n, e senza
+# quello il rilevatore scambia una media corta per una notizia.
+SIGMA_ARTICOLO = 0.45
+
+# Sotto quanti articoli il tono di oggi non si giudica affatto.
+#
+# Col pavimento qui sopra un articolo solo difficilmente supera la soglia, ma
+# "difficilmente" non è "mai": con un pezzo a +1,0 su una mediana a -0,9 lo
+# scarto arriverebbe a 4,2. Un giudizio sul tono di un giorno costruito su un
+# titolo non è un giudizio, e vale la stessa soglia della classifica.
+MINIMO_ARTICOLI_TONO = 5
 
 # Oltre quante deviazioni si chiama anomalia.
 #
@@ -248,8 +277,17 @@ def _per_ticker(ticker: str, conteggi: dict, toni: dict,
     pavimento_quota = (pavimento_conteggi / mediana_conteggi) * mediana(quote) if quote else 0.0
 
     z_vol = scarto(quota_oggi, quote, pavimento_quota)
+
+    # Il tono di oggi vale quanto gli articoli su cui è calcolato. Con pochi
+    # pezzi la media balla da sola, e senza questo pavimento il rilevatore
+    # scambiava quel ballo per una notizia (AMD, 21 agosto 2026: z 2,78 su un
+    # articolo). Sotto MINIMO_ARTICOLI_TONO non si giudica proprio.
     storico_toni = [toni[g] for g in giorni if g in toni]
-    z_tono = scarto(tono_oggi, storico_toni) if tono_oggi is not None else None
+    if tono_oggi is None or n_oggi < MINIMO_ARTICOLI_TONO:
+        z_tono = None
+    else:
+        pavimento_tono = SIGMA_ARTICOLO / math.sqrt(n_oggi)
+        z_tono = scarto(tono_oggi, storico_toni, pavimento_tono)
 
     anomala = ((z_vol is not None and abs(z_vol) >= SOGLIA_Z)
                or (z_tono is not None and abs(z_tono) >= SOGLIA_Z))

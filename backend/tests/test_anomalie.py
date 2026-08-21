@@ -38,6 +38,74 @@ def _scenario(conteggi_passati: list[int], oggi_n: int,
     return an._per_ticker("TEST-USD", conteggi, toni, totale, oggi)
 
 
+# ── Il pavimento sul tono ─────────────────────────────────────────────────
+#
+# Trovati il 21 agosto 2026, il primo giorno in cui il rilevatore ha parlato
+# in produzione. Il volume aveva il suo pavimento di Poisson dal principio, il
+# tono no, e si e' visto subito.
+def test_il_tono_di_un_giorno_con_un_articolo_non_si_giudica():
+    """
+    AMD, 21 agosto 2026: scarto sul tono 2,78 calcolato su UN articolo. La
+    "media giornaliera" era il punteggio di quel singolo pezzo.
+    """
+    r = _scenario([10] * 15, oggi_n=1,
+                  toni_passati=[0.08] * 15, tono_oggi=0.9)
+    assert r["z_tono"] is None, r
+    assert r["stato"] != "anomalia"
+
+
+def test_sotto_cinque_articoli_il_tono_tace_ma_il_volume_no():
+    """
+    Le due misure sono indipendenti: pochi articoli tolgono il giudizio sul
+    tono, non quello sul volume. Un crollo di volume resta un crollo.
+    """
+    r = _scenario([40] * 15, oggi_n=2, toni_passati=[0.0] * 15, tono_oggi=0.9)
+    assert r["z_tono"] is None
+    assert r["z_volume"] is not None
+
+
+def test_uno_scostamento_dentro_l_errore_della_media_non_e_un_anomalia():
+    """
+    GOOGL, 21 agosto 2026: dichiarato anomalo con z 4,06. Dieci articoli,
+    tono 0,294 contro 0,128 tipico, cioe' uno scostamento di 0,166 contro un
+    errore naturale di 0,45/√10 = 0,142. Poco piu' di un errore standard.
+    """
+    r = _scenario([17] * 15, oggi_n=10,
+                  toni_passati=[0.128, 0.13, 0.126, 0.129, 0.127] * 3,
+                  tono_oggi=0.294)
+    assert abs(r["z_tono"]) < an.SOGLIA_Z, r
+    assert r["stato"] == "normale", r
+
+
+def test_ma_uno_scostamento_grosso_su_tanti_articoli_si_vede_ancora():
+    """
+    Il pavimento non deve rendere il rilevatore sordo: con cinquanta articoli
+    l'errore della media scende a 0,064 e un salto vero resta visibile.
+    """
+    r = _scenario([50] * 15, oggi_n=50,
+                  toni_passati=[0.05] * 15, tono_oggi=0.75)
+    assert r["z_tono"] is not None
+    assert r["stato"] == "anomalia", r
+
+
+def test_il_pavimento_del_tono_scende_quando_gli_articoli_salgono():
+    """La stessa notizia su piu' articoli deve pesare di piu', non di meno."""
+    pochi = _scenario([30] * 15, oggi_n=6,
+                      toni_passati=[0.0] * 15, tono_oggi=0.4)
+    tanti = _scenario([30] * 15, oggi_n=60,
+                      toni_passati=[0.0] * 15, tono_oggi=0.4)
+    assert abs(tanti["z_tono"]) > abs(pochi["z_tono"])
+
+
+def test_la_sigma_per_articolo_e_quella_misurata_sull_archivio():
+    """
+    Se cambia qui e non in market.py o in incertezza.js, tre parti del
+    prodotto cominciano a usare tre dispersioni diverse per la stessa cosa.
+    """
+    assert an.SIGMA_ARTICOLO == 0.45
+    assert an.MINIMO_ARTICOLI_TONO == 5
+
+
 # ── Statistica di base ────────────────────────────────────────────────────
 def test_la_mediana_regge_pari_e_dispari():
     assert an.mediana([3, 1, 2]) == 2
