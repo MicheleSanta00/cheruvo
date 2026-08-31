@@ -25,18 +25,38 @@ def _rel(conn):
     get_pool().putconn(conn)
 
 
-def get_pro_users_watchlists() -> dict[str, list[str]]:
-    """Restituisce {email: [ticker, ...]} solo per utenti PRO con watchlist."""
+def watchlist_per_utente() -> dict[str, list[str]]:
+    """
+    {email: [ticker, ...]} per CHIUNQUE abbia un account e una watchlist.
+
+    SI CHIAMAVA get_pro_users_watchlists, E NON ARRIVAVA A NESSUNO.
+
+    La versione precedente faceva un JOIN stretto su `subscriptions` con
+    `status = 'pro'`. Il paywall è spento dal 7 agosto 2026 e gli abbonati
+    sono zero, quindi quella tabella non ha righe 'pro': l'interrogazione
+    tornava vuota, `check_and_send_alerts` scriveva "Nessun utente PRO con
+    watchlist. Skip." e usciva. Quattro volte al giorno, da settimane.
+
+    Cioè: il rilevatore di anomalie calcolava tutto correttamente e l'email
+    non partiva mai, per nessuno, senza che niente si lamentasse.
+
+    È lo stesso difetto del muro di accesso trovato il 18 agosto: un residuo
+    del piano a pagamento che blocca il prodotto gratuito. Quando un pezzo di
+    codice chiede "sei PRO?" in un prodotto dove PRO non esiste, la risposta è
+    sempre no.
+
+    `digest.py` lo faceva già giusto: si passa da `auth.users`, che è dove
+    stanno davvero le email, e l'abbonamento semmai si legge a parte.
+    """
     conn = _conn()
     try:
         cur = conn.cursor()
-        # Join tra subscriptions (PRO) e watchlist
         cur.execute("""
-            SELECT s.email, w.ticker
-            FROM subscriptions s
-            JOIN watchlist w ON w.user_id = s.user_id
-            WHERE s.status = 'pro'
-            ORDER BY s.email, w.ticker
+            SELECT u.email, w.ticker
+            FROM watchlist w
+            JOIN auth.users u ON u.id = w.user_id
+            WHERE u.email IS NOT NULL
+            ORDER BY u.email, w.ticker
         """)
         rows = cur.fetchall()
         cur.close()
@@ -177,12 +197,13 @@ def _build_email_html(alerts: list[dict]) -> str:
 
 def check_and_send_alerts():
     """Entry point principale — chiamato da updater.py."""
-    logger.info("[Alerts] Controllo alert sentiment PRO...")
+    logger.info("[Alerts] Controllo avvisi sulle watchlist...")
 
-    user_watchlists = get_pro_users_watchlists()
+    user_watchlists = watchlist_per_utente()
     if not user_watchlists:
-        logger.info("[Alerts] Nessun utente PRO con watchlist. Skip.")
+        logger.info("[Alerts] Nessuno ha una watchlist. Skip.")
         return
+    logger.info("[Alerts] %d utenti con watchlist", len(user_watchlists))
 
     # Raccogli tutti i ticker unici
     all_tickers = list({t for tickers in user_watchlists.values() for t in tickers})
