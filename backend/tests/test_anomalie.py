@@ -38,6 +38,70 @@ def _scenario(conteggi_passati: list[int], oggi_n: int,
     return an._per_ticker("TEST-USD", conteggi, toni, totale, oggi)
 
 
+# ── La quota con il denominatore piccolo ──────────────────────────────────
+#
+# Il 31 agosto 2026, lunedi' alle 8:30 dopo un weekend, il rilevatore ha
+# dichiarato CINQUE anomalie: Shell +16,5σ, Solana +9,4σ, Broadcom +8,6σ,
+# Microsoft +4,3σ, Google +4,1σ. Tutte con UN articolo e tutte con MENO
+# articoli del solito. Non era cambiato il numeratore, era sparito il
+# denominatore: il mondo aveva pubblicato una dozzina di pezzi in tutto.
+def _giornata(conteggi_passati, oggi_n, totale_oggi, totale_passato=1000):
+    """Come _scenario, ma col totale del giorno controllabile."""
+    giorni = _giorni(len(conteggi_passati) + 1)
+    oggi = giorni[-1]
+    conteggi = {g: n for g, n in zip(giorni, conteggi_passati + [oggi_n])}
+    toni = {g: 0.0 for g in giorni}
+    totale = {g: totale_passato for g in giorni}
+    totale[oggi] = totale_oggi
+    return an._per_ticker("TEST-USD", conteggi, toni, totale, oggi)
+
+
+def test_il_lunedi_mattina_non_e_un_giorno_di_anomalie():
+    """Shell, 31 agosto: 1 articolo su una giornata da 13, dichiarato +16,5σ."""
+    r = _giornata([10] * 15, oggi_n=1, totale_oggi=13)
+    assert r["stato"] == "giornata_troppo_giovane", r
+    assert r["z_volume"] is None
+
+
+def test_la_giornata_vuota_lo_dice_invece_di_tacere():
+    r = _giornata([10] * 15, oggi_n=1, totale_oggi=13)
+    assert r["articoli_del_giorno"] == 13
+    assert "13" in an._descrivi(r)
+
+
+def test_a_giornata_piena_il_giudizio_torna():
+    """Il guardiano non deve rendere muto il rilevatore nel pomeriggio."""
+    r = _giornata([10] * 15, oggi_n=10, totale_oggi=1000)
+    assert r["stato"] in ("normale", "anomalia")
+    assert r["z_volume"] is not None
+
+
+def test_l_errore_binomiale_della_quota_fa_da_pavimento():
+    """
+    Anche sopra il guardiano, una quota stimata su pochi articoli balla. Con
+    60 articoli in giornata, un titolo che ne ha 3 sta al 5% contro l'1%
+    tipico: sembra un quintuplicamento, ma l'errore binomiale di quella
+    frazione e' quasi tre punti percentuali.
+    """
+    r = _giornata([10] * 15, oggi_n=3, totale_oggi=60)
+    assert r["z_volume"] is not None
+    assert abs(r["z_volume"]) < an.SOGLIA_Z, r
+
+
+def test_un_picco_vero_a_giornata_piena_si_vede_ancora():
+    """
+    Il pavimento non deve accecare: dieci volte il volume tipico su una
+    giornata normale resta un'anomalia.
+    """
+    r = _giornata([10] * 15, oggi_n=100, totale_oggi=1000)
+    assert r["stato"] == "anomalia", r
+
+
+def test_il_minimo_del_giorno_e_un_decimo_di_una_giornata_normale():
+    """Se cambia il volume dell'archivio questa soglia va rivista, non lasciata."""
+    assert an.MINIMO_TOTALE_GIORNO == 50
+
+
 # ── Il pavimento sul tono ─────────────────────────────────────────────────
 #
 # Trovati il 21 agosto 2026, il primo giorno in cui il rilevatore ha parlato

@@ -57,6 +57,24 @@ TRE SCELTE STATISTICHE, E IL MOTIVO
    quel giorno) toglie di mezzo l'effetto del giorno della settimana senza
    dover modellare niente.
 
+3-bis. Ma la quota ha un suo errore, e va dichiarato.
+   Il 31 agosto 2026, lunedì alle 8:30, il rilevatore ha segnalato CINQUE
+   anomalie: Shell +16,5σ, Solana +9,4σ, Broadcom +8,6σ, Microsoft +4,3σ,
+   Google +4,1σ. Tutte con UN articolo, tutte con MENO articoli del solito, e
+   tutte dichiarate anomale in su.
+
+   Il motivo è che la quota è una frazione, e una frazione con il denominatore
+   piccolo balla. A quell'ora il mondo aveva pubblicato una dozzina di
+   articoli in tutto, quindi un articolo solo valeva l'8% della giornata
+   contro una quota tipica dello 0,3%. Il numeratore non era cambiato: era
+   sparito il denominatore.
+
+   La correzione è la stessa medicina delle altre due: una quota stimata su
+   N estrazioni ha un errore binomiale di √(q(1−q)/N), e quello è il minimo
+   rumore che la misura ha per natura. Più il pavimento sulla giornata: sotto
+   MINIMO_TOTALE_GIORNO articoli non si giudica affatto, perché una frazione
+   costruita su niente non è una frazione.
+
 QUANDO NON SI SA
 
 L'archivio riparte dal 6 agosto 2026, e il 7 agosto le regole di raccolta sono
@@ -120,6 +138,20 @@ SIGMA_ARTICOLO = 0.45
 # scarto arriverebbe a 4,2. Un giudizio sul tono di un giorno costruito su un
 # titolo non è un giudizio, e vale la stessa soglia della classifica.
 MINIMO_ARTICOLI_TONO = 5
+
+# Sotto quanti articoli in TUTTA la giornata il rilevatore tace.
+#
+# La quota di un titolo è articoli suoi diviso articoli del giorno. Con un
+# denominatore piccolo quella frazione non misura più l'attenzione, misura
+# l'ora in cui hai guardato: il 31 agosto 2026 alle 8:30, dopo un weekend, il
+# totale era intorno a una dozzina e cinque titoli con un articolo a testa
+# sono stati dichiarati anomali fino a 16,5σ.
+#
+# Una giornata normale di questo archivio sta fra i 400 e i 700 articoli.
+# Cinquanta è circa un decimo: sotto quella soglia la giornata è troppo
+# giovane o troppo vuota perché le quote vogliano dire qualcosa, e dirlo è
+# più utile che riempire la schermata di falsi allarmi ogni lunedì mattina.
+MINIMO_TOTALE_GIORNO = 50
 
 # Oltre quante deviazioni si chiama anomalia.
 #
@@ -257,6 +289,17 @@ def _per_ticker(ticker: str, conteggi: dict, toni: dict,
                 "z_volume": None, "z_tono": None,
                 "notizie_tipiche": None, "sentiment_tipico": None}
 
+    # La giornata è troppo giovane o troppo vuota perché una quota significhi
+    # qualcosa. Non è una proprietà del titolo, è una proprietà del giorno:
+    # vale per tutti insieme, e vale la pena dirla invece di riempire la
+    # schermata di anomalie che spariscono da sole nel pomeriggio.
+    if tot_oggi < MINIMO_TOTALE_GIORNO:
+        return {**base, "stato": "giornata_troppo_giovane",
+                "articoli_del_giorno": tot_oggi,
+                "z_volume": None, "z_tono": None,
+                "notizie_tipiche": round(mediana([conteggi[g] for g in giorni]), 1),
+                "sentiment_tipico": None}
+
     # Quota di attenzione invece del conteggio nudo: toglie di mezzo il
     # sabato, quando escono meno notizie su tutto.
     quote = [conteggi[g] / totale_giorno[g] for g in giorni if totale_giorno.get(g)]
@@ -275,6 +318,15 @@ def _per_ticker(ticker: str, conteggi: dict, toni: dict,
     # convertito in quota prima di confrontarlo con la dispersione delle quote.
     pavimento_conteggi = math.sqrt(max(mediana_conteggi, 1.0))
     pavimento_quota = (pavimento_conteggi / mediana_conteggi) * mediana(quote) if quote else 0.0
+
+    # E il pavimento della quota di OGGI, che è una frazione stimata su
+    # tot_oggi estrazioni: il suo errore binomiale è il rumore che ha per
+    # natura. Senza questo, un articolo su una dozzina vale sedici sigma.
+    if tot_oggi:
+        pavimento_quota = max(
+            pavimento_quota,
+            math.sqrt(max(quota_oggi * (1.0 - quota_oggi), 0.0) / tot_oggi),
+        )
 
     z_vol = scarto(quota_oggi, quote, pavimento_quota)
 
@@ -340,6 +392,9 @@ def _descrivi(r: dict) -> str:
     if r["stato"] == "troppo_poche":
         return (f"{r['ticker']:<11} troppe poche notizie per avere una "
                 f"normalità ({r['notizie_tipiche']} al giorno)")
+    if r["stato"] == "giornata_troppo_giovane":
+        return (f"{r['ticker']:<11} giornata ancora troppo vuota per un "
+                f"giudizio ({r['articoli_del_giorno']} articoli in tutto)")
     pezzi = [f"{r['ticker']:<11} {r['notizie_oggi']:>3} notizie "
              f"(tipiche {r['notizie_tipiche']})"]
     if r["z_volume"] is not None:
