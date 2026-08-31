@@ -120,6 +120,46 @@ def test_il_rendimento_parte_dalla_chiusura_del_giorno_del_sentiment():
     assert abs(ys[0] - 0.10) < 1e-9
 
 
+def test_il_controllo_sul_giorno_stesso_non_torna_una_serie_di_zeri():
+    """
+    Il difetto trovato il 31 agosto 2026 leggendo l'uscita vera: con
+    orizzonte 0 la funzione faceva `dopo = giorno`, quindi p0 e p1 erano la
+    stessa chiusura e il rendimento veniva zero per OGNI giorno. Il controllo
+    stampava `rho = +0.000 su 38 giorni` e sembrava una misura.
+
+    Non e' cosmetico: quel controllo e' il collaudo dell'analisi. Doveva
+    mostrare un legame positivo forte, e mostrando zero sembrava smentire la
+    conclusione che il programma stava per trarre.
+    """
+    ieri = OGGI - timedelta(days=1)
+    sent = {OGGI: (0.5, 10)}
+    prezzi = {ieri: 100.0, OGGI: 110.0}
+    xs, ys = v.allinea(sent, prezzi, 0)
+    assert xs == [0.5]
+    assert abs(ys[0] - 0.10) < 1e-9, "il giorno stesso e' il movimento di T"
+
+
+def test_a_orizzonte_zero_su_piu_giorni_i_rendimenti_non_sono_tutti_uguali():
+    """La firma del difetto era proprio questa: una serie costante."""
+    giorni = [OGGI - timedelta(days=i) for i in range(5, 0, -1)]
+    sent = {g: (0.1 * i, 10) for i, g in enumerate(giorni)}
+    prezzi = {OGGI - timedelta(days=i): 100.0 + i * 7 for i in range(7)}
+    _, ys = v.allinea(sent, prezzi, 0)
+    assert len(set(round(y, 9) for y in ys)) > 1, ys
+
+
+def test_i_giorni_prima_del_cambio_di_regole_restano_fuori():
+    """
+    Fino al 16 agosto 2026 il filtro faceva passare gli utili e bocciava le
+    perdite, quindi il sentiment di quel periodo e' spostato in alto per
+    costruzione. Un test a cavallo misura la nostra correzione.
+    """
+    import inspect
+    sorgente = inspect.getsource(v.serie_sentiment)
+    assert "DA_QUANDO" in sorgente or "%s" in sorgente
+    assert v.DA_QUANDO.isoformat() == "2026-08-07"
+
+
 def test_i_giorni_con_poche_notizie_vengono_scartati():
     """Una media su due articoli non è un dato, è un aneddoto."""
     sent = {OGGI: (0.9, 2)}

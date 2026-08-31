@@ -67,6 +67,25 @@ GIRI_PERMUTAZIONE = 10000
 MINIMO_GIORNI = 30       # sotto questo non si dice niente, si dice che non si sa
 MINIMO_NOTIZIE = 5       # un giorno con meno notizie è rumore, non un dato
 
+# Il giorno da cui i dati sono confrontabili fra loro.
+#
+# Stessa ragione e stessa data di `DA_QUANDO` in anomalie.py, ma qui pesa di
+# più. Il 7 agosto 2026 sono cambiate le regole di raccolta, e fino al 16
+# agosto il filtro di contesto aveva un difetto asimmetrico: faceva passare
+# gli utili (gewinn, beneficios, utile netto) e non aveva UNA parola per la
+# perdita in nessuna lingua. Misurato allora: le notizie che scartava avevano
+# media -0,095 contro +0,084 di quelle ammesse.
+#
+# Quindi la serie del sentiment di quel periodo è spostata verso l'alto per
+# costruzione. Un test che attraversa quella data non misura il mercato,
+# misura la correzione di un nostro filtro, e con `--giorni 90` la attraversa
+# di sicuro.
+#
+# Il costo è che il verdetto arriva più tardi. È il prezzo giusto: un
+# risultato pubblicato su dati non omogenei lo smonta la prima persona che
+# guarda il changelog, che è pubblico.
+DA_QUANDO = date(2026, 8, 7)
+
 
 # ── Statistica, senza dipendenze esterne ──────────────────────────────────
 def _ranghi(v: list[float]) -> list[float]:
@@ -207,7 +226,7 @@ def serie_sentiment(ticker: str, giorni: int) -> dict[date, tuple[float, int]]:
         cur = conn.cursor()
         # L'ordine dei parametri deve seguire l'ordine in cui i segnaposto
         # compaiono nel testo: prima il titolo, poi i giorni, poi le fonti.
-        parametri = [ticker, giorni]
+        parametri = [ticker, giorni, DA_QUANDO]
         for prefisso in PREFISSI_LECITI:
             parametri.append(f"{prefisso} %")    # il pattern del LIKE
             parametri.append(prefisso)           # il confronto esatto
@@ -222,6 +241,10 @@ def serie_sentiment(ticker: str, giorni: int) -> dict[date, tuple[float, int]]:
               -- la stringa dell'intervallo: là dentro il segnaposto verrebbe
               -- quotato e produrrebbe un intervallo malformato.
               AND published_date >= NOW() - (%s * INTERVAL '1 day')
+              -- I giorni raccolti con le regole vecchie non entrano: vedi
+              -- DA_QUANDO. Senza questa riga il test misura il cambio del
+              -- filtro invece del mercato.
+              AND published_date::date >= %s
               AND sentiment IS NOT NULL
               AND ({condizione})
             GROUP BY giorno
@@ -325,15 +348,34 @@ def allinea(sent: dict, prezzi: dict, orizzonte: int
     cui vediamo il sentiment di oggi, la giornata di oggi è già andata. Farlo
     partire prima significherebbe scommettere su un movimento già avvenuto,
     che è il modo classico di produrre un backtest brillante e inutile.
+
+    L'ORIZZONTE ZERO ERA ROTTO, e il 31 agosto 2026 si è visto.
+
+    Con `orizzonte = 0` questa funzione faceva `dopo = giorno`, quindi p0 e p1
+    erano la stessa chiusura e il rendimento veniva ZERO per ogni giorno. Il
+    "controllo sul giorno stesso" correlava il sentiment con una serie di zeri
+    e stampava `rho = +0.000` su 38 giorni, che sembrava una misura ed era una
+    divisione degenere.
+
+    Il danno non è cosmetico: quel controllo è il collaudo di tutta l'analisi.
+    Doveva mostrare un legame POSITIVO e forte (la stampa che racconta quello
+    che il prezzo ha appena fatto), e mostrando zero sembrava smentire proprio
+    la conclusione che il resto del programma stava per trarre.
+
+    Il giorno stesso, per il sentiment di T, è il movimento AVVENUTO durante
+    T, cioè dalla chiusura di T-1 a quella di T.
     """
     xs, ys = [], []
     for giorno, (media, quante) in sorted(sent.items()):
         if quante < MINIMO_NOTIZIE:
             continue
-        dopo = giorno + timedelta(days=orizzonte)
-        if giorno not in prezzi or dopo not in prezzi:
+        if orizzonte == 0:
+            inizio, dopo = giorno - timedelta(days=1), giorno
+        else:
+            inizio, dopo = giorno, giorno + timedelta(days=orizzonte)
+        if inizio not in prezzi or dopo not in prezzi:
             continue
-        p0, p1 = prezzi[giorno], prezzi[dopo]
+        p0, p1 = prezzi[inizio], prezzi[dopo]
         if not p0:
             continue
         xs.append(media)
