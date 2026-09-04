@@ -31,10 +31,58 @@ name: Cheruvo — Raccolta dai file GDELT
 # La finestra resta di 2 ore contro un cron orario, di proposito: se un giro
 # salta, quello dopo recupera da solo il buco invece di lasciarlo lì per
 # sempre. Le righe doppie non sono un problema, save_news le scarta.
+#
+# ── LA FINESTRA ERA DIMENSIONATA SU UN SALTO SOLO ────────────────────────
+#
+# Misurato il 4 settembre 2026, cercando perché l'archivio fosse passato da
+# 700 righe al giorno a 300.
+#
+# Non si era rotto niente. Le esecuzioni erano tutte verdi e quelle che
+# partivano andavano meglio di prima: 27.648 righe esaminate contro 22.875,
+# 47 articoli pertinenti contro 38. GDELT dava di più e il filtro trovava di
+# più.
+#
+# Il problema era QUANTE volte partivano:
+#
+#     25 agosto     21 esecuzioni     archivio 783 righe
+#     3 settembre    6 esecuzioni     archivio 374 righe
+#
+# GitHub mette i cron in coda a bassa priorità e li salta quando la
+# piattaforma è carica. Il cron dice ogni ora, la realtà erano sei o sette
+# volte al giorno, con buchi fino a CINQUE ore fra un giro e il successivo.
+#
+# Con la finestra a due ore, tutto quello che cadeva in quei buchi non lo
+# leggeva più nessuno. I file su GDELT ci sono ancora, semplicemente nessuno
+# glieli chiedeva. Sei giri da due ore coprono al massimo dodici ore su
+# ventiquattro, ed è esattamente la metà che mancava all'archivio.
+#
+# C'era anche la prova incrociata, nel numero delle righe salvate. Il 25
+# agosto un giro salvava 18 righe su 39 assegnazioni, perché le altre 21 le
+# aveva già prese il giro di un'ora prima. Il 4 settembre ne salvava 52 su 52:
+# nessun duplicato, perché il giro precedente era di cinque ore prima e non
+# c'era niente da sovrapporre.
+#
+# LA CORREZIONE non è insistere sul cron, che non dipende da noi. È
+# dimensionare la finestra sul buco VERO invece che su quello immaginato:
+# otto ore coprono un salto di otto, cioè più del doppio del peggiore
+# osservato. E la frequenza scende a ogni due ore, perché un cron meno fitto
+# viene messo in coda meno spesso e perché con otto ore di finestra non serve
+# ripassare ogni sessanta minuti.
+#
+# Il costo è di leggere più volte gli stessi file. Non è un problema: le
+# righe doppie le scarta `save_news`, i minuti sono illimitati sul repository
+# pubblico, e un giro da otto ore sta comodamente dentro i quindici minuti di
+# tetto.
+#
+# Se un giorno anche questo non bastasse, la correzione successiva è smettere
+# di contare le ore e chiedere al database da quando riprendere. Non è stata
+# fatta adesso perché `published_date` è l'ora di pubblicazione e non quella
+# di lettura, quindi riprendere dall'ultimo articolo salterebbe quelli che
+# arrivano in ritardo.
 
 on:
   schedule:
-    - cron: '7 * * * *'
+    - cron: '7 */2 * * *'
   workflow_dispatch:
     inputs:
       ore:
@@ -72,7 +120,8 @@ jobs:
           PYTHONPATH:   ${{ github.workspace }}/backend
         run: |
           ORE="${{ github.event.inputs.ore }}"
-          ORE="${ORE:-2}"
+          # Otto e non due: vedi il blocco sul cron che salta, in cima.
+          ORE="${ORE:-8}"
           ARGS="--ore $ORE --limite-minuti 15"
           if [ "${{ github.event.inputs.solo_inglese }}" = "true" ]; then
             ARGS="$ARGS --solo-inglese"
@@ -85,6 +134,8 @@ jobs:
         run: |
           echo "Esito: ${{ job.status }}"
           echo ""
-          echo "Gira ogni ora e copre 2 ore: la sovrapposizione serve a"
-          echo "recuperare da solo un giro saltato. Le righe doppie le scarta"
-          echo "save_news."
+          echo "Gira ogni 2 ore e copre le 8 precedenti. La sovrapposizione e'"
+          echo "voluta: GitHub salta i cron quando e' carico, e il 4 settembre"
+          echo "2026 partiva 6 volte al giorno invece di 24, con buchi fino a"
+          echo "cinque ore. Con otto ore di finestra un salto lo recupera il"
+          echo "giro dopo. Le righe doppie le scarta save_news."
