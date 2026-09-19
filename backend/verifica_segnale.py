@@ -520,13 +520,47 @@ def analizza(ticker: str, giorni: int) -> int:
             print("   (troppi pochi giorni per il block bootstrap)")
 
         # La direzione opposta, sempre, anche quando la prima vince.
+        #
+        # E CON LO STESSO METRO DELL'ALTRA, che fino al 19 settembre 2026 non
+        # era vero. Qui c'era solo `permutazione`, cioè proprio il test che
+        # due righe più sopra questo stesso programma stampa etichettandolo
+        # "ottimista: rompe la dipendenza temporale". La direzione diretta
+        # doveva passare il block bootstrap e il peggiore dei blocchi;
+        # l'inversa se la cavava con la prova più facile.
+        #
+        # Non è una svista simmetrica, è peggio dove pesa di più. La finestra
+        # inversa a sette giorni confronta il sentiment di oggi col movimento
+        # della settimana precedente, e due giorni consecutivi condividono sei
+        # giorni su sette: l'autocorrelazione è enorme e la permutazione
+        # semplice, che mescola come se le osservazioni fossero indipendenti,
+        # produce p-value molto più bassi del dovuto.
+        #
+        # Su BTC quella riga dava p = 0,0001 a T+2 e a T+7, cioè il risultato
+        # più forte di tutto il progetto, calcolato con l'unico test che il
+        # programma stesso dichiara inaffidabile. Adesso passa dallo stesso
+        # setaccio: peggiore dei blocchi, e si confronta con la stessa soglia.
         xi, yi = allinea_inverso(sent, prezzi, h)
         if len(xi) >= MINIMO_GIORNI:
             rho_inv = spearman(xi, yi)
             p_inv = permutazione(xi, yi)
+            sens_inv = sensibilita_blocchi(xi, yi)
+            p_inv_bb = max(sens_inv.values()) if sens_inv else None
             print("   DIREZIONE INVERSA (il prezzo anticipa il sentiment):")
-            print(f"     rho = {rho_inv:+.3f}   p = {p_inv:.4f}")
-            if abs(rho_inv) > abs(rho) + 0.05:
+            print(f"     rho = {rho_inv:+.3f}   permutazione semplice p = {p_inv:.4f}")
+            if sens_inv:
+                print(f"     il PEGGIORE dei blocchi          p = {p_inv_bb:.4f}   "
+                      f"{'SOTTO la soglia' if p_inv_bb < soglia_p else 'sopra la soglia: compatibile col caso'}")
+                if max(sens_inv.values()) - min(sens_inv.values()) > 0.05:
+                    print("     ATTENZIONE: dipende dalla lunghezza del blocco più")
+                    print("     che dai dati, e non va riportato come una scoperta.")
+            else:
+                print("     (troppi pochi giorni per il block bootstrap)")
+
+            # "Più forte" si dice solo se regge lo stesso esame, se no si
+            # starebbe confrontando una misura severa con una indulgente.
+            piu_forte = (abs(rho_inv) > abs(rho) + 0.05
+                         and (p_inv_bb is not None and p_inv_bb < soglia_p))
+            if piu_forte:
                 print("     La direzione inversa e' PIU' FORTE di quella diretta.")
                 print("     Le notizie commentano il movimento invece di precederlo,")
                 print("     e la domanda 'il sentiment anticipa?' e' mal posta.")

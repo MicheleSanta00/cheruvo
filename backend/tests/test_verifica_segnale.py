@@ -379,3 +379,36 @@ def test_la_direzione_inversa_guarda_il_passato_e_non_il_futuro():
     # e la corrispondenza deve essere sfasata rispetto ad allinea()
     xd, yd = v.allinea(sent, prezzi, 1)
     assert (xs, ys) != (xd, yd), "le due direzioni misurano la stessa cosa"
+
+
+# ── Le due direzioni devono passare lo stesso esame ───────────────────────
+def test_anche_la_direzione_inversa_passa_dal_block_bootstrap():
+    """
+    Fino al 19 settembre 2026 la direzione inversa aveva solo la permutazione
+    semplice, cioè il test che questo stesso programma stampa etichettandolo
+    "ottimista: rompe la dipendenza temporale".
+
+    Pesava proprio dove contava: la finestra inversa a sette giorni confronta
+    il sentiment di oggi col movimento della settimana precedente, e due
+    osservazioni consecutive condividono sei giorni su sette. Su BTC-USD quel
+    calcolo dava p = 0,0001, il risultato più forte del progetto, ottenuto con
+    l'unico test dichiarato inaffidabile.
+    """
+    import inspect
+    sorgente = inspect.getsource(v.esegui) if hasattr(v, "esegui") else inspect.getsource(v)
+    blocco = sorgente.split("DIREZIONE INVERSA")[0][-2500:]
+    assert "sensibilita_blocchi(xi, yi)" in blocco, (
+        "la direzione inversa è tornata alla sola permutazione semplice")
+
+
+def test_piu_forte_si_dice_solo_a_parita_di_esame():
+    """
+    Dichiarare l'inversa "più forte" confrontando un rho severo con uno
+    indulgente sarebbe la stessa cosa che scegliere la lunghezza di blocco
+    che fa vincere.
+    """
+    import inspect
+    sorgente = inspect.getsource(v)
+    i = sorgente.find("piu_forte =")
+    assert i > 0, "la condizione non esiste più"
+    assert "p_inv_bb" in sorgente[i:i + 260]
