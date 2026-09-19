@@ -1,13 +1,39 @@
 # Cheruvo
 
-**[cheruvo.com](https://cheruvo.com)** · Il sentiment delle criptovalute, letto dalle notizie.
+**[cheruvo.com](https://cheruvo.com)** · News sentiment for stocks and crypto, with the uncertainty shown.
+
+Cheruvo reads financial news published around the world, matches it to 54 stocks
+and cryptocurrencies, and scores every headline from −1 to +1 from an investor's
+point of view. The daily average sits next to the price. Free, no account needed
+to look, European listings included.
+
+**It does not predict price, and that is measured rather than assumed.**
+Permutation test plus block bootstrap over three horizons, with the significance
+threshold fixed before looking at any result. On Bitcoin, 44 usable days and
+5,285 stories: nothing passes at any horizon, and at seven days the rank
+correlation is −0.001. What does hold is the opposite direction. Today's
+sentiment tracks the price move of the previous two to seven days, rho ≈ 0.61.
+A thermometer, not a barometer. The tool that says so is
+`backend/verifica_segnale.py`, and it reports the worst block length, never the
+best.
+
+Built by one person entirely on free tiers: React on Vercel, FastAPI on Render,
+PostgreSQL on Supabase, a language model via Groq, news from GDELT under a
+licence that permits commercial reuse. About 24,000 lines and more than 500
+automated tests.
+
+> The rest of this README is in Italian. It documents every non-obvious choice
+> in the project together with the measurement that justified it, including the
+> ones that killed a feature.
+
+---
 
 Cheruvo legge la stampa finanziaria mondiale, assegna un punteggio a ogni
-articolo su venti criptovalute e lo mette accanto all'indice di paura e avidità
-del mercato. Serve a rispondere a una domanda sola: **che aria tira su questa
-moneta, senza leggere settanta articoli.**
+articolo su 54 fra azioni e criptovalute e lo mette accanto al prezzo e
+all'indice di paura e avidità del mercato. Serve a rispondere a una domanda
+sola: **che aria tira su questo titolo, senza leggere settanta articoli.**
 
-Tutto in italiano, gratis, senza account a pagamento.
+Gratis, senza account a pagamento, e per guardare non serve registrarsi.
 
 ## Cosa NON è
 
@@ -37,9 +63,30 @@ non è un legame, è quella scelta. Il programma lo dice a voce.
 
 E si prova anche la **direzione opposta**, cioè se sia il prezzo ad anticipare
 il sentiment. Nel lavoro di Tutino la relazione cambia segno nel tempo e nel
-breve periodo il sentiment tende a seguire il prezzo. Se qui succedesse lo
-stesso, la domanda che Cheruvo si fa sarebbe mal posta, e finirebbe scritto in
-home.
+breve periodo il sentiment tende a seguire il prezzo.
+
+**È successo esattamente questo, ed è stato misurato il 19 settembre 2026.** Su
+Bitcoin, 44 giorni utilizzabili: nella direzione diretta non passa niente a
+nessun orizzonte, e a sette giorni la correlazione di rango è −0,001. Nella
+direzione opposta il sentiment di oggi segue il movimento dei due giorni
+precedenti con rho +0,605 e dei sette precedenti con rho +0,606, e tutte e due
+reggono il block bootstrap. Quindi la domanda "il sentiment anticipa?" è mal
+posta, e in home c'è scritto che è un termometro.
+
+Ci sono volute due correzioni al test prima di potersene fidare, e vanno
+nominate perché puntavano in direzioni opposte. Il controllo sul giorno stesso
+calcolava il rendimento fra la chiusura di T e la chiusura di T, quindi
+correlava il sentiment contro una colonna di zeri e stampava `rho = +0.000`
+come se fosse una misura. E la direzione inversa riceveva solo la permutazione
+semplice, cioè proprio il test che il programma stampa etichettandolo
+"ottimista": con finestre che si sovrappongono di sei giorni su sette quella
+scorciatoia gonfiava i p-value verso il basso. Messa sotto il block bootstrap,
+la replica su Ethereum è passata da p = 0,0001 a p = 0,083 ed è caduta, mentre
+quella su Bitcoin ha retto.
+
+Su Ethereum non è una replica fallita, è una replica **sottopotenziata**: 926
+notizie contro le 5.285 di Bitcoin, cioè ventuno al giorno contro centoventi.
+La differenza va detta, perché confonderle sarebbe una piccola disonestà.
 
 **Non è affidabile su tutte le monete allo stesso modo.** Il numero vale quanto
 le notizie che lo sostengono: su Bitcoin ce ne sono a sufficienza, su una
@@ -66,7 +113,7 @@ sappiamo dimostrare, non sul **prezzo**, che non sappiamo ancora.
 Tre scelte statistiche, ognuna col suo motivo scritto accanto alla costante:
 
 - **mediana e MAD** invece di media e deviazione standard, perché un solo picco
-  passato gonferebbe la sigma abbastanza da nascondere tutti i picchi futuri;
+  passato gonfierebbe la sigma abbastanza da nascondere tutti i picchi futuri;
 - **un pavimento di Poisson** sul volume, perché un conteggio che vale 8
   oscilla di ±2,8 anche quando non succede niente;
 - **si confronta la quota di attenzione**, non il conteggio nudo, altrimenti
