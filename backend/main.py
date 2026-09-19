@@ -147,6 +147,35 @@ async def lifespan(app: FastAPI):
     asyncio.create_task(_prepara_tabelle())
     yield
 
+    # ── SPEGNIMENTO ──────────────────────────────────────────────────────
+    #
+    # L'ULTIMO VISITATORE DI OGNI GIORNATA NON VENIVA CONTATO.
+    #
+    # `visite.registra()` accumula in memoria e scrive sul database solo
+    # quando arriva la richiesta successiva a sessanta secondi dall'ultima
+    # scrittura. Lo scarico non ha un timer suo: lo innesca il traffico.
+    #
+    # E il traffico, qui, è cinque sessioni in ventun giorni. Quando una
+    # persona arriva, guarda e se ne va, dopo di lei non arriva nessuno:
+    # quello che ha fatto resta in memoria. Nemmeno la sveglia esterna la
+    # salva, perché `/ping` e `/health` escono da `registra` PRIMA del
+    # controllo sullo scarico, quindi non innescano niente.
+    #
+    # Poi il processo muore, sul piano gratuito dopo quindici minuti di
+    # silenzio, e quei conteggi non sono mai esistiti. Su un sito affollato
+    # sarebbe una perdita invisibile; su un sito con cinque visite in tre
+    # settimane l'ultimo visitatore è una fetta enorme di tutti i visitatori.
+    #
+    # Render manda SIGTERM prima di spegnere, quindi qui c'è il tempo di
+    # scrivere. In un thread, perché è I/O bloccante.
+    try:
+        import visite
+        scritte = await asyncio.to_thread(visite.scarica_su_database)
+        if scritte:
+            logger.info("spegnimento: salvate %d righe di visite", scritte)
+    except Exception as e:
+        logger.error("spegnimento: scarico visite non riuscito: %s", e)
+
 app = FastAPI(title="Cheruvo API", version="2.1.0", lifespan=lifespan)
 app.state.limiter = limiter
 app.add_exception_handler(RateLimitExceeded, _rate_limit_exceeded_handler)
