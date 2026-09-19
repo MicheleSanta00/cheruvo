@@ -29,6 +29,7 @@ from slowapi.errors import RateLimitExceeded
 import jwt as pyjwt
 import os
 import pandas as pd
+import asyncio
 import logging
 
 from database import SuperNewsAnalyzer, init_database, get_pool
@@ -82,14 +83,58 @@ def get_user_identifier(request: Request) -> str:
 
 limiter = Limiter(key_func=get_user_identifier, default_limits=["60/minute"])
 
+async def _prepara_tabelle():
+    """
+    Le creazioni di tabella, in sottofondo e non sulla strada del primo visitatore.
+
+    PERCHE', misurato il 18 settembre 2026.
+
+    Render spegne il servizio gratuito dopo quindici minuti senza traffico e
+    dichiara circa SESSANTA secondi per riaccenderlo. Aprendo il sito se ne
+    aspettavano due o tre: la differenza è tutta roba nostra che parte.
+
+    Una parte è inevitabile (pandas e yfinance costano, e su una CPU condivisa
+    costano molto di più che sul portatile). Questa invece no: `lifespan`
+    eseguiva in fila CINQUE funzioni di inizializzazione, per un totale di una
+    trentina fra CREATE TABLE IF NOT EXISTS, CREATE INDEX e ALTER TABLE ADD
+    COLUMN, ognuna con la sua connessione a Supabase.
+
+    E FastAPI non serve NESSUNA richiesta finché lifespan non arriva allo
+    `yield`. Quindi chi apriva il sito aspettava anche quelle, ogni volta, per
+    creare tabelle che esistono da luglio.
+
+    È lo stesso difetto che sta scritto in cima a `visite.py`, spostato di un
+    livello: là era DDL dentro ogni richiesta, qui è DDL dentro ogni avvio.
+    `CREATE TABLE IF NOT EXISTS` sembra gratis perché di solito non fa niente,
+    ma resta una richiesta di lock sullo schema.
+
+    Ora il servizio risponde subito e le tabelle si preparano dietro. Sono
+    tutte idempotenti e il database è in piedi da tre mesi, quindi non c'è
+    niente da creare davvero: se un domani servisse una tabella nuova, la
+    prima richiesta che la cerca potrebbe trovarla per un attimo assente, e
+    per quello ogni errore qui viene scritto nel log invece di essere
+    ingoiato.
+    """
+    def tutte():
+        for nome, funzione in (("database", init_database),
+                               ("subscriptions", init_subscriptions_table),
+                               ("onboarding", init_onboarding_table),
+                               ("digest", init_digest_tables),
+                               ("earnings", init_earnings_tables)):
+            try:
+                funzione()
+            except Exception as e:
+                logger.error("init %s non riuscita: %s", nome, e)
+
+    await asyncio.to_thread(tutte)
+
+
 @asynccontextmanager
 async def lifespan(app: FastAPI):
-    init_database()
-    init_subscriptions_table()
-    init_onboarding_table()
-    init_digest_tables()
-    init_earnings_tables()
+    # Il pool sì, prima di servire: è una connessione sola e senza di lui la
+    # prima richiesta se la creerebbe comunque, pagandola per intera.
     get_pool()
+    asyncio.create_task(_prepara_tabelle())
     yield
 
 app = FastAPI(title="Cheruvo API", version="2.1.0", lifespan=lifespan)
