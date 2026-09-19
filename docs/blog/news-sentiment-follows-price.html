@@ -1,0 +1,139 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>News sentiment doesn't predict crypto returns. Two bugs in my own test almost said otherwise. | Cheruvo</title>
+<meta name="description" content="I ran the test that could kill my own product: does news sentiment predict price? It doesn't. Getting to that answer took fixing two bugs in the test itself, one of which had been quietly inventing my best result.">
+<link rel="canonical" href="https://cheruvo.com/blog/news-sentiment-follows-price.html">
+<meta property="og:title" content="News sentiment doesn't predict crypto returns. Two bugs in my own test almost said otherwise.">
+<meta property="og:description" content="Permutation tests, block bootstrap, thresholds fixed before looking. The fix killed the result I wanted and kept the one I hadn't asked for.">
+<meta property="og:type" content="article">
+<meta property="og:url" content="https://cheruvo.com/blog/news-sentiment-follows-price.html">
+<meta property="og:image" content="https://cheruvo.com/og-image.png">
+<meta name="twitter:card" content="summary_large_image">
+<link rel="icon" href="../favicon.png">
+<link rel="stylesheet" href="style.css">
+<script type="application/ld+json">
+{
+  "@context": "https://schema.org",
+  "@type": "Article",
+  "headline": "News sentiment doesn't predict crypto returns. Two bugs in my own test almost said otherwise.",
+  "description": "A permutation and block bootstrap test of whether daily news sentiment predicts next-day returns, and the two defects in the test that had to be fixed first.",
+  "datePublished": "2026-09-28",
+  "inLanguage": "en",
+  "author": { "@type": "Organization", "name": "Cheruvo" },
+  "publisher": { "@type": "Organization", "name": "Cheruvo", "url": "https://cheruvo.com" }
+}
+</script>
+</head>
+<body>
+<header>
+  <a class="logo" href="../index.html"><img src="../logo-v2.png" alt=""/>Cheruvo</a>
+  <div style="display:flex;gap:8px">
+    <a class="hbtn" href="index.html">Blog</a>
+    <a class="hbtn primary" href="https://app.cheruvo.com">Open Cheruvo</a>
+  </div>
+</header>
+
+<main>
+<div class="kicker">Build log</div>
+<h1>News sentiment doesn't predict crypto returns. Two bugs in my own test almost said otherwise.</h1>
+<div class="meta">Cheruvo blog · 28 September 2026 · 8 minute read</div>
+
+<p>I build Cheruvo alone. It reads financial news, scores each headline from −1 to +1 from an investor's point of view, and puts the daily average next to the price. The whole thing runs on free tiers.</p>
+
+<p>Six weeks ago I set up the test that could kill it: does today's sentiment tell you anything about tomorrow's return? I fixed the thresholds before looking at any result, because a threshold chosen afterwards is not a threshold.</p>
+
+<p>The answer is no. The more interesting part is what I had to fix in the test before I could trust that answer, because one of those defects had been quietly manufacturing my best result.</p>
+
+<h2>The setup</h2>
+
+<p>Spearman rank correlation, not Pearson, because a single +18% day would otherwise carry the whole thing. Three horizons: next day, two days, seven days. Three horizons means three chances to get lucky, so the significance threshold drops from 0.05 to <strong>0.017</strong>.</p>
+
+<p>Two significance tests, and the difference between them matters later. A simple permutation shuffles the observations as if they were independent. A block bootstrap shuffles them in blocks of 2, 3, 5, 7 and 10 consecutive days, which preserves some of the time dependence. <strong>The p-value I report is the worst of the block lengths</strong>, never the best. Reporting the best would mean picking the block size that wins, which is the thing this entire exercise exists to avoid.</p>
+
+<p>Days with fewer than 5 distinct stories are dropped: an average over two articles is an anecdote. Syndicated reprints of the same story count once. All news comes from <a href="https://www.gdeltproject.org/">The GDELT Project</a>, whose terms permit unrestricted commercial use and redistribution with citation.</p>
+
+<div class="box">One more constraint, and it cost me two weeks. On 7 August I changed the collection rules, and until 16 August my filter had an asymmetry: it recognised profits in five languages and had no word for losses in any of them. The sentiment series before that date is biased upward by construction. So the test only reads data from 7 August onward. A result that spans that date measures my own bug fix, not the market.</div>
+
+<h2>Bug one: the control that was correlating against zero</h2>
+
+<p>Alongside the forecast test there is a sanity check: does today's sentiment track today's price move? A positive answer there proves nothing interesting, but it confirms the pipeline works at all. The press describing what just happened is the easy case.</p>
+
+<p>It kept printing <code>rho = +0.000</code> on 38 days. Exactly zero, three decimals.</p>
+
+<p>A number that round is not a measurement, it is a division that degenerated. The same-day case computed the return from the close of day T to the close of day T, so the two prices were the same price, and every return in the series was zero. I was correlating sentiment against a column of zeroes and printing the result as if it meant something.</p>
+
+<p>That control is the instrument check for the whole analysis. It was supposed to show a clear positive relationship, and by showing zero it appeared to contradict the conclusion the program was about to reach. Fixed, the same-day correlation on Bitcoin is <strong>+0.338 over 44 days</strong>. The thermometer works.</p>
+
+<h2>Bug two: one direction was being graded easier than the other</h2>
+
+<p>The program always tests both directions, including the uncomfortable one: instead of asking whether sentiment leads price, it asks whether today's sentiment tracks the move that already happened over the preceding days.</p>
+
+<p>That second direction was producing my strongest numbers. On Bitcoin, rho = +0.605 with p = 0.0001. On Ethereum, rho = +0.581 with p = 0.0004. Two independent assets, same direction, p-values far below threshold. It looked like a replication.</p>
+
+<p>Then I looked at how those p-values were computed. Only the simple permutation. The forward direction had to survive the block bootstrap and the worst-block rule; the backward direction got the easy test, the one my own program prints with the label <em>optimistic: it breaks the time dependence</em>.</p>
+
+<p>And it was the direction where that mattered most. The seven-day backward window compares today's sentiment with the move over the previous week, so two consecutive observations share six days out of seven. Under that much autocorrelation, a test that shuffles as if observations were independent returns p-values far lower than they should be.</p>
+
+<p>So the strongest result in the project was computed with the only method the project itself declares unreliable. I put the backward direction through the same sieve as the forward one and ran everything again.</p>
+
+<h2>What survived</h2>
+
+<p>Bitcoin, 44 usable days, 5,285 stories.</p>
+
+<div class="box"><strong>Does sentiment predict the return?</strong><br>
+next day: rho +0.345, worst block p = 0.027<br>
+two days: rho +0.260, worst block p = 0.256<br>
+seven days: rho −0.001, worst block p = 1.000<br>
+Threshold 0.017. Nothing passes. At seven days the correlation is one thousandth, which is about as close to pure noise as a number gets.</div>
+
+<div class="box"><strong>Does sentiment track the move that already happened?</strong><br>
+previous day: rho +0.338, worst block p = 0.052<br>
+previous two days: rho +0.605, worst block p = <strong>0.007</strong><br>
+previous seven days: rho +0.606, worst block p = <strong>0.015</strong><br>
+The two multi-day windows pass, and the block length does not change the answer.</div>
+
+<p>The first row is not a third result: sentiment on day T against the move over the previous day is the same pairing as the same-day control above, so +0.338 appears twice by construction rather than by coincidence. It is worth stating, because a number that shows up in two tables usually means someone pasted it there.</p>
+
+<p>There is a shape in there worth noticing. The correlation climbs from 0.34 at one day to 0.61 at two, then stops. It is not today's move that the news reflects, it is the move accumulated over the last two or three days. That is more specific than "sentiment follows price", and it is the part I did not expect.</p>
+
+<h2>What did not survive, and why that is not the same as a failure</h2>
+
+<p>Ethereum was supposed to be the replication. Under the block bootstrap its seven-day backward correlation goes from p = 0.0001 to <strong>p = 0.083</strong>, five times above threshold, with the block-length warning attached. It does not hold.</p>
+
+<p>Before calling that a failed replication, look at the volume. Bitcoin: 5,285 stories over 44 days, about 120 a day. Ethereum: <strong>926</strong>, about 21 a day. Ethereum's daily sentiment is estimated from a fifth as many articles, so it is far noisier, and noise in the variable attenuates any correlation that exists. Its same-day control is +0.122 against Bitcoin's +0.338, which is consistent with exactly that.</p>
+
+<p>So it is not a failed replication. It is an underpowered one. The distinction matters, and collapsing it would be its own small dishonesty.</p>
+
+<h2>The limits, plainly</h2>
+
+<ul>
+<li>44 days. Short. Only large effects are visible at that length.</li>
+<li>The positive finding rests on one asset.</li>
+<li>The backward windows overlap heavily, which is the whole reason the block bootstrap is not optional here.</li>
+<li>Equities are still pending: stocks do not trade at weekends, so 44 calendar days become 24 aligned observations, and the test refuses to speak below 30.</li>
+<li>None of this says that news sentiment can never predict returns. It says that on this dataset, this universe, this period and this scoring model, it does not, and that I have no grounds to claim otherwise.</li>
+</ul>
+
+<h2>What I did with the answer</h2>
+
+<p>The honest sentence was already on the homepage before the test finished: a thermometer, not a barometer. What changed is that it is now measured rather than asserted.</p>
+
+<p>It also cost me the one sentence that would have made this easy to sell. That is fine. The alternative was to keep a claim that the first person to check would take apart, and at that point nothing else I got right would count for anything.</p>
+
+<p>What I keep coming back to is that both defects pointed the same way. The broken control made the product look worse than it was; the lenient test made my favourite result look stronger than it was. Fixing them killed the number I wanted and kept the one I had not asked for. That is roughly what fixing your own statistics is supposed to feel like.</p>
+
+<div class="cta">
+  <h3>See it for yourself</h3>
+  <p>Cheruvo is free, no card, no locked features. The correlation panel refuses to show a number below twenty days of data, and the daily ranking shows bands instead of positions because the positions were not distinguishable from noise. If you follow a few tickers it will email you when the news volume or tone on one of them moves away from its own four-week normal, and stay quiet otherwise.</p>
+  <a class="btn" href="https://app.cheruvo.com">Open Cheruvo →</a>
+</div>
+
+<p class="disclaimer">This article is for information and education only and is not financial advice. Past performance and historical correlations do not guarantee future results.</p>
+</main>
+
+<footer>© 2026 Cheruvo · <a href="../index.html">cheruvo.com</a> · <a href="index.html">Blog</a> · <a href="../privacy.html">Privacy</a></footer>
+</body>
+</html>

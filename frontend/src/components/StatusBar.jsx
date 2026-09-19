@@ -26,7 +26,22 @@ export default function StatusBar({ stats, updatedAt }) {
       fontFamily: 'var(--mono)', fontVariantNumeric: 'tabular-nums',
       fontSize: 10.5, color: 'var(--muted)', overflow: 'hidden',
     }}>
-      <span style={cella}>GDELT</span>
+      {/*
+        Era una scritta e basta. I termini di GDELT, letti dal testo originale
+        il 19 settembre 2026, chiedono due cose e non una: "any use or
+        redistribution of the data must include a citation to the GDELT
+        Project AND A LINK to this website". La citazione c'era, il link no.
+
+        È il genere di inadempienza che costa niente a sanare e che nessuno
+        perdona se la scopre lui: la fonte è l'unica del progetto con licenza
+        davvero libera, e l'intero archivio ci sta sopra.
+      */}
+      <a href="https://www.gdeltproject.org/" target="_blank" rel="noopener noreferrer"
+         title={it ? 'Dati da The GDELT Project' : 'Data from The GDELT Project'}
+         style={{ ...cella, color: 'inherit', textDecoration: 'none',
+                  borderBottom: '1px dotted var(--border-br)' }}>
+        GDELT
+      </a>
       {sep}
       <span style={cella} className="hide-mobile">
         {stats?.tickers ?? '—'} {it ? 'titoli' : 'stocks'}

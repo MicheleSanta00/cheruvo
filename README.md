@@ -135,7 +135,7 @@ Solo fonti con diritto d'uso commerciale verificato:
 
 | Fonte | Licenza | Uso |
 |---|---|---|
-| **GDELT** (API + file grezzi ogni 15 min) | libera, anche commerciale, con ridistribuzione | fonte principale |
+| **GDELT** (API + file grezzi ogni 15 min) | libera, anche commerciale, ridistribuzione permessa, **citazione e link obbligatori** | fonte principale |
 | **SEC EDGAR** | pubblico dominio (atti USA) | depositi societari |
 | **Federal Reserve** | pubblico dominio, con citazione della fonte | comunicati |
 | **BCE** | riuso libero, citando la fonte e dichiarando le modifiche | comunicati |
@@ -148,7 +148,16 @@ agosto 2026, non da riassunti: è la disciplina che a luglio è mancata con
 NewsAPI, dove ci si era fidati della sintesi di un blog. I passaggi rilevanti
 sono citati in cima a `backend/istituzionali.py`.
 
-Due condizioni cambiano il codice e non solo la documentazione. BCE ed ESMA
+Tre condizioni cambiano il codice e non solo la documentazione. GDELT permette
+tutto, uso commerciale e ridistribuzione compresi, ma a una condizione scritta
+con la congiunzione: *"must include a citation to the GDELT Project **and a
+link** to this website"*. Il 19 settembre 2026, rileggendo il testo originale,
+la citazione c'era e il link no: in fondo all'app "GDELT" era una scritta e
+basta. Adesso è un collegamento (`frontend/src/components/StatusBar.jsx`). Vale
+la pena notare quanto era facile non accorgersene: la fonte era citata, il
+nome compariva, e mancava solo la metà dell'obbligo che nessuno guarda.
+
+BCE ed ESMA
 chiedono che **le modifiche siano dichiarate**, e calcolare un punteggio di
 sentiment è una modifica: per questo quelle righe portano
 `score_source='istituzionale'`, così la nota di licenza si mostra dove è

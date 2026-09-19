@@ -31,6 +31,16 @@ import os
 import pandas as pd
 import asyncio
 import logging
+import time
+
+# Istante in cui il processo è partito. Serve a una domanda sola, ma che senza
+# di lui costa venti minuti di attesa ogni volta: l'istanza si sta spegnendo?
+# Il piano gratuito di Render mette in pausa dopo quindici minuti senza
+# traffico, e riaccenderla prende circa un minuto. A pagamento non si spegne
+# mai. Con zero visitatori le due cose sono indistinguibili dall'esterno, a
+# meno di aspettare e riprovare. Qui invece basta una richiesta: se l'uptime
+# è di ore mentre nessuno ha aperto il sito, l'istanza non si sta spegnendo.
+AVVIO = time.monotonic()
 
 from database import SuperNewsAnalyzer, init_database, get_pool
 from giornaliero import aggrega_giornaliero
@@ -419,8 +429,17 @@ def ping():
     riportare le statistiche della cache. Su un controllo ogni cinque minuti
     fanno quasi seicento chiamate al giorno spese per rispondere a un robot
     che vuole solo sapere se il server è acceso. Questo non tocca niente.
+
+    Riporta anche da quanto è acceso, perché è il modo più economico di sapere
+    se l'istanza si sta ancora spegnendo da sola. Non è un dato personale e non
+    costa una query: è una sottrazione.
     """
-    return {"ok": True}
+    su_da = time.monotonic() - AVVIO
+    return {
+        "ok": True,
+        "uptime_secondi": round(su_da),
+        "uptime_leggibile": f"{int(su_da // 3600)}h {int(su_da % 3600 // 60)}m",
+    }
 
 # ── AI Summary ─────────────────────────────────────────────────────────────
 
