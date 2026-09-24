@@ -1,5 +1,6 @@
 import { useState, useEffect, useCallback } from 'react'
 import Icon from './Icon.jsx'
+import { useLang } from '../LangContext.jsx'
 
 /**
  * OnboardingTooltip.jsx — Il giro guidato del primo accesso.
@@ -27,37 +28,56 @@ import Icon from './Icon.jsx'
  *    avanza solo premendo avanti.
  */
 
+// Testi in due lingue (24 settembre 2026): il giro era solo in italiano anche
+// con l'interfaccia in inglese, e sul telefono suggeriva Ctrl+K, che lì non
+// esiste. `tastiera` è la frase che compare solo con un puntatore fine.
 const PASSI = [
   {
     id: 'header-search',
     icona: 'search',
-    titolo: 'Cerca una moneta',
-    testo: 'Scrivi il nome o il simbolo. Da qualunque punto, Ctrl+K ti porta qui.',
+    titolo: { it: 'Cerca un titolo o una moneta', en: 'Search a stock or a coin' },
+    testo: { it: 'Scrivi il nome o il simbolo.', en: 'Type the name or the symbol.' },
+    tastiera: { it: ' Da qualunque punto, Ctrl+K ti porta qui.', en: ' From anywhere, Ctrl+K brings you here.' },
   },
   {
     id: 'kpi-avg',
     icona: 'score',
-    titolo: 'Il punteggio del sentiment',
-    testo: 'Un numero da −1 a +1 che misura il tono delle notizie. Vicino a +1 ottimismo, vicino a −1 pessimismo.',
+    titolo: { it: 'Il punteggio del sentiment', en: 'The sentiment score' },
+    testo: {
+      it: 'Un numero da −1 a +1 che misura il tono delle notizie. Vicino a +1 ottimismo, vicino a −1 pessimismo.',
+      en: 'A number from −1 to +1 measuring the tone of the news. Near +1 optimism, near −1 pessimism.',
+    },
   },
   {
     id: 'chart-area',
     icona: 'charts',
-    titolo: 'Il grafico',
-    testo: 'Prezzo e sentiment sovrapposti. Con "Oggi" vedi la seduta minuto per minuto: sulle crypto si muove sempre.',
+    titolo: { it: 'Il grafico', en: 'The chart' },
+    testo: {
+      it: 'Prezzo e sentiment sovrapposti. Con "Oggi" vedi la seduta minuto per minuto: sulle crypto si muove sempre.',
+      en: 'Price and sentiment together. "Today" shows the session minute by minute: on crypto it never stops.',
+    },
   },
   {
     id: 'top-news',
     icona: 'news',
-    titolo: 'Le notizie che contano',
-    testo: 'Quelle che generano il punteggio, con il loro peso. Clicca per leggere l\'originale.',
+    titolo: { it: 'Le notizie che contano', en: 'The news that counts' },
+    testo: {
+      it: 'Quelle che generano il punteggio, con il loro peso. Clicca per leggere l\'originale.',
+      en: 'The ones behind the score, with their weight. Click to read the original.',
+    },
   },
 ]
+
+function conTastiera () {
+  try { return window.matchMedia('(pointer: fine)').matches } catch (_) { return true }
+}
 
 const LARGHEZZA = 290
 const MARGINE = 12
 
 export default function OnboardingTooltip({ hasData }) {
+  const { lang } = useLang()
+  const l = lang === 'it' ? 'it' : 'en'
   const [attivo, setAttivo] = useState(false)
   const [indice, setIndice] = useState(0)
   const [posizione, setPosizione] = useState(null)
@@ -174,17 +194,17 @@ export default function OnboardingTooltip({ hasData }) {
 
         <div style={{ display: 'flex', alignItems: 'center', gap: 7, marginBottom: 7 }}>
           <Icon name={passo.icona} size={14} />
-          <span style={{ fontSize: 14, fontWeight: 700, letterSpacing: '-.01em' }}>{passo.titolo}</span>
+          <span style={{ fontSize: 14, fontWeight: 700, letterSpacing: '-.01em' }}>{passo.titolo[l]}</span>
         </div>
         <p style={{ fontSize: 12.5, color: 'var(--muted)', lineHeight: 1.55, marginBottom: 14 }}>
-          {passo.testo}
+          {passo.testo[l]}{passo.tastiera && conTastiera() ? passo.tastiera[l] : ''}
         </p>
 
         <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
           <button onClick={chiudi} style={{
             fontSize: 12, color: 'var(--muted)', background: 'transparent',
             border: 'none', cursor: 'pointer', padding: 0,
-          }}>Salta</button>
+          }}>{l === 'it' ? 'Salta' : 'Skip'}</button>
           <span style={{ marginLeft: 'auto', fontSize: 11, color: 'var(--muted)',
                          fontFamily: 'var(--mono)' }}>
             {indice + 1}/{disponibili.length}
@@ -192,7 +212,7 @@ export default function OnboardingTooltip({ hasData }) {
           <button onClick={avanti} className="btn-glow" style={{
             fontSize: 12.5, fontWeight: 700, color: '#fff', border: 'none',
             borderRadius: 6, padding: '7px 15px', cursor: 'pointer',
-          }}>{ultimo ? 'Ho capito' : 'Avanti'}</button>
+          }}>{ultimo ? (l === 'it' ? 'Ho capito' : 'Got it') : (l === 'it' ? 'Avanti' : 'Next')}</button>
         </div>
       </div>
     </>

@@ -140,3 +140,61 @@ def test_la_soglia_resta_quella_del_progetto():
     """
     assert abs(rn.SOGLIA_P - 0.05 / 3) < 1e-12
     assert rn.BLOCCHI == (2, 3, 5, 7, 10)
+
+
+# ── La scala ──────────────────────────────────────────────────────────────
+def test_il_pavimento_scende_col_numero_di_articoli():
+    """
+    L'errore di una media di n articoli e' SIGMA_ARTICOLO/radice di n: con
+    quattro volte le notizie si dimezza. E' la stessa regola di anomalie.py,
+    e deve restare la stessa costante e non una copia.
+    """
+    assert rn.pavimento(25) > rn.pavimento(100)
+    assert abs(rn.pavimento(100) - rn.SIGMA_ARTICOLO / 10) < 1e-12
+    assert abs(rn.pavimento(25) - 2 * rn.pavimento(100)) < 1e-12
+
+
+def test_senza_articoli_il_pavimento_e_infinito():
+    """Zero notizie non vuol dire tono neutro: vuol dire che non si sa."""
+    assert rn.pavimento(0) == float("inf")
+
+
+def test_ogni_riga_porta_con_se_la_propria_scala():
+    n = 40
+    prezzi = _prezzi([100.0 * (1.01 ** i) for i in range(n)])
+    sent = _sent([(i % 7) / 10.0 - 0.3 for i in range(n)], quante=64)
+    righe = rn.serie_ritardo(sent, prezzi, k=2, minimo_fit=10)
+    assert righe
+    for r in righe:
+        assert r["quante"] == 64
+        assert abs(r["pavimento"] - rn.SIGMA_ARTICOLO / 8) < 1e-12
+
+
+# ── La giornata in corso ──────────────────────────────────────────────────
+def test_la_giornata_di_oggi_e_marcata_parziale():
+    """
+    Oggi il conteggio non e' finito, quindi il pavimento e' piu' alto di
+    quello vero e scendera' durante la giornata. Lo stesso ritardo sembrerebbe
+    piu' forte la sera che la mattina: va marcato, non mescolato.
+    """
+    n = 40
+    prezzi = _prezzi([100.0 * (1.01 ** i) for i in range(n)])
+    sent = _sent([(i % 7) / 10.0 - 0.3 for i in range(n)])
+    finto_oggi = date(2026, 8, 7) + timedelta(days=n - 1)
+
+    righe = rn.serie_ritardo(sent, prezzi, k=2, minimo_fit=10,
+                             oggi=finto_oggi)
+    assert righe
+    assert righe[-1]["parziale"] is True
+    assert all(r["parziale"] is False for r in righe[:-1])
+
+
+def test_le_giornate_chiuse_non_diventano_parziali_col_tempo():
+    """Una giornata finita resta finita: il flag guarda la data, non il conto."""
+    n = 30
+    prezzi = _prezzi([100.0 + i for i in range(n)])
+    sent = _sent([0.1 + (i % 3) / 100 for i in range(n)])
+    dopo = date(2026, 8, 7) + timedelta(days=n + 5)
+    righe = rn.serie_ritardo(sent, prezzi, k=2, minimo_fit=10, oggi=dopo)
+    assert righe
+    assert not any(r["parziale"] for r in righe)

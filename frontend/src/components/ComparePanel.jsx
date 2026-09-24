@@ -316,7 +316,10 @@ export default function ComparePanel({ primaryTicker, primarySentiment, isPro, o
       )}
 
       <p style={{ fontSize: 10, color: 'var(--muted)', marginTop: 12, marginBottom: 0 }}>
-        Sentiment giornaliero medio AI · fino a {MAX_COMPARE} ticker · solo PRO
+        {/* Senza "solo PRO" (24 settembre 2026): chi vede questa riga ha già il
+            pannello aperto, e col paywall spento lo vedono tutti. Diceva
+            "a pagamento" a chi non pagava niente. */}
+        Sentiment giornaliero medio AI · fino a {MAX_COMPARE} ticker
       </p>
     </div>
   )

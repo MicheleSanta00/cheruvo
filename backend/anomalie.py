@@ -228,25 +228,52 @@ def scarto(oggi: float, storico: list[float], pavimento: float = 0.0):
     return (oggi - tipico) / dispersione
 
 
-def _giorni_per_ticker(pool) -> tuple[dict, dict, dict]:
+def _giorni_per_ticker(pool) -> tuple[dict, dict, dict, dict]:
     """
-    Tre dizionari: conteggi giornalieri, toni giornalieri, totale del giorno.
+    Quattro dizionari: conteggi giornalieri, toni giornalieri, totale del
+    giorno, notizie distinte.
 
     Una query sola invece di una per moneta. Con quaranta monete e quattro
     settimane sarebbero milleduecento interrogazioni per disegnare una
     schermata, su un database che sta sul piano gratuito.
+
+    UNA NOTIZIA, UN VOTO, ANCHE SUL TONO (24 settembre 2026).
+
+    Il VOLUME conta le righe, riprese comprese, ed e' giusto: sessantuno
+    testate che rilanciano lo stesso pezzo sono attenzione vera, ed e' quello
+    che questo modulo deve vedere. Il TONO invece era la media di tutte le
+    righe, quindi un lancio d'agenzia ripreso sessanta volte valeva sessanta
+    giudizi: proprio il difetto tolto l'11 e il 15 agosto dal grafico
+    (giornaliero.py) e dalla classifica (market.py), e rimasto qui. Peggio:
+    il pavimento del tono e la soglia dei cinque articoli contavano le copie,
+    quindi una storia sola rilanciata cinque volte bastava per un avviso.
+
+    Adesso il tono e' la media per notizia distinta, con la stessa chiave del
+    titolo della classifica, e le notizie distinte viaggiano a parte.
     """
+    from market import CHIAVE_TITOLO_SQL
+
     conn = pool.getconn()
     try:
         cur = conn.cursor()
         cur.execute(f"""
+            WITH distinte AS (
+                SELECT ticker,
+                       DATE(published_date) AS giorno,
+                       COALESCE(NULLIF({CHIAVE_TITOLO_SQL}, ''), 'id:' || id::text) AS chiave,
+                       COUNT(*)       AS copie,
+                       AVG(sentiment) AS tono
+                FROM news
+                WHERE published_date >= NOW() - INTERVAL '{int(BASELINE_GIORNI) + 2} days'
+                GROUP BY 1, 2, 3
+            )
             SELECT ticker,
-                   DATE(published_date) AS giorno,
-                   COUNT(*)             AS n,
-                   AVG(sentiment)       AS tono
-            FROM news
-            WHERE published_date >= NOW() - INTERVAL '{int(BASELINE_GIORNI) + 2} days'
-            GROUP BY ticker, DATE(published_date)
+                   giorno,
+                   SUM(copie)  AS n,
+                   AVG(tono)   AS tono,
+                   COUNT(tono) AS distinte
+            FROM distinte
+            GROUP BY ticker, giorno
             ORDER BY giorno
         """)
         righe = cur.fetchall()
@@ -257,15 +284,21 @@ def _giorni_per_ticker(pool) -> tuple[dict, dict, dict]:
     conteggi: dict = {}
     toni: dict = {}
     totale_giorno: dict = {}
-    for ticker, giorno, n, tono in righe:
+    distinte: dict = {}
+    for riga in righe:
+        ticker, giorno, n, tono = riga[0], riga[1], riga[2], riga[3]
         conteggi.setdefault(ticker, {})[giorno] = int(n)
-        toni.setdefault(ticker, {})[giorno] = float(tono if tono is not None else 0)
+        # Un giorno senza nessun punteggio non ha un tono: prima diventava
+        # 0, cioe' un giudizio ("neutro") inventato.
+        if tono is not None:
+            toni.setdefault(ticker, {})[giorno] = float(tono)
+        distinte.setdefault(ticker, {})[giorno] = int(riga[4]) if len(riga) > 4 else int(n)
         totale_giorno[giorno] = totale_giorno.get(giorno, 0) + int(n)
-    return conteggi, toni, totale_giorno
+    return conteggi, toni, totale_giorno, distinte
 
 
 def _per_ticker(ticker: str, conteggi: dict, toni: dict,
-                totale_giorno: dict, oggi) -> dict:
+                totale_giorno: dict, oggi, distinte: dict | None = None) -> dict:
     # I giorni prima del cambio di regole non contano: vedi DA_QUANDO.
     giorni = sorted(g for g in conteggi if g < oggi and g >= DA_QUANDO)
     disponibili = len(giorni)
@@ -334,11 +367,16 @@ def _per_ticker(ticker: str, conteggi: dict, toni: dict,
     # pezzi la media balla da sola, e senza questo pavimento il rilevatore
     # scambiava quel ballo per una notizia (AMD, 21 agosto 2026: z 2,78 su un
     # articolo). Sotto MINIMO_ARTICOLI_TONO non si giudica proprio.
+    #
+    # Il tono si giudica sulle notizie DISTINTE, non sulle copie: cinque
+    # riprese dello stesso pezzo sono un articolo, e il loro errore e' quello
+    # di un articolo (vedi `_giorni_per_ticker`).
     storico_toni = [toni[g] for g in giorni if g in toni]
-    if tono_oggi is None or n_oggi < MINIMO_ARTICOLI_TONO:
+    n_tono = (distinte or {}).get(oggi, n_oggi)
+    if tono_oggi is None or n_tono < MINIMO_ARTICOLI_TONO:
         z_tono = None
     else:
-        pavimento_tono = SIGMA_ARTICOLO / math.sqrt(n_oggi)
+        pavimento_tono = SIGMA_ARTICOLO / math.sqrt(n_tono)
         z_tono = scarto(tono_oggi, storico_toni, pavimento_tono)
 
     anomala = ((z_vol is not None and abs(z_vol) >= SOGLIA_Z)
@@ -364,13 +402,13 @@ def calcola(pool=None) -> list[dict]:
         from database import get_pool
         pool = get_pool()
 
-    conteggi, toni, totale_giorno = _giorni_per_ticker(pool)
+    conteggi, toni, totale_giorno, distinte = _giorni_per_ticker(pool)
     if not totale_giorno:
         return []
 
     oggi = max(totale_giorno)
     fuori = [_per_ticker(t, conteggi.get(t, {}), toni.get(t, {}),
-                         totale_giorno, oggi)
+                         totale_giorno, oggi, distinte.get(t, {}))
              for t in sorted(conteggi)]
 
     def forza(r):

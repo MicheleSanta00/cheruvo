@@ -123,8 +123,9 @@ class TestSenzaAccount:
         dati = resp.json()
         assert dati["rows"][0]["ticker"] == "AAPL"
 
-    def test_ma_il_sentiment_pre_conti_resta_oscurato(self, app):
-        with patch("earnings._upcoming_rows", return_value=[
+    def test_col_paywall_acceso_il_sentiment_pre_conti_resta_oscurato(self, app):
+        with patch("auth.PAYWALL_ATTIVO", True), \
+             patch("earnings._upcoming_rows", return_value=[
                     {"ticker": "AAPL", "data": "2026-08-20",
                      "sentiment": 0.4, "trend": "su"}]), \
              patch("earnings.cache_get", return_value=None), \
@@ -134,3 +135,20 @@ class TestSenzaAccount:
         assert dati["is_pro"] is False
         assert dati["rows"][0]["sentiment"] is None
         assert dati["rows"][0]["trend"] is None
+
+    def test_col_paywall_spento_il_visitatore_lo_vede_come_un_iscritto(self, app):
+        """
+        24 settembre 2026: col paywall spento l'iscritto senza abbonamento
+        vedeva il sentiment pre-conti e il visitatore no, mentre l'app gli
+        diceva che i dati erano gli stessi. Vedi auth.tier_di.
+        """
+        with patch("auth.PAYWALL_ATTIVO", False), \
+             patch("earnings._upcoming_rows", return_value=[
+                    {"ticker": "AAPL", "data": "2026-08-20",
+                     "sentiment": 0.4, "trend": "su"}]), \
+             patch("earnings.cache_get", return_value=None), \
+             patch("earnings.cache_set"):
+            with TestClient(app, raise_server_exceptions=False) as c:
+                dati = c.get("/api/earnings/upcoming").json()
+        assert dati["is_pro"] is True
+        assert dati["rows"][0]["sentiment"] == 0.4

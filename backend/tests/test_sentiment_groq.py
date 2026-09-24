@@ -144,6 +144,27 @@ class TestRescoreNonSovrascrive:
         assert args[2] == [(1, 0.7)]   # solo la coppia valida
 
 
+    def test_le_righe_regolatorie_tengono_il_loro_marchio(self):
+        """
+        24 settembre 2026: il ripunteggio scriveva 'llm2' anche sulle righe
+        di Fed, BCE ed ESMA, e con il marchio spariva la nota di licenza che
+        BCE ed ESMA chiedono quando il materiale viene modificato.
+        """
+        pool = MagicMock(); conn = MagicMock(); cur = MagicMock()
+        conn.cursor.return_value = cur
+        cur.fetchall.return_value = [(1, "ESMA statement on MiCA", "")]
+        pool.getconn.return_value = conn
+        with patch("sentiment_groq.get_pool", return_value=pool), \
+             patch("sentiment_groq.score_batch", return_value=[0.2]), \
+             patch("psycopg2.extras.execute_values") as ev:
+            sentiment_groq.rescore_non_av_news("BTC-USD")
+        sql_update = ev.call_args[0][1]
+        assert "istituzionale_llm2" in sql_update
+        sql_scelta = cur.execute.call_args_list[0][0][0]
+        assert "'istituzionale_llm2'" in sql_scelta, \
+            "una riga gia' ripunteggiata non va ripassata a ogni giro"
+
+
 class TestLlmRefineOnDemand:
 
     def test_groq_giu_conserva_vader(self):

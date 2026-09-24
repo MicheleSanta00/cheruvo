@@ -42,3 +42,9 @@ landing/frames/
 
 # Le cinquanta etichette a mano: dati di lavoro, non codice.
 backend/etichette.json
+
+# Il dataset esportato: sette megabyte di titoli, che vanno su HuggingFace e
+# non dentro la storia di git. Una volta committato non si toglie piu', e ogni
+# riesportazione ne aggiungerebbe un'altra copia intera.
+backend/cheruvo_sentiment*.csv
+*.parquet

@@ -1,6 +1,8 @@
 import { useEffect, useState } from 'react'
 import apiFetch from '../apiFetch.js'
 import Icon from './Icon.jsx'
+import { useLang } from '../LangContext.jsx'
+import { frasiDi } from '../utils/testo.js'
 
 const COLORI = {
   bullish: { accent: '#34d399', bg: 'var(--tinta-pos)', border: 'rgba(52,211,153,0.2)', badge: '#34d399', icon: 'bullish' },
@@ -8,7 +10,9 @@ const COLORI = {
   neutro:  { accent: '#8a94a6', bg: 'var(--tinta-neu)', border: 'rgba(138,148,166,0.15)', badge: '#8a94a6', icon: 'neutral' },
 }
 
-export default function SummaryCard({ ticker, isPro, haAccount = true, onUpgrade }) {
+export default function SummaryCard({ ticker, isPro, haAccount = true, onUpgrade, onServeAccount }) {
+  const { lang } = useLang()
+  const it = lang === 'it'
   const [data, setData]       = useState(null)
   const [loading, setLoading] = useState(false)
   const [error, setError]     = useState(null)
@@ -26,7 +30,9 @@ export default function SummaryCard({ ticker, isPro, haAccount = true, onUpgrade
       .then(d => setData(d))
       .catch(() => setError(true))
       .finally(() => setLoading(false))
-  }, [ticker, isPro])
+    // haAccount fra le dipendenze: chi entra dopo aver aperto un titolo deve
+    // vedere il riassunto comparire, senza dover cambiare titolo.
+  }, [ticker, isPro, haAccount])
 
   if (loading) return (
     <div style={card()}>
@@ -50,7 +56,28 @@ export default function SummaryCard({ ticker, isPro, haAccount = true, onUpgrade
       <div style={{ fontSize: 13, fontWeight: 600, color: '#a78bfa', marginBottom: 6 }}>
         AI Summary
       </div>
-      {!isPro ? (
+      {!haAccount ? (
+        /* Il visitatore senza account. Prima vedeva "carica prima le news
+           con il pulsante Aggiorna", un consiglio sbagliato due volte: il
+           riassunto non dipende da quel pulsante, e il pulsante chiede a sua
+           volta un account. Il riassunto passa da Groq, quindi chiede
+           l'account come la chat: qui lo si dice. */
+        <>
+          <p style={{ fontSize: 12, color: 'var(--muted)', lineHeight: 1.7, marginBottom: 12 }}>
+            {it
+              ? 'Un riassunto delle notizie della settimana, scritto da un modello linguistico. Serve un account gratuito.'
+              : 'A summary of the week\'s news, written by a language model. It needs a free account.'}
+          </p>
+          <button onClick={onServeAccount} style={{
+            fontSize: 12, color: '#a78bfa', fontWeight: 600,
+            padding: '7px 16px', background: 'rgba(167,139,250,0.12)',
+            borderRadius: 100, border: '1px solid rgba(167,139,250,0.3)',
+            cursor: 'pointer', width: '100%',
+          }}>
+            {it ? 'Entra, è gratis' : 'Sign in, it\'s free'}
+          </button>
+        </>
+      ) : !isPro ? (
         <>
           <p style={{ fontSize: 12, color: 'var(--muted)', lineHeight: 1.7, marginBottom: 12 }}>
             Ricevi un'analisi AI delle ultime notizie — giudizio bullish/bearish, riassunto e temi chiave.
@@ -66,14 +93,17 @@ export default function SummaryCard({ ticker, isPro, haAccount = true, onUpgrade
         </>
       ) : (
         <p style={{ fontSize: 12, color: 'var(--muted)', lineHeight: 1.6 }}>
-          Nessun summary disponibile — carica prima le news con il pulsante Aggiorna.
+          {it
+            ? 'Riassunto non disponibile adesso: servono notizie degli ultimi sette giorni, oppure il servizio è momentaneamente occupato.'
+            : 'Summary not available right now: it needs news from the last seven days, or the service is briefly busy.'}
         </p>
       )}
     </div>
   )
 
   const c = COLORI[data.giudizio] || COLORI.neutro
-  const frasi = data.riassunto?.split('.').filter(f => f.trim().length > 5) || []
+  // Non più split('.'): spezzava ogni numero decimale in due frasi. Vedi utils/testo.js.
+  const frasi = frasiDi(data.riassunto)
 
   return (
     <div style={{ ...card(), background: c.bg, borderColor: c.border }}>
@@ -118,7 +148,7 @@ export default function SummaryCard({ ticker, isPro, haAccount = true, onUpgrade
               filter: visibile ? 'none' : 'blur(3px)',
               userSelect: visibile ? 'auto' : 'none',
             }}>
-              {frase.trim()}.
+              {frase}
             </p>
           )
         })}
@@ -154,8 +184,13 @@ export default function SummaryCard({ ticker, isPro, haAccount = true, onUpgrade
         </div>
       )}
 
+      {/* Il modello lo dice il backend: "Llama 3" era scritto a mano ed è
+          rimasto qui dopo che Groq lo ha dismesso, il 16 agosto 2026. */}
       <p style={{ fontSize: 10, color: 'var(--muted)', marginTop: 12, marginBottom: 0 }}>
-        Llama 3 · aggiornato ogni 6h
+        {data.fonte === 'fallback'
+          ? (it ? 'Riassunto automatico di ripiego' : 'Fallback summary')
+          : `${(data.fonte || '').replace(/^groq\//, '')} · ${it ? 'aggiornato ogni 6 ore' : 'updated every 6 hours'}`}
+        {' · '}{it ? 'descrive le notizie, non è un consiglio' : 'describes the news, not advice'}
       </p>
     </div>
   )

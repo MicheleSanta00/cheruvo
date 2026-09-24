@@ -5,7 +5,7 @@
  *   import { initAnalytics, track, identifyUser } from './analytics.js'
  *
  *   initAnalytics()                          // in main.jsx
- *   identifyUser(userId, email, tier)        // dopo il login
+ *   identifyUser(userId, tier)               // dopo il login (niente email)
  *   track('ticker_searched', { ticker })     // eventi custom
  *
  * La chiave VITE_POSTHOG_KEY va in frontend/.env.production
@@ -61,9 +61,16 @@ export function initAnalytics() {
 // NON scriviamo la proprietà: dichiarare 'free' senza saperlo sporcherebbe le
 // statistiche, e soprattutto sovrascriverebbe un 'pro' già registrato ogni
 // volta che il backend è addormentato.
-export function identifyUser(userId, email, tier = null) {
+//
+// NIENTE EMAIL (24 settembre 2026). Qui partiva anche l'indirizzo email, cioè
+// un dato che identifica la persona, verso PostHog. Il banner chiede il
+// consenso per "statistiche anonime" e l'informativa parla di "statistiche
+// d'uso aggregate": con l'email dentro non erano né l'una né l'altra cosa.
+// Per contare chi torna basta l'identificativo interno, che da solo non dice
+// a PostHog chi sei.
+export function identifyUser(userId, tier = null) {
   if (!_ph) return
-  _ph.identify(userId, tier ? { email, tier } : { email })
+  _ph.identify(userId, tier ? { tier } : {})
 }
 
 export function resetUser() {

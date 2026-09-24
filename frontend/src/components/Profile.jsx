@@ -103,7 +103,10 @@ export default function Profile({ user, isPro, onClose, onUpgrade }) {
             }
           />
           <Row
-            label={lang === 'it' ? 'Digest settimanale (email)' : 'Weekly digest (email)'}
+            // Dal 24 settembre 2026 questa scelta vale per TUTTE le email
+            // facoltative (digest, avvisi sulla watchlist, consigli dei primi
+            // giorni): prima dagli avvisi non si poteva uscire affatto.
+            label={lang === 'it' ? 'Email facoltative (digest e avvisi)' : 'Optional emails (digest and alerts)'}
             value={
               <label style={{ display: 'flex', alignItems: 'center', gap: 8, cursor: 'pointer', fontSize: 12, color: 'var(--muted)' }}>
                 <input type="checkbox" checked={digest} onChange={toggleDigest} style={{ accentColor: 'var(--blue)' }} />

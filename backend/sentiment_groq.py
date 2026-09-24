@@ -345,7 +345,8 @@ def rescore_non_av_news(ticker: str, batch_size: int = 10,
               -- ri-classificare da un modello che vede solo il titolo
               -- sostituirebbe un punteggio migliore con uno peggiore, e in
               -- più brucerebbe quota su un flusso da centinaia di pezzi.
-              AND COALESCE(score_source, 'vader') NOT IN ('llm2', 'av', 'gdelt')
+              AND COALESCE(score_source, 'vader') NOT IN
+                  ('llm2', 'av', 'gdelt', 'istituzionale_llm2')
               AND published_date >= NOW() - INTERVAL '7 days'
             ORDER BY published_date DESC
             LIMIT %s
@@ -377,9 +378,22 @@ def rescore_non_av_news(ticker: str, batch_size: int = 10,
             conn = pool.getconn()
             try:
                 cur = conn.cursor()
+                # IL MARCHIO DELLE FONTI REGOLATORIE NON SI CANCELLA
+                # (24 settembre 2026).
+                #
+                # Le righe di Fed, BCE ed ESMA entrano con sentiment 0 e
+                # score_source='istituzionale', e sono proprio queste che
+                # Groq ripunteggia. Scrivendoci sopra 'llm2', dopo al massimo
+                # sei ore la riga perdeva il marchio, e con lui la nota di
+                # licenza che TopNews mostra SOLO sulle righe istituzionali:
+                # BCE ed ESMA chiedono che la modifica sia dichiarata, e il
+                # punteggio e' la modifica. La nota spariva esattamente nel
+                # momento in cui diventava dovuta.
                 psycopg2.extras.execute_values(
                     cur,
-                    "UPDATE news SET sentiment = data.score, score_source = 'llm2' "
+                    "UPDATE news SET sentiment = data.score, "
+                    "score_source = CASE WHEN news.score_source = 'istituzionale' "
+                    "THEN 'istituzionale_llm2' ELSE 'llm2' END "
                     "FROM (VALUES %s) AS data(id, score) WHERE news.id = data.id",
                     pairs,
                     template="(%s, %s::real)",

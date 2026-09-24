@@ -1,4 +1,5 @@
-import LogoCrypto, { eCrypto, formattaPrezzo } from './LogoCrypto.jsx'
+import LogoCrypto, { eCrypto } from './LogoCrypto.jsx'
+import { formattaPrezzo, formattaVariazione, formattaPct } from '../utils/numeri.js'
 
 /**
  * PrezzoMobile.jsx — Il prezzo grande, in cima, solo su telefono.
@@ -62,8 +63,10 @@ export default function PrezzoMobile({ ticker, tickerInfo, prices, statoBorsa })
             fontFamily: 'var(--mono)', fontSize: 14, fontWeight: 700,
             color: su ? 'var(--green)' : 'var(--red)',
           }}>
-            {su ? '+' : '−'}{formattaPrezzo(Math.abs(variazione))}
-            {' '}({su ? '+' : '−'}{Math.abs(pct).toFixed(2)}%)
+            {/* I decimali della variazione sono quelli del prezzo: prima
+                Tesla a 379,18 che perdeva 53 centesimi usciva "−0,5300". */}
+            {formattaVariazione(variazione, ultimo)}
+            {' '}({formattaPct(pct)})
           </span>
         )}
       </div>

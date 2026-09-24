@@ -124,7 +124,10 @@ class TestEndpoints:
             with TestClient(app, raise_server_exceptions=False) as c:
                 resp = c.get(f"/api/digest/unsubscribe?u={UID}&t={unsubscribe_token(UID)}")
         assert resp.status_code == 200
-        assert "Digest disattivato" in resp.text
+        # Dal 24 settembre 2026 lo stesso link spegne tutte le email
+        # facoltative (digest, avvisi, consigli dei primi giorni), e la
+        # pagina lo dice.
+        assert "Email facoltative disattivate" in resp.text
         sql = cur.execute.call_args[0][0]
         assert "enabled = FALSE" in sql or "VALUES (%s, FALSE" in sql
 
@@ -136,3 +139,33 @@ class TestEndpoints:
             with TestClient(app, raise_server_exceptions=False) as c:
                 assert c.get("/api/digest/prefs").json() == {"enabled": True}
         app.dependency_overrides.clear()
+
+
+# ── 24 settembre 2026: testo di terzi dentro l'HTML ───────────────────────
+
+def test_un_titolo_con_dentro_html_resta_testo():
+    """
+    I titoli arrivano da migliaia di siti che non controlliamo: un titolo con
+    un link dentro diventava un link vero, con il nostro nome sopra.
+    """
+    utente = {"user_id": UID, "plan": "pro", "tickers": ["NVDA"]}
+    stats = {"NVDA": {"avg": 0.1, "prev": 0.0, "n": 3, "news": [
+        {"title": '<a href="https://truffa.example">Clicca qui</a>',
+         "url": "javascript:alert(1)", "sentiment": 0.4}]}}
+    corpo = digest._build_digest_html(utente, stats, ["NVDA"])
+    assert "<a href=\"https://truffa.example\">" not in corpo
+    assert "&lt;a href=" in corpo
+    assert "javascript:" not in corpo
+
+
+def test_gli_indirizzi_veri_restano():
+    assert digest.url_sicuro("https://www.reuters.com/x?a=1&b=2") == \
+        "https://www.reuters.com/x?a=1&amp;b=2"
+    assert digest.url_sicuro("ftp://x") == "#"
+    assert digest.url_sicuro(None) == "#"
+
+
+def test_le_notizie_senza_punteggio_non_passano_davanti():
+    """In Postgres i NULL vengono PRIMA in un ordinamento discendente."""
+    import inspect
+    assert "NULLS LAST" in inspect.getsource(digest.get_week_stats)

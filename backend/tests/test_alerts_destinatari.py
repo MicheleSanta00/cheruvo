@@ -86,3 +86,93 @@ def test_i_ticker_di_piu_utenti_si_uniscono_una_volta_sola():
         alerts.check_and_send_alerts()
 
     assert visti["tickers"] == ["ETH-USD", "NVDA"]
+
+
+# ── 24 settembre 2026: doppioni, etichetta neutra, uscita ─────────────────
+
+class _Registro:
+    """Un finto database con dentro le watchlist e il registro degli invii."""
+
+    def __init__(self, righe):
+        self.righe = righe
+        self.inviati = set()
+
+    def conn(self):
+        registro = self
+        cur = MagicMock()
+        stato = {"ultimo": None}
+
+        def execute(sql, params=None):
+            stato["ultimo"] = (sql, params)
+            if "INSERT INTO alert_log" in sql:
+                registro.inviati.add((params[0], params[1]))
+
+        def fetchall():
+            sql, params = stato["ultimo"]
+            if "FROM alert_log" in sql:
+                email, tickers = params
+                return [(t,) for (e, t) in registro.inviati if e == email and t in tickers]
+            return registro.righe
+
+        cur.execute.side_effect = execute
+        cur.fetchall.side_effect = fetchall
+        c = MagicMock()
+        c.cursor.return_value = cur
+        return c
+
+
+def _anomalia(tk):
+    return {"ticker": tk, "avg_sentiment": 0.02, "news_count": 30,
+            "notizie_tipiche": 8.0, "z_volume": 6.0, "z_tono": None}
+
+
+def test_la_stessa_anomalia_non_parte_quattro_volte_al_giorno():
+    """
+    Il cron gira quattro volte e l'anomalia resta anomala tutto il giorno:
+    senza registro partivano quattro email uguali.
+    """
+    reg = _Registro([("mario@example.com", "NVDA", "u-1")])
+    with patch("alerts._conn", side_effect=reg.conn), patch("alerts._rel"), \
+         patch("alerts.get_sentiment_alerts", return_value=[_anomalia("NVDA")]), \
+         patch("alerts.resend.Emails.send") as manda:
+        for _ in range(4):
+            alerts.check_and_send_alerts()
+    assert manda.call_count == 1
+
+
+def test_un_titolo_nuovo_nello_stesso_giorno_parte_lo_stesso():
+    reg = _Registro([("mario@example.com", "NVDA", "u-1"),
+                     ("mario@example.com", "SOL-USD", "u-1")])
+    with patch("alerts._conn", side_effect=reg.conn), patch("alerts._rel"), \
+         patch("alerts.resend.Emails.send") as manda:
+        with patch("alerts.get_sentiment_alerts", return_value=[_anomalia("NVDA")]):
+            alerts.check_and_send_alerts()
+        with patch("alerts.get_sentiment_alerts",
+                   return_value=[_anomalia("NVDA"), _anomalia("SOL-USD")]):
+            alerts.check_and_send_alerts()
+    assert manda.call_count == 2
+    secondo = manda.call_args_list[1][0][0]
+    assert "SOL-USD" in secondo["subject"] and "NVDA" not in secondo["subject"]
+
+
+def test_un_tono_vicino_a_zero_non_e_negativo():
+    """Prima tutto fra -0,15 e +0,15, zero compreso, usciva 'negativo' in rosso."""
+    for v in (0.0, 0.1, -0.1, 0.149):
+        _, etichetta, _ = alerts._sentiment_label(v)
+        assert etichetta == "neutro", v
+    assert alerts._sentiment_label(-0.2)[1] == "negativo"
+    assert alerts._sentiment_label(0.2)[1] == "positivo"
+
+
+def test_l_avviso_dice_come_smettere_di_riceverlo():
+    corpo = alerts._build_email_html([_anomalia("NVDA")], "https://x/api/digest/unsubscribe?u=1&t=2")
+    assert "unsubscribe" in corpo
+
+
+def test_chi_ha_detto_basta_non_riceve_avvisi():
+    """La query stessa esclude chi ha disattivato le email facoltative."""
+    conn, cur = _pool_con([])
+    with patch("alerts._conn", return_value=conn), patch("alerts._rel"):
+        alerts.destinatari()
+    sql = cur.execute.call_args[0][0]
+    assert "digest_prefs" in sql and "enabled" in sql

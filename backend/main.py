@@ -24,9 +24,8 @@ from starlette.middleware.gzip import GZipMiddleware
 from auth import (get_current_user, get_current_user_optional, require_pro,
                   get_user_tier, tier_di)
 from slowapi import Limiter, _rate_limit_exceeded_handler
-from slowapi.util import get_remote_address
 from slowapi.errors import RateLimitExceeded
-import jwt as pyjwt
+from pydantic import BaseModel, Field
 import os
 import pandas as pd
 import asyncio
@@ -43,7 +42,7 @@ import time
 AVVIO = time.monotonic()
 
 from database import SuperNewsAnalyzer, init_database, get_pool
-from giornaliero import aggrega_giornaliero
+from giornaliero import aggrega_giornaliero, media_senza_riprese
 from payload import righe_per_json
 from sentiment_groq import MODELLO_PUNTEGGIO, MODELLO_VELOCE
 from prices import get_prices, validate_ticker, e_intraday, stato_mercato
@@ -70,26 +69,10 @@ logging.basicConfig(
 logger = logging.getLogger(__name__)
 
 # ── Rate limiter ───────────────────────────────────────────────────────────
-def get_user_identifier(request: Request) -> str:
-    """
-    Chiave per il rate limiter: estrae lo user_id dal JWT senza verifica
-    (la verifica vera la fa già get_current_user via Supabase). Usare l'ID
-    utente invece dell'IP evita che utenti dietro NAT si blocchino a vicenda
-    e impedisce il bypass del limite cambiando IP o VPN.
-    Fallback sull'IP per endpoint pubblici o token malformati.
-    """
-    auth_header = request.headers.get("Authorization", "")
-    if auth_header.startswith("Bearer "):
-        token = auth_header[7:]
-        try:
-            # decode_without_verification: serve solo il campo 'sub' come chiave
-            payload = pyjwt.decode(token, options={"verify_signature": False})
-            sub = payload.get("sub")
-            if sub:
-                return f"user:{sub}"
-        except Exception:
-            pass
-    return get_remote_address(request)
+# La chiave del limite, il controllo del simbolo e dei periodi stanno in
+# `richieste.py`: sono funzioni pure, e una funzione pura in main.py si prova
+# solo tirandosi dietro l'app intera (la lezione di giornaliero.py).
+from richieste import get_user_identifier, ticker_valido, PERIODI_AMMESSI  # noqa: E402
 
 limiter = Limiter(key_func=get_user_identifier, default_limits=["60/minute"])
 
@@ -274,15 +257,18 @@ API_KEY = {
 @limiter.limit("30/minute")
 def ticker_info(ticker: str, request: Request,
                 user: dict | None = Depends(get_current_user_optional)):
+    # Chiave in maiuscolo: "aapl" e "AAPL" erano due voci di cache diverse, e
+    # /summary cerca il nome dell'azienda proprio sotto quella maiuscola.
+    ticker = ticker_valido(ticker)
     cached = cache_get(f"validate:{ticker}", ttl=VALIDATE_TTL)
     if cached:
         return cached
-    info = validate_ticker(ticker.upper())
+    info = validate_ticker(ticker)
     if not info["valid"]:
         result = {
             "valid": False,
-            "ticker": ticker.upper(),
-            "nome": ticker.upper(),
+            "ticker": ticker,
+            "nome": ticker,
             "settore": "N/A",
             "prezzo": None,
             "variazione": None,
@@ -311,7 +297,12 @@ def get_news(ticker: str, request: Request, days: int = 30,
     #
     # Il limite dei giorni e' quello di prima, invariato: `tier_di` tratta chi
     # non ha un account come un iscritto senza abbonamento.
+    ticker = ticker_valido(ticker)
     tier = tier_di(user)
+    # Un tetto anche per chi vede tutto: prima `days` non ne aveva, e
+    # ?days=100000 chiedeva al database l'intero archivio del titolo. Un
+    # anno copre ogni vista che l'interfaccia offre. Sotto 1 non ha senso.
+    days = max(1, min(days, 365))
     if tier != "pro":
         days = min(days, 30)
     cache_key = f"news:{ticker}:{days}"
@@ -319,24 +310,42 @@ def get_news(ticker: str, request: Request, days: int = 30,
     if cached:
         return cached
 
-    analyzer = SuperNewsAnalyzer(ticker.upper(), API_KEY)
+    analyzer = SuperNewsAnalyzer(ticker, API_KEY)
     df = analyzer.get_data(days)
     if df.empty:
-        result = {"news": [], "total": 0, "avg_sentiment": 0,
-                  "max_sentiment": 0, "min_sentiment": 0, "sources_count": 0}
+        # Zero notizie non e' un sentiment neutro: e' un "non lo so". Il
+        # frontend mostra gia' un trattino quando avg_sentiment e' null.
+        result = {"news": [], "total": 0, "distinte": 0, "avg_sentiment": None,
+                  "max_sentiment": None, "min_sentiment": None, "sources_count": 0}
         cache_set(cache_key, result)
         return result
 
+    # L'ORA SI TIENE (24 settembre 2026)
+    #
+    # Qui si tagliava a "%Y-%m-%d". Il frontend (TopNews.jsx) mostra l'ora per
+    # le notizie di oggi e la data per le altre: con la sola data ogni notizia
+    # di oggi diventava la mezzanotte UTC, cioe' "02:00" in Italia d'estate, e
+    # l'elenco "Recenti" metteva in fila a caso quelle dello stesso giorno.
+    # Nell'archivio l'ora c'e' (V2.1DATE di GDELT, al quarto d'ora): ora arriva
+    # fino al browser, in UTC con la Z, cosi' ogni fuso la converte da se'.
+    # CSV e PDF prendono i primi dieci caratteri, quindi non cambiano.
     df["published_date"] = pd.to_datetime(
-        df["published_date"], errors="coerce"
-    ).dt.strftime("%Y-%m-%d").fillna("")
+        df["published_date"], errors="coerce", utc=True
+    ).dt.strftime("%Y-%m-%dT%H:%M:%SZ").fillna("")
+
+    # La media con le riprese fuse, come il grafico e la classifica: vedi
+    # `giornaliero.media_senza_riprese`. Massimo e minimo restano sulle righe,
+    # perche' sono singole notizie e non una media.
+    media, distinte = media_senza_riprese(df)
+    punteggi = df["sentiment"].dropna()
 
     result = {
         "news":          righe_per_json(df),
         "total":         len(df),
-        "avg_sentiment": round(float(df["sentiment"].mean()), 4),
-        "max_sentiment": round(float(df["sentiment"].max()), 4),
-        "min_sentiment": round(float(df["sentiment"].min()), 4),
+        "distinte":      distinte,
+        "avg_sentiment": round(media, 4) if media is not None else None,
+        "max_sentiment": round(float(punteggi.max()), 4) if len(punteggi) else None,
+        "min_sentiment": round(float(punteggi.min()), 4) if len(punteggi) else None,
         "sources_count": int(df["source"].nunique()),
     }
     cache_set(cache_key, result)
@@ -351,6 +360,12 @@ def prices_endpoint(ticker: str, request: Request, period: str = "3mo",
     # "1d" (la vista Oggi) resta gratuita di proposito: è quello che fa
     # sembrare il prodotto vivo appena lo apri, e metterlo dietro il paywall
     # significherebbe nascondere l'unica cosa che si muove.
+    ticker = ticker_valido(ticker)
+    # Solo i periodi che `prices.py` conosce davvero: prima una stringa
+    # qualsiasi passava, diventava una chiave di cache nuova e ripiegava in
+    # silenzio su tre mesi.
+    if period not in PERIODI_AMMESSI:
+        raise HTTPException(status_code=400, detail="Periodo non valido")
     tier = tier_di(user)
     FREE_PERIODS = {"1d", "1mo", "3mo"}
     if tier != "pro" and period not in FREE_PERIODS:
@@ -395,12 +410,13 @@ def prices_endpoint(ticker: str, request: Request, period: str = "3mo",
 @limiter.limit("20/minute")
 def sentiment_daily(ticker: str, request: Request,
                     user: dict | None = Depends(get_current_user_optional)):
+    ticker = ticker_valido(ticker)
     cache_key = f"sentiment:{ticker}"
     cached = cache_get(cache_key)
     if cached:
         return cached
 
-    analyzer = SuperNewsAnalyzer(ticker.upper(), API_KEY)
+    analyzer = SuperNewsAnalyzer(ticker, API_KEY)
     df = analyzer.get_all_data()
     if df.empty:
         return {"sentiment": []}
@@ -414,10 +430,11 @@ def sentiment_daily(ticker: str, request: Request,
 @limiter.limit("5/minute")
 async def fetch_news(ticker: str, request: Request, background_tasks: BackgroundTasks,
                      user: dict = Depends(get_current_user)):
+    ticker = ticker_valido(ticker)
     # Invalida la cache per questo ticker dopo il fetch
-    cache_delete_pattern(ticker.upper())
-    background_tasks.add_task(quick_fetch, ticker.upper())
-    return {"status": "started", "ticker": ticker.upper(),
+    cache_delete_pattern(ticker)
+    background_tasks.add_task(quick_fetch, ticker)
+    return {"status": "started", "ticker": ticker,
             "message": "Fetching news in background..."}
 
 
@@ -477,7 +494,7 @@ def ping():
 @limiter.limit("20/minute")
 def get_summary(ticker: str, request: Request,
                 user: dict = Depends(require_pro)):
-    ticker = ticker.upper()
+    ticker = ticker_valido(ticker)
     cache_key = f"summary:{ticker}"
 
     # Cache con TTL 6 ore
@@ -511,8 +528,11 @@ def get_summary(ticker: str, request: Request,
         return result
 
     headlines = [r[0] for r in rows if r[0]]
-    sentiments = [r[1] for r in rows if r[1] is not None]
-    avg_sentiment = sum(sentiments) / len(sentiments) if sentiments else 0.0
+    # Riprese fuse anche qui, come nel resto del prodotto: altrimenti il
+    # giudizio del riassunto poteva nascere da un lancio d'agenzia copiato
+    # sessanta volte (vedi giornaliero.media_senza_riprese).
+    media, _ = media_senza_riprese(pd.DataFrame(rows, columns=["title", "sentiment"]))
+    avg_sentiment = media if media is not None else 0.0
 
     # Recupera nome azienda dalla cache validate
     ticker_info = cache_get(f"validate:{ticker}") or {}
@@ -537,11 +557,18 @@ def get_summary(ticker: str, request: Request,
 
 @app.post("/api/onboarding/welcome")
 @limiter.limit("3/minute")
-async def onboarding_welcome(request: Request, user: dict = Depends(get_current_user)):
+def onboarding_welcome(request: Request, user: dict = Depends(get_current_user)):
     """
-    Chiamato dal frontend subito dopo la registrazione.
+    Chiamato dal frontend al primo accesso di un utente.
     Registra l'utente nella tabella onboarding e invia l'email di benvenuto (giorno 0).
-    Idempotente: se l'utente è già registrato, non invia una seconda email.
+    Idempotente: se l'email di benvenuto e' gia' partita non ne manda un'altra
+    (vedi `onboarding.send_welcome`, che prima non lo era affatto).
+
+    `def` e non `async def`, dal 24 settembre 2026: dentro c'e' una query
+    psycopg2 e una chiamata HTTP a Resend, tutte e due bloccanti. In una
+    funzione async fermavano l'intero ciclo di eventi, cioe' ogni altro
+    utente, finche' l'email non era partita. FastAPI esegue le funzioni
+    sincrone in un thread a parte, che e' quello che serve.
     """
     try:
         send_welcome(user["sub"], user["email"])
@@ -552,21 +579,23 @@ async def onboarding_welcome(request: Request, user: dict = Depends(get_current_
 
 # ── AI Chat ────────────────────────────────────────────────────────────────
 
-from pydantic import BaseModel
-from groq import Groq
-
 class ChatRequest(BaseModel):
-    message: str
-    ticker: str | None = None
+    # I tetti non sono estetica: senza, un messaggio da un megabyte andava
+    # dritto a Groq e si mangiava in una volta la quota gratuita del giorno.
+    message: str = Field(..., min_length=1, max_length=2000)
+    ticker: str | None = Field(default=None, max_length=20)
     sentiment_score: float | None = None
-    top_news: list[str] | None = None
+    top_news: list[str] | None = Field(default=None, max_length=10)
 
 @app.post("/api/chat")
 @limiter.limit("20/minute")
-async def chat(body: ChatRequest, request: Request,
-               user: dict = Depends(get_current_user)):
-
-    groq_client = Groq(api_key=os.environ.get("GROQ_API_KEY", ""))
+def chat(body: ChatRequest, request: Request,
+         user: dict = Depends(get_current_user)):
+    # Sincrona per lo stesso motivo di onboarding_welcome: la chiamata a Groq
+    # e' bloccante e dura secondi, e dentro una funzione async teneva fermo il
+    # server per tutti gli altri mentre il modello scriveva.
+    from sentiment_groq import _get_groq
+    groq_client = _get_groq()
 
     # Costruisce il contesto del ticker se disponibile
     context = ""
@@ -576,7 +605,8 @@ async def chat(body: ChatRequest, request: Request,
                 "negativo (mercato pessimista)" if score and score < -0.1 else "neutro"
         context = f"\n\nContesto attuale: l'utente sta analizzando {body.ticker} con sentiment score {score} ({label})."
         if body.top_news:
-            context += f"\nUltime notizie: {'; '.join(body.top_news[:3])}"
+            titoli = [str(t)[:300] for t in body.top_news[:3]]
+            context += f"\nUltime notizie: {'; '.join(titoli)}"
 
     system_prompt = f"""Sei un assistente finanziario integrato in Cheruvo, una piattaforma di analisi del sentiment delle notizie finanziarie.
 
@@ -601,11 +631,21 @@ Regole:
                 {"role": "system", "content": system_prompt},
                 {"role": "user", "content": body.message},
             ],
-            max_tokens=600,
+            # Era 600, tarato su Llama che rispondeva e basta. Dal 16 agosto
+            # 2026 il modello e' un GPT-OSS, che RAGIONA prima di rispondere e
+            # paga quel ragionamento con lo stesso tetto: con 600 poteva
+            # finire il budget prima di scrivere una parola, e la chat
+            # tornava una risposta vuota. Un tetto piu' alto non consuma
+            # quota: si contano i token generati, non quelli concessi (la
+            # nota completa sta in sentiment_groq.py, sopra BATCH_PROMPT).
+            max_tokens=2000,
             temperature=0.7,
         )
-        reply = response.choices[0].message.content
-        return {"reply": reply}
+        reply = (response.choices[0].message.content or "").strip()
     except Exception as e:
         logger.error("Chat error: %s", e)
         raise HTTPException(status_code=503, detail="Servizio AI momentaneamente non disponibile")
+    if not reply:
+        logger.warning("Chat: il modello ha restituito una risposta vuota")
+        raise HTTPException(status_code=503, detail="Servizio AI momentaneamente non disponibile")
+    return {"reply": reply}

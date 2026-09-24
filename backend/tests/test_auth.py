@@ -142,10 +142,22 @@ class TestLetturaSenzaAccount:
 
     @pytest.fixture(autouse=True)
     def setup(self, app):
-        """Nessun token: get_current_user_optional restituisce None."""
+        """
+        Nessun token: get_current_user_optional restituisce None.
+
+        E niente rete: fino al 24 settembre 2026 questi test chiamavano Yahoo
+        per davvero (tre tentativi con pausa, poi Alpha Vantage), quindi
+        dipendevano dalla connessione e duravano secondi. Qui si prova chi
+        puo' leggere cosa, non Yahoo.
+        """
+        import pandas as pd
         from auth import get_current_user_optional
         app.dependency_overrides[get_current_user_optional] = lambda: None
-        yield
+        finto = pd.DataFrame({"Close": [1.0, 2.0]},
+                             index=pd.to_datetime(["2026-09-01", "2026-09-02"]))
+        with patch("main.get_prices", return_value=finto), \
+             patch("main.stato_mercato", return_value={"aperto": False}):
+            yield
         app.dependency_overrides.clear()
 
     def test_le_notizie_si_leggono_senza_account(self, app):
@@ -156,21 +168,44 @@ class TestLetturaSenzaAccount:
     def test_i_prezzi_si_leggono_senza_account(self, app):
         with TestClient(app, raise_server_exceptions=False) as c:
             resp = c.get("/api/prices/AAPL")
-        assert resp.status_code != 401
+        assert resp.status_code == 200
 
     def test_il_sentiment_si_legge_senza_account(self, app):
         with TestClient(app, raise_server_exceptions=False) as c:
             resp = c.get("/api/sentiment/AAPL")
         assert resp.status_code != 401
 
-    def test_un_periodo_lungo_resta_chiuso(self, app):
+    def test_col_paywall_acceso_un_periodo_lungo_resta_chiuso(self, app):
         """
-        Aprire la lettura non vuol dire regalare il piano PRO: i periodi
-        lunghi restano dove stavano.
+        Aprire la lettura non vuol dire regalare il piano PRO: il giorno in
+        cui il paywall si riaccende, i periodi lunghi tornano dove stavano,
+        per il visitatore esattamente come per l'iscritto senza abbonamento.
         """
-        with TestClient(app, raise_server_exceptions=False) as c:
-            resp = c.get("/api/prices/AAPL?period=5y")
+        with patch("auth.PAYWALL_ATTIVO", True):
+            with TestClient(app, raise_server_exceptions=False) as c:
+                resp = c.get("/api/prices/AAPL?period=5y")
         assert resp.status_code == 403
+
+    def test_col_paywall_spento_il_visitatore_vede_quello_che_vede_un_iscritto(self, app):
+        """
+        Il difetto del 24 settembre 2026: con il paywall spento l'iscritto
+        vedeva 6M e 1A, il visitatore riceveva 403, e l'interfaccia gli
+        mostrava comunque i bottoni. Il risultato era un grafico vuoto.
+        """
+        with patch("auth.PAYWALL_ATTIVO", False):
+            with TestClient(app, raise_server_exceptions=False) as c:
+                resp = c.get("/api/prices/AAPL?period=1y")
+        assert resp.status_code == 200
+
+    def test_un_periodo_inventato_viene_respinto(self, app):
+        with TestClient(app, raise_server_exceptions=False) as c:
+            resp = c.get("/api/prices/AAPL?period=100y")
+        assert resp.status_code == 400
+
+    def test_un_simbolo_impossibile_viene_respinto(self, app):
+        with TestClient(app, raise_server_exceptions=False) as c:
+            assert c.get("/api/news/AAPL%3Bdrop").status_code == 400
+            assert c.get("/api/prices/" + "A" * 40).status_code == 400
 
 
 class TestQuelloCheSpendeRestaChiuso:

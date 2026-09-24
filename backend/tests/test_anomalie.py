@@ -417,3 +417,56 @@ def test_un_alert_senza_anomalia_di_volume_dice_comunque_qualcosa():
                                  "notizie_tipiche": 78.0, "z_volume": 0.2,
                                  "z_tono": -4.5})
     assert frase and "tono" in frase
+
+
+# ── 24 settembre 2026: il tono si giudica sulle notizie, non sulle copie ──
+
+def test_una_storia_ripresa_venti_volte_non_fa_un_anomalia_di_tono():
+    """
+    Venti testate che rilanciano lo stesso pezzo sono attenzione (volume),
+    ma sono UN giudizio. Prima il tono contava le copie: bastava una storia
+    ripresa cinque volte per superare la soglia dei cinque articoli, e il
+    pavimento del tono si restringeva come se fossero venti notizie diverse.
+    """
+    giorni = _giorni(21)
+    oggi = giorni[-1]
+    conteggi = {g: 10 for g in giorni}
+    conteggi[oggi] = 20
+    toni = {g: 0.0 for g in giorni}
+    toni[oggi] = -0.9
+    distinte = {g: 10 for g in giorni}
+    distinte[oggi] = 1          # venti copie dello stesso titolo
+    totale = {g: 1000 for g in giorni}
+    r = an._per_ticker("TEST-USD", conteggi, toni, totale, oggi, distinte)
+    assert r["z_tono"] is None
+
+
+def test_senza_il_conto_delle_distinte_si_comporta_come_prima():
+    """I chiamanti vecchi (e i test qui sopra) non passano `distinte`."""
+    giorni = _giorni(21)
+    oggi = giorni[-1]
+    conteggi = {g: 10 for g in giorni}
+    toni = {g: 0.0 for g in giorni}
+    toni[oggi] = -0.9
+    totale = {g: 1000 for g in giorni}
+    r = an._per_ticker("TEST-USD", conteggi, toni, totale, oggi)
+    assert r["z_tono"] is not None
+
+
+def test_la_query_fonde_le_riprese_come_la_classifica():
+    from unittest.mock import MagicMock
+    from market import CHIAVE_TITOLO_SQL
+    pool, conn, cur = MagicMock(), MagicMock(), MagicMock()
+    pool.getconn.return_value = conn
+    conn.cursor.return_value = cur
+    oggi = an.DA_QUANDO + timedelta(days=20)
+    cur.fetchall.return_value = [("BTC-USD", oggi, 61, 0.2, 2),
+                                 ("ETH-USD", oggi, 3, None, 0)]
+    conteggi, toni, totale, distinte = an._giorni_per_ticker(pool)
+    sql = cur.execute.call_args[0][0]
+    assert CHIAVE_TITOLO_SQL in sql
+    assert conteggi["BTC-USD"][oggi] == 61, "il volume conta ancora le riprese"
+    assert distinte["BTC-USD"][oggi] == 2
+    assert totale[oggi] == 64
+    # Un giorno senza punteggi non diventa uno zero inventato.
+    assert oggi not in toni.get("ETH-USD", {})

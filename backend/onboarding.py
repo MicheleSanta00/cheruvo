@@ -1,9 +1,19 @@
 """
 onboarding.py — Sequenza email automatica per nuovi utenti.
 
-Giorno 0: email di benvenuto + guida rapida (inviata subito dopo la registrazione)
-Giorno 3: tips sulle funzionalità avanzate
-Giorno 7: invito upgrade PRO con feature highlight
+Giorno 0: email di benvenuto + guida rapida (al primo accesso)
+Giorno 3: le funzioni che si scoprono dopo
+Giorno 7: col paywall spento una domanda ("ti e' servito?"), col paywall
+          acceso l'invito al piano PRO
+
+COSA NON ANDAVA, trovato il 24 settembre 2026:
+  - il giorno 7 vendeva "Cheruvo PRO a 9 euro al mese" a utenti per cui
+    tutto era gia' gratis, da quando il paywall e' spento (6 agosto);
+  - il giorno 0 prometteva "watchlist fino a 3 ticker, 30 giorni di news",
+    limiti che non esistono piu';
+  - nessuna delle tre email diceva come smettere di riceverle;
+  - `send_welcome` si dichiarava idempotente e non lo era: ogni chiamata
+    mandava un'altra email di benvenuto.
 
 Chiamato da:
 - /api/onboarding/welcome (POST) per giorno 0
@@ -16,6 +26,7 @@ import psycopg2.extras
 import resend
 
 from database import get_pool
+import auth as _auth   # letto a ogni email, non fissato all'import
 
 logger = logging.getLogger(__name__)
 
@@ -66,7 +77,12 @@ def register_user(user_id: str, email: str):
         pool.putconn(conn)
 
 
+GIORNI = (0, 3, 7)
+
+
 def mark_sent(user_id: str, day: int):
+    if day not in GIORNI:
+        raise ValueError(f"giorno di onboarding sconosciuto: {day}")
     col = f"sent_day{day}"
     pool = get_pool()
     conn = pool.getconn()
@@ -79,9 +95,57 @@ def mark_sent(user_id: str, day: int):
         pool.putconn(conn)
 
 
+def _prenota(user_id: str, day: int) -> bool:
+    """
+    Segna l'email come inviata PRIMA di mandarla, e solo se non lo era.
+
+    Ritorna True se tocca a noi mandarla. Con due chiamate quasi insieme (due
+    schede aperte al primo accesso) una sola trova la riga ancora a FALSE:
+    l'altra non manda niente. Se poi l'invio fallisce, `_libera` rimette il
+    FALSE e il giro successivo ci riprova.
+    """
+    if day not in GIORNI:
+        raise ValueError(f"giorno di onboarding sconosciuto: {day}")
+    col = f"sent_day{day}"
+    pool = get_pool()
+    conn = pool.getconn()
+    try:
+        cur = conn.cursor()
+        cur.execute(f"UPDATE onboarding_emails SET {col} = TRUE "
+                    f"WHERE user_id = %s AND {col} = FALSE RETURNING 1", (user_id,))
+        presa = cur.fetchone() is not None
+        conn.commit()
+        cur.close()
+    finally:
+        pool.putconn(conn)
+    return presa
+
+
+def _libera(user_id: str, day: int) -> None:
+    col = f"sent_day{day}"
+    pool = get_pool()
+    conn = pool.getconn()
+    try:
+        cur = conn.cursor()
+        cur.execute(f"UPDATE onboarding_emails SET {col} = FALSE WHERE user_id = %s", (user_id,))
+        conn.commit()
+        cur.close()
+    finally:
+        pool.putconn(conn)
+
+
+def _link_disiscrizione(user_id: str) -> str:
+    """Lo stesso link del digest: una sola scelta per tutte le email facoltative."""
+    from digest import BACKEND_PUBLIC_URL, unsubscribe_token
+    return (f"{BACKEND_PUBLIC_URL}/api/digest/unsubscribe"
+            f"?u={user_id}&t={unsubscribe_token(user_id)}")
+
+
 # ── Template email ────────────────────────────────────────────────────────
 
-def _base_layout(title: str, body_html: str) -> str:
+def _base_layout(title: str, body_html: str, disiscrizione: str = "") -> str:
+    riga_uscita = (f'<br><a href="{disiscrizione}" style="color:#aaa">Non voglio piu\' ricevere '
+                   f'queste email</a>' if disiscrizione else "")
     return f"""
 <div style="font-family:Arial,sans-serif;max-width:540px;margin:0 auto;padding:32px;color:#1a1a2e;background:#ffffff">
   <div style="display:flex;align-items:center;gap:10px;margin-bottom:32px">
@@ -92,25 +156,30 @@ def _base_layout(title: str, body_html: str) -> str:
   {body_html}
   <div style="margin-top:40px;padding-top:20px;border-top:1px solid #eee;font-size:11px;color:#aaa">
     Hai ricevuto questa email perché ti sei registrato su Cheruvo.<br>
-    <a href="{FRONTEND_URL}" style="color:#1e5cff;text-decoration:none">app.cheruvo.com</a>
+    <a href="{FRONTEND_URL}" style="color:#1e5cff;text-decoration:none">app.cheruvo.com</a>{riga_uscita}
   </div>
 </div>"""
 
 
-def _email_day0(email: str) -> tuple[str, str]:
-    subject = "Benvenuto su Cheruvo 👋"
+def _email_day0(email: str, disiscrizione: str = "") -> tuple[str, str]:
+    subject = "Benvenuto su Cheruvo"
+    if _auth.PAYWALL_ATTIVO:
+        piano = "Piano gratuito: watchlist fino a 5 titoli, ultimi 30 giorni di notizie."
+    else:
+        piano = "Tutte le funzioni sono aperte e gratuite: nessuna carta, nessun limite di piano."
     body = _base_layout("Benvenuto su Cheruvo!", f"""
 <p style="font-size:14px;color:#555;line-height:1.7;margin-bottom:20px">
-  Ciao! Il tuo account è attivo. In meno di 30 secondi puoi vedere il sentiment
-  di qualsiasi azione quotata in borsa.
+  Ciao! Il tuo account è attivo. Cheruvo legge le notizie finanziarie su una
+  cinquantina fra azioni e criptovalute e ti dice che tono hanno, accanto al
+  prezzo e sempre con il numero di notizie su cui si basa.
 </p>
 <div style="background:#f8f9ff;border-radius:10px;padding:20px;margin-bottom:24px">
   <div style="font-size:13px;font-weight:600;color:#1a1a2e;margin-bottom:12px">Come iniziare:</div>
   <div style="font-size:13px;color:#555;line-height:2">
     <b>1.</b> Vai su <a href="{FRONTEND_URL}" style="color:#1e5cff">{FRONTEND_URL}</a><br>
-    <b>2.</b> Inserisci un ticker nella sidebar (es. <b>NVDA</b>, <b>AAPL</b>, <b>ENI.MI</b>)<br>
-    <b>3.</b> Clicca → per vedere il sentiment delle ultime notizie<br>
-    <b>4.</b> Il grafico mostra prezzi + sentiment sovrapposti nel tempo
+    <b>2.</b> Cerca un titolo in alto (es. <b>NVDA</b>, <b>ENI.MI</b>, <b>BTC</b>)<br>
+    <b>3.</b> Aggiungi alla watchlist quelli che segui: ti avvisiamo se se ne parla in modo insolito<br>
+    <b>4.</b> Il grafico mette il tono delle notizie accanto al prezzo, giorno per giorno
   </div>
 </div>
 <a href="{FRONTEND_URL}" style="display:inline-block;background:#1e5cff;color:white;
@@ -118,13 +187,13 @@ def _email_day0(email: str) -> tuple[str, str]:
   Apri Cheruvo →
 </a>
 <p style="font-size:12px;color:#aaa;margin-top:24px">
-  Piano gratuito: watchlist fino a 3 ticker, ultimi 30 giorni di news.
-</p>""")
+  {piano}
+</p>""", disiscrizione)
     return subject, body
 
 
-def _email_day3(email: str) -> tuple[str, str]:
-    subject = "Hai già provato queste funzioni? — Cheruvo"
+def _email_day3(email: str, disiscrizione: str = "") -> tuple[str, str]:
+    subject = "Hai già provato queste funzioni?"
     body = _base_layout("3 funzioni che forse non hai ancora visto", f"""
 <p style="font-size:14px;color:#555;line-height:1.7;margin-bottom:24px">
   Sono passati 3 giorni dalla tua registrazione. Ecco le funzioni che
@@ -157,38 +226,62 @@ def _email_day3(email: str) -> tuple[str, str]:
 <a href="{FRONTEND_URL}" style="display:inline-block;background:#1e5cff;color:white;
    padding:12px 28px;border-radius:8px;text-decoration:none;font-weight:600;font-size:14px">
   Prova adesso →
-</a>""")
+</a>""", disiscrizione)
     return subject, body
 
 
-def _email_day7(email: str) -> tuple[str, str]:
-    subject = "Sblocca tutto con Cheruvo PRO — €9/mese"
+def _email_day7(email: str, disiscrizione: str = "") -> tuple[str, str]:
+    """
+    Col paywall spento non c'e' niente da vendere, e l'email fino al 24
+    settembre 2026 vendeva lo stesso: "Sblocca tutto con Cheruvo PRO, 9 euro
+    al mese", a persone per cui tutto era gia' aperto. Adesso fa l'unica
+    domanda che serve davvero in questa fase, quella che il README chiama
+    "chi lo usa e perche'", e chiede di rispondere alla mail.
+    """
+    if not _auth.PAYWALL_ATTIVO:
+        subject = "Una domanda sola, dopo una settimana"
+        body = _base_layout("Ti è servito a qualcosa?", f"""
+<p style="font-size:14px;color:#555;line-height:1.7;margin-bottom:16px">
+  È una settimana che hai un account su Cheruvo. Lo sviluppo da solo, e la
+  cosa che mi serve di più non è un altro utente: è sapere da chi lo usa
+  che cosa cercava.
+</p>
+<p style="font-size:14px;color:#555;line-height:1.7;margin-bottom:16px">
+  Se hai due minuti, rispondi a questa email con una riga: per cosa lo hai
+  aperto, cosa ti è mancato, cosa non hai capito. Anche "non mi serve"
+  è una risposta utilissima.
+</p>
+<a href="{FRONTEND_URL}" style="display:inline-block;background:#1e5cff;color:white;
+   padding:12px 28px;border-radius:8px;text-decoration:none;font-weight:600;font-size:14px">
+  Apri Cheruvo →
+</a>""", disiscrizione)
+        return subject, body
+
+    subject = "Sblocca tutto con Cheruvo PRO, €9/mese"
     body = _base_layout("Passa a PRO e sblocca tutte le funzioni", f"""
 <p style="font-size:14px;color:#555;line-height:1.7;margin-bottom:24px">
   Sei su Cheruvo da una settimana. Se ti è stato utile, considera
-  il piano PRO — costa meno di un caffè al giorno.
+  il piano PRO: costa meno di un caffè al giorno.
 </p>
 <div style="background:#f0f4ff;border-radius:10px;padding:20px;margin-bottom:24px">
   <div style="font-size:13px;font-weight:700;color:#1a1a2e;margin-bottom:14px">
     Con PRO sblocchi:
   </div>
   <div style="font-size:13px;color:#333;line-height:2.2">
-    ✅ <b>Watchlist illimitata</b> — segui quanti ticker vuoi<br>
-    ✅ <b>90 giorni di notizie</b> (vs 30 del piano free)<br>
-    ✅ <b>AI Summary</b> — analisi bullish/bearish generata da Llama 3<br>
-    ✅ <b>Correlazione sentiment/prezzo</b> — scatter plot avanzato<br>
-    ✅ <b>Alert email</b> — notifiche automatiche sui tuoi ticker<br>
-    ✅ <b>Export CSV</b> — scarica tutte le news in Excel<br>
-    ✅ <b>Analytics avanzate</b> — distribuzione fonti e sentiment
+    ✅ <b>Watchlist illimitata</b>: segui quanti ticker vuoi<br>
+    ✅ <b>90 giorni di notizie</b> (contro i 30 del piano free)<br>
+    ✅ <b>Riassunto AI</b> delle notizie della settimana<br>
+    ✅ <b>Correlazione sentiment/prezzo</b>, con la sua banda di incertezza<br>
+    ✅ <b>Export CSV e PDF</b>
   </div>
 </div>
 <a href="{FRONTEND_URL}" style="display:inline-block;background:#1e5cff;color:white;
    padding:14px 32px;border-radius:8px;text-decoration:none;font-weight:600;font-size:15px">
-  ⚡ Passa a PRO — €9/mese →
+  Passa a PRO, €9/mese →
 </a>
 <p style="font-size:12px;color:#aaa;margin-top:20px">
   Puoi cancellare in qualsiasi momento dal tuo profilo. Nessun vincolo.
-</p>""")
+</p>""", disiscrizione)
     return subject, body
 
 
@@ -196,7 +289,13 @@ def _email_day7(email: str) -> tuple[str, str]:
 
 def _send(to: str, subject: str, html: str) -> bool:
     try:
-        resend.Emails.send({"from": FROM_EMAIL, "to": to, "subject": subject, "html": html})
+        parametri = {"from": FROM_EMAIL, "to": to, "subject": subject, "html": html}
+        # Il giorno 7 chiede di RISPONDERE: la risposta deve arrivare a una
+        # casella letta, non a noreply@.
+        contatto = os.environ.get("CONTATTO_EMAIL") or os.environ.get("ADMIN_EMAIL")
+        if contatto:
+            parametri["reply_to"] = contatto
+        resend.Emails.send(parametri)
         logger.info("[Onboarding] Inviata '%s' a %s", subject, to)
         return True
     except Exception as e:
@@ -204,38 +303,62 @@ def _send(to: str, subject: str, html: str) -> bool:
         return False
 
 
-def send_welcome(user_id: str, email: str):
-    """Invia l'email di giorno 0 e registra l'utente nel DB."""
+def send_welcome(user_id: str, email: str) -> bool:
+    """
+    Email di giorno 0, una volta sola per utente. Ritorna True se e' partita.
+
+    Il frontend la chiede al primo accesso: prima la chiedeva solo subito
+    dopo la registrazione e solo se Supabase restituiva gia' una sessione,
+    cosa che con la conferma dell'email attiva non succede. Quindi di fatto
+    non partiva, e senza la riga in onboarding_emails non partivano nemmeno
+    le email dei giorni 3 e 7.
+    """
     register_user(user_id, email)
-    subject, html = _email_day0(email)
+    if not _prenota(user_id, 0):
+        return False
+    subject, html = _email_day0(email, _link_disiscrizione(user_id))
     if _send(email, subject, html):
-        mark_sent(user_id, 0)
+        return True
+    _libera(user_id, 0)
+    return False
 
 
 def check_and_send_onboarding_emails():
     """
     Chiamato dal cron GitHub Actions.
-    Invia le email di giorno 3 e 7 agli utenti che non le hanno ancora ricevute.
+    Invia le email di giorno 3 e 7 agli utenti che non le hanno ancora ricevute,
+    saltando chi ha chiesto di non ricevere email facoltative.
     """
+    try:
+        # La scelta di non ricevere email sta in digest_prefs: la tabella va
+        # garantita prima di leggerla, perche' nel cron il digest gira DOPO.
+        from digest import init_digest_tables
+        init_digest_tables()
+    except Exception as e:
+        logger.warning("[Onboarding] digest_prefs non verificabile: %s", e)
+
     pool = get_pool()
     conn = pool.getconn()
     try:
         cur = conn.cursor(cursor_factory=psycopg2.extras.DictCursor)
-        now = datetime.now(timezone.utc)
 
-        # Giorno 3: registrati >= 3 giorni fa, non ancora ricevuta
+        # Giorno 3 e giorno 7: registrati da abbastanza, non ancora ricevuta,
+        # e senza aver disattivato le email facoltative.
         cur.execute("""
-            SELECT user_id, email FROM onboarding_emails
-            WHERE sent_day3 = FALSE
-              AND registered_at <= NOW() - INTERVAL '3 days'
+            SELECT o.user_id, o.email FROM onboarding_emails o
+            LEFT JOIN digest_prefs dp ON dp.user_id = o.user_id
+            WHERE o.sent_day3 = FALSE
+              AND o.registered_at <= NOW() - INTERVAL '3 days'
+              AND COALESCE(dp.enabled, TRUE)
         """)
         day3_users = cur.fetchall()
 
-        # Giorno 7: registrati >= 7 giorni fa, non ancora ricevuta
         cur.execute("""
-            SELECT user_id, email FROM onboarding_emails
-            WHERE sent_day7 = FALSE
-              AND registered_at <= NOW() - INTERVAL '7 days'
+            SELECT o.user_id, o.email FROM onboarding_emails o
+            LEFT JOIN digest_prefs dp ON dp.user_id = o.user_id
+            WHERE o.sent_day7 = FALSE
+              AND o.registered_at <= NOW() - INTERVAL '7 days'
+              AND COALESCE(dp.enabled, TRUE)
         """)
         day7_users = cur.fetchall()
         cur.close()
@@ -246,14 +369,16 @@ def check_and_send_onboarding_emails():
                 len(day3_users), len(day7_users))
 
     for row in day3_users:
-        subject, html = _email_day3(row["email"])
+        uid = str(row["user_id"])
+        subject, html = _email_day3(row["email"], _link_disiscrizione(uid))
         if _send(row["email"], subject, html):
-            mark_sent(row["user_id"], 3)
+            mark_sent(uid, 3)
 
     for row in day7_users:
-        subject, html = _email_day7(row["email"])
+        uid = str(row["user_id"])
+        subject, html = _email_day7(row["email"], _link_disiscrizione(uid))
         if _send(row["email"], subject, html):
-            mark_sent(row["user_id"], 7)
+            mark_sent(uid, 7)
 
 
 if __name__ == "__main__":

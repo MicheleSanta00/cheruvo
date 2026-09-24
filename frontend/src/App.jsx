@@ -31,6 +31,7 @@ import LogoCrypto, { eCrypto, nelMercato, leggiMercato, salvaMercato, PREDEFINIT
 import PauraAvidita from './components/PauraAvidita.jsx'
 import SezioneAzioni from './components/SezioneAzioni.jsx'
 import PrezzoMobile from './components/PrezzoMobile.jsx'
+import { formattaPrezzo, formattaPct } from './utils/numeri.js'
 
 
 /**
@@ -119,6 +120,7 @@ export default function App() {
   }
 
   const [showProfile, setShowProfile] = useState(false)
+  const [recuperoPassword, setRecuperoPassword] = useState(false)
   const [sidebarOpen, setSidebarOpen] = useState(false)
   const [loadedTicker, setLoadedTicker] = useState(null)
   const [showStats, setShowStats]     = useState(false)
@@ -218,10 +220,16 @@ export default function App() {
       setUser(session?.user ?? null)
       setAuthLoading(false)
     })
-    supabase.auth.onAuthStateChange((_event, session) => {
+    // La sottoscrizione va chiusa allo smontaggio: in StrictMode l'effetto
+    // gira due volte e senza `unsubscribe` gli ascoltatori si sommavano.
+    const { data: { subscription } } = supabase.auth.onAuthStateChange((evento, session) => {
       setUser(session?.user ?? null)
       if (!session) resetUser()  // logout: resetta identità PostHog
+      // Si torna dal link "password dimenticata": Supabase ha aperto una
+      // sessione di recupero e aspetta la password nuova.
+      if (evento === 'PASSWORD_RECOVERY') setRecuperoPassword(true)
     })
+    return () => subscription?.unsubscribe()
   }, [])
 
   useEffect(() => {
@@ -237,15 +245,31 @@ export default function App() {
     // Il risultato era non riuscire a distinguere i propri utenti dagli
     // sconosciuti, che con pochi utenti è esattamente ciò che non ci si può
     // permettere.
-    identifyUser(user.id, user.email)
+    identifyUser(user.id)
+
+    // L'email di benvenuto parte al PRIMO ACCESSO, non alla registrazione.
+    //
+    // Prima la chiedeva Auth.jsx subito dopo `signUp`, e solo se Supabase
+    // restituiva già una sessione: con la conferma dell'email attiva la
+    // sessione non c'è, quindi il benvenuto non partiva mai, e senza la riga
+    // in onboarding_emails non partivano nemmeno le email dei giorni 3 e 7.
+    // Il backend è idempotente (onboarding.send_welcome): il segno in
+    // localStorage serve solo a non chiederlo a ogni caricamento di pagina.
+    try {
+      const chiave = `cheruvo-benvenuto-${user.id}`
+      if (!localStorage.getItem(chiave)) {
+        apiFetch('/onboarding/welcome', { method: 'POST' })
+          .then(() => { try { localStorage.setItem(chiave, '1') } catch (_) {} })
+          .catch(() => { /* riproverà al prossimo accesso */ })
+      }
+    } catch (_) { /* storage negato: niente benvenuto, niente danno */ }
 
     // L'abbonamento si continua a leggere, ma solo per sapere CHI è chi nelle
     // statistiche. Non decide più cosa uno può vedere: quello lo stabilisce
     // `isPro`, che parte acceso finché il paywall resta spento. Se un domani
     // si riaccende, basta rimettere `setIsPro(pro)` qui sotto.
     apiFetch(`/subscription/${user.id}`)
-      .then(data => identifyUser(user.id, user.email,
-                                 data.status === 'pro' ? 'pro' : 'free'))
+      .then(data => identifyUser(user.id, data.status === 'pro' ? 'pro' : 'free'))
       .catch(() => { /* senza risposta resta tutto aperto, come deve */ })
   }, [user])
 
@@ -434,6 +458,9 @@ export default function App() {
                   overflow: stretto ? 'visible' : 'hidden',
                   background: 'var(--black)', position: 'relative' }}>
       <OnboardingTooltip hasData={hasData} />
+      {recuperoPassword && (
+        <NuovaPassword lang={lang} onFatto={() => setRecuperoPassword(false)} />
+      )}
       {/* Anche questa passa da Groq. Non si disabilita, non si mostra
           proprio: un pulsante che al primo clic chiede di registrarsi e'
           peggio di un pulsante che non c'e'. */}
@@ -474,6 +501,7 @@ export default function App() {
           onTickerChange={setTicker} onDaysChange={setDays} onPeriodChange={setPeriod}
           onLoad={(tk, d, p) => handleLoad(tk, d, p)}
           onFetch={handleFetch} onUpgrade={handleUpgrade}
+          onServeAccount={serveAccount}
         />
       </div>
 
@@ -529,10 +557,12 @@ export default function App() {
                     display: 'inline-flex', alignItems: 'baseline', gap: 7, flexShrink: 0,
                     fontFamily: 'var(--mono)', fontVariantNumeric: 'tabular-nums', marginLeft: 4,
                   }}>
-                    <span style={{ fontSize: 14, fontWeight: 700 }}>{px.toFixed(2)}</span>
+                    {/* formattaPrezzo e non toFixed(2): Shiba, a 0,00001,
+                        qui diventava "0.00". */}
+                    <span style={{ fontSize: 14, fontWeight: 700 }}>{formattaPrezzo(px)}</span>
                     {varPct != null && (
                       <span style={{ fontSize: 11.5, fontWeight: 700, color: su ? 'var(--green)' : 'var(--red)' }}>
-                        {su ? '+' : '−'}{Math.abs(varPct).toFixed(2)}%
+                        {formattaPct(varPct)}
                       </span>
                     )}
                   </span>
@@ -719,7 +749,7 @@ export default function App() {
                 background: 'var(--blue)', color: '#fff', border: 'none',
                 fontSize: 12, fontWeight: 600, cursor: 'pointer', flexShrink: 0,
               }}>
-                Entra
+                {lang === 'it' ? 'Entra' : 'Sign in'}
               </button>
             )}
           </div>
@@ -737,15 +767,19 @@ export default function App() {
             background: 'var(--near-black)', borderBottom: '1px solid var(--border)',
             fontSize: 12.5, color: 'var(--dim)',
           }}>
+            {/* Tradotta il 24 settembre 2026: l'inglese è la lingua di
+                partenza dal 18 agosto, e questa era la prima riga che un
+                visitatore straniero leggeva, in italiano. */}
             <span>
-              Stai guardando senza account. I dati sono gli stessi: con un
-              account hai watchlist, alert ed export.
+              {lang === 'it'
+                ? 'Stai guardando senza account. I dati sono gli stessi: con un account hai watchlist, alert ed export.'
+                : 'You are browsing without an account. The data is the same: an account adds a watchlist, alerts and exports.'}
             </span>
             <button onClick={() => setMostraAccesso(true)} style={{
               background: 'none', border: '1px solid var(--border)', borderRadius: 12,
               color: 'var(--text)', fontSize: 12, padding: '2px 10px', cursor: 'pointer',
             }}>
-              Entra, è gratis
+              {lang === 'it' ? 'Entra, è gratis' : 'Sign in, it\'s free'}
             </button>
           </div>
         )}
@@ -820,7 +854,7 @@ export default function App() {
               {/* AI Summary */}
               {loadedTicker && (
                 <SummaryCard ticker={loadedTicker} isPro={isPro} haAccount={!!user}
-                             onUpgrade={handleUpgrade} />
+                             onUpgrade={handleUpgrade} onServeAccount={serveAccount} />
               )}
 
               {/* Stats PRO — collassabili */}
@@ -836,7 +870,7 @@ export default function App() {
                       color: 'var(--muted)', marginBottom: showStats ? 12 : 0,
                     }}
                   >
-                    <span style={{ display: 'inline-flex', alignItems: 'center', gap: 6 }}><Icon name="analytics" size={13} /> Analytics avanzate</span>
+                    <span style={{ display: 'inline-flex', alignItems: 'center', gap: 6 }}><Icon name="analytics" size={13} /> {lang === 'it' ? 'Analytics avanzate' : 'Advanced analytics'}</span>
                     <Icon name="chevron-down" size={14} style={{ transition: 'transform .2s', transform: showStats ? 'rotate(180deg)' : 'none' }} />
                   </button>
                   {showStats && <Stats news={news} />}
@@ -1052,6 +1086,58 @@ export default function App() {
 }
 
 // ── Sub-components ────────────────────────────────────────────────────────────
+
+// La password nuova, dopo il link "password dimenticata" (24 settembre 2026).
+function NuovaPassword({ lang, onFatto }) {
+  const [password, setPassword] = useState('')
+  const [errore, setErrore] = useState('')
+  const [salvando, setSalvando] = useState(false)
+  const it = lang === 'it'
+
+  const salva = async () => {
+    if (password.length < 8) {
+      setErrore(it ? 'Almeno 8 caratteri.' : 'At least 8 characters.')
+      return
+    }
+    setSalvando(true)
+    const { error } = await supabase.auth.updateUser({ password })
+    setSalvando(false)
+    if (error) { setErrore(error.message); return }
+    onFatto()
+  }
+
+  return (
+    <div style={{
+      position: 'fixed', inset: 0, zIndex: 2000, background: 'rgba(0,0,0,0.6)',
+      display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 16,
+    }}>
+      <div style={{
+        width: '100%', maxWidth: 360, background: 'var(--near-black)',
+        border: '1px solid var(--border)', borderRadius: 16, padding: 28,
+      }}>
+        <h2 style={{ fontSize: 18, fontWeight: 500, marginBottom: 14 }}>
+          {it ? 'Scegli una password nuova' : 'Choose a new password'}
+        </h2>
+        <input type="password" value={password} autoFocus
+          onChange={(e) => setPassword(e.target.value)}
+          onKeyDown={(e) => e.key === 'Enter' && salva()}
+          placeholder={it ? 'Password nuova' : 'New password'}
+          style={{
+            width: '100%', background: 'var(--dark)', border: '1px solid var(--border)',
+            color: 'var(--white)', borderRadius: 8, padding: '10px 14px', fontSize: 14,
+          }} />
+        {errore && <p style={{ fontSize: 13, color: 'var(--red)', marginTop: 10 }}>{errore}</p>}
+        <button onClick={salva} disabled={salvando} style={{
+          width: '100%', marginTop: 16, background: 'var(--blue)', color: '#fff',
+          border: 'none', borderRadius: 8, padding: '11px 0', fontSize: 14, cursor: 'pointer',
+          opacity: salvando ? 0.6 : 1,
+        }}>
+          {it ? 'Salva' : 'Save'}
+        </button>
+      </div>
+    </div>
+  )
+}
 
 // ── Ricerca ticker nell'header (con suggerimenti, come la sidebar) ─────────
 function HeaderSearch({ placeholder, days, period, onLoad, onTickerChange, mercatoAttivo, copertura }) {
@@ -1327,13 +1413,14 @@ function ErrorBanner({ msg }) {
 }
 
 function LoadingState() {
+  const { lang } = useLang()
   return (
     <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', height: '60vh', gap: 10, color: 'var(--muted)', fontSize: 13 }}>
       <svg width="16" height="16" viewBox="0 0 14 14" fill="none" style={{ animation: 'spin 0.8s linear infinite' }}>
         <style>{`@keyframes spin { to { transform: rotate(360deg); } }`}</style>
         <circle cx="7" cy="7" r="5.5" stroke="var(--muted)" strokeWidth="1.5" strokeDasharray="20 14" strokeLinecap="round"/>
       </svg>
-      Caricamento...
+      {lang === 'it' ? 'Caricamento...' : 'Loading...'}
     </div>
   )
 }
@@ -1405,7 +1492,9 @@ function EmptyState({ t, onLoad, days, period, mercato, mktStats, risveglio, mer
 
   const righe = mercato?.rows || []
   const rialzisti = righe.filter((r) => r.sentiment > 0).slice(0, 6)
-  const ribassisti = righe.filter((r) => r.sentiment <= 0).slice(-6).reverse()
+  // `< 0` e non `<= 0`: un titolo a zero esatto finiva fra i "più
+  // ribassisti", cioè un tono neutro presentato come negativo.
+  const ribassisti = righe.filter((r) => r.sentiment < 0).slice(-6).reverse()
   const ora = mercato?.updated_at
     ? new Date(mercato.updated_at).toLocaleTimeString(lang === 'it' ? 'it-IT' : 'en-US', { hour: '2-digit', minute: '2-digit' })
     : null
@@ -1467,13 +1556,13 @@ function EmptyState({ t, onLoad, days, period, mercato, mktStats, risveglio, mer
             dentro la sezione crypto scrivevano "36 titoli seguiti" e "33.055
             notizie", numeri veri ma di un altro mercato. Ora si calcolano
             sulle righe effettivamente mostrate. */}
-        <Metrica etichetta={cripto ? 'Monete seguite' : t.empty.kTickers}
+        <Metrica etichetta={cripto ? (lang === 'it' ? 'Monete seguite' : 'Coins tracked') : t.empty.kTickers}
                  valore={righe.length || null} />
-        <Metrica etichetta={cripto ? 'Notizie in 48 ore' : t.empty.kNews}
+        <Metrica etichetta={cripto ? (lang === 'it' ? 'Notizie in 48 ore' : 'News in 48 hours') : t.empty.kNews}
                  valore={cripto
                    ? righe.reduce((s, r) => s + (r.news || 0), 0) || null
                    : stats?.news_total?.toLocaleString(lang === 'it' ? 'it-IT' : 'en-US')} />
-        <Metrica etichetta={cripto ? 'Con notizie oggi' : t.empty.k24h}
+        <Metrica etichetta={cripto ? (lang === 'it' ? 'Con notizie oggi' : 'With news today') : t.empty.k24h}
                  valore={cripto
                    ? righe.filter(r => r.news > 0).length || null
                    : stats?.news_today} />

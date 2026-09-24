@@ -81,6 +81,12 @@ def init_database():
         # non la dichiarano: in quel caso non si mostra niente, invece di
         # tirare a indovinare.
         cur.execute("ALTER TABLE news ADD COLUMN IF NOT EXISTS lingua TEXT")
+
+        # Il tono GDELT originale, quando il punteggio del modello ci scrive
+        # sopra (backfill_sentiment.py). Fino al 24 settembre 2026 veniva
+        # perso per sempre, ed e' l'unica misura indipendente dal modello che
+        # l'archivio abbia. Colonna di lavoro: non esce dall'API (payload.py).
+        cur.execute("ALTER TABLE news ADD COLUMN IF NOT EXISTS tono_gdelt REAL")
         conn.commit()
         cur.close()
     finally:

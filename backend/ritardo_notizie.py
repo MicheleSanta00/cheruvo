@@ -50,6 +50,7 @@ from __future__ import annotations
 import sys
 from datetime import date, timedelta
 
+from anomalie import SIGMA_ARTICOLO, mad, mediana
 from verifica_segnale import (
     BLOCCHI, MINIMO_GIORNI, MINIMO_NOTIZIE, ORIZZONTI,
     permutazione, sensibilita_blocchi, serie_prezzi, serie_sentiment,
@@ -115,7 +116,8 @@ def rendimento_precedente(prezzi: dict[date, float], giorno: date,
 
 
 def serie_ritardo(sent: dict, prezzi: dict, k: int = RITARDO,
-                  minimo_fit: int = MINIMO_FIT) -> list[dict]:
+                  minimo_fit: int = MINIMO_FIT,
+                  oggi: date | None = None) -> list[dict]:
     """
     Per ogni giorno: tono vero, tono atteso dal movimento, e la differenza.
 
@@ -123,7 +125,25 @@ def serie_ritardo(sent: dict, prezzi: dict, k: int = RITARDO,
     nessun altro. Cresce di un giorno alla volta, come crescerebbe in
     produzione: il numero che si vede oggi è calcolato con quello che si
     sapeva ieri, e non con quello che si saprà.
+
+    LA GIORNATA IN CORSO NON È UNA GIORNATA.
+
+    Il 19 settembre 2026, alle prime esecuzioni, l'ultima riga diceva 25
+    notizie. La media dell'archivio su Bitcoin è circa 120 al giorno: quelle
+    25 non erano un calo, erano la mattina.
+
+    Il guaio è che il numero SEMBRA uguale a tutti gli altri. Quel giorno il
+    ritardo valeva +0,081 con un pavimento di ±0,090, quindi rumore. Ma il
+    pavimento è SIGMA_ARTICOLO/√n, e n cresce tutto il giorno: la sera, con 80
+    articoli, il pavimento scende a 0,050 e lo stesso +0,081 diventa "1,6
+    volte il pavimento" senza che sia cambiato niente tranne l'ora.
+
+    Un numero che si rafforza col passare della giornata è un numero che
+    inganna chi lo guarda due volte. Quindi la giornata in corso si calcola,
+    si mostra, e si tiene FUORI dal test: `anomalie.py` ha lo stesso problema
+    e lo chiama `giornata_troppo_giovane`.
     """
+    oggi = date.today() if oggi is None else oggi
     coppie: list[tuple[date, float, float]] = []
     for giorno, (media, quante) in sorted(sent.items()):
         if quante < MINIMO_NOTIZIE:
@@ -147,8 +167,34 @@ def serie_ritardo(sent: dict, prezzi: dict, k: int = RITARDO,
             "atteso": atteso,
             "residuo": s - atteso,
             "giorni_stima": len(passato),
+            "quante": quante,
+            # Sotto questo, il ritardo è indistinguibile dal caso di quali
+            # articoli sono usciti quel giorno. Vedi `pavimento()`.
+            "pavimento": pavimento(quante),
+            # La giornata non è finita: il conteggio crescerà ancora, e con
+            # lui il pavimento si abbasserà. Si guarda, non si misura.
+            "parziale": giorno >= oggi,
         })
     return righe
+
+
+def pavimento(quante: int) -> float:
+    """
+    L'errore naturale di una media di `quante` articoli: SIGMA_ARTICOLO/√n.
+
+    Serve perché un residuo senza scala non è un'informazione. "+0,079" non
+    dice a nessuno se la stampa sta davvero correndo più del movimento o se
+    quel giorno sono semplicemente usciti articoli un po' più ottimisti del
+    solito: è lo stesso difetto per cui la home apriva con "ADA +0,34 su 3
+    news" ed era un primo posto sorteggiato.
+
+    Stesso SIGMA_ARTICOLO di `anomalie.py` e di `incertezza.js`, importato e
+    non ricopiato: tre copie dello stesso 0,45 sono tre occasioni di
+    aggiornarne due.
+    """
+    if quante < 1:
+        return float("inf")
+    return SIGMA_ARTICOLO / (quante ** 0.5)
 
 
 def rendimento_futuro(prezzi: dict[date, float], giorno: date,
@@ -159,6 +205,58 @@ def rendimento_futuro(prezzi: dict[date, float], giorno: date,
     if not p0 or p1 is None:
         return None
     return (p1 - p0) / p0
+
+
+def stampa_ultimo(righe: list[dict], k: int) -> None:
+    """
+    L'ultimo giorno, con le due scale accanto invece che da solo.
+
+    Un residuo nudo è illeggibile. "+0,079" va confrontato con due cose
+    diverse, e servono tutte e due:
+
+    - il PAVIMENTO, cioè quanto oscilla la media di quel giorno solo perché
+      sono usciti quegli articoli e non altri. Sotto il pavimento il numero
+      non esiste;
+    - la NORMALE del titolo, cioè quanto il ritardo oscilla di solito. Sopra
+      il pavimento ma dentro la normale vuol dire "misurabile ma ordinario",
+      che è l'informazione utile nove giorni su dieci.
+
+    Senza la seconda si finisce a chiamare notizia ogni scostamento visibile,
+    che è il difetto che `anomalie.py` esiste per non avere.
+    """
+    u = righe[-1]
+    stato = " — GIORNATA IN CORSO" if u.get("parziale") else ""
+    print(f"  Ultimo giorno calcolato ({u['giorno']}, "
+          f"{u['quante']} notizie){stato}:")
+    print(f"    movimento {k}gg     {u['rendimento']:+.2%}")
+    print(f"    tono atteso        {u['atteso']:+.3f}")
+    print(f"    tono vero          {u['sentiment']:+.3f}")
+    print(f"    ritardo            {u['residuo']:+.3f}")
+    print(f"    pavimento          ±{u['pavimento']:.3f}"
+          f"   ({SIGMA_ARTICOLO}/√{u['quante']})")
+
+    if abs(u["residuo"]) < u["pavimento"]:
+        print("    → sotto il pavimento: non distinguibile da quali articoli")
+        print("      sono usciti oggi. Non è un ritardo, è rumore.")
+    else:
+        print(f"    → {abs(u['residuo']) / u['pavimento']:.1f}x il pavimento")
+
+    passati = [r["residuo"] for r in righe[:-1]]
+    if len(passati) >= 10:
+        m = mediana(passati)
+        d = mad(passati)
+        print(f"    normale del titolo  mediana {m:+.3f}, dispersione {d:.3f}")
+        if d > 0:
+            quanti = abs(u["residuo"] - m) / d
+            print(f"    → {quanti:.1f} deviazioni dalla sua normale", end="")
+            print("  (ordinario)" if quanti < 2 else "  (fuori dal solito)")
+
+    if u.get("parziale"):
+        print()
+        print("    Attenzione: la giornata non è finita. Il conteggio salirà,")
+        print("    il pavimento si abbasserà, e lo stesso ritardo sembrerà più")
+        print("    forte stasera di quanto sembri adesso. Non è fuori dal test")
+        print("    per prudenza, è fuori perché non è ancora un dato.")
 
 
 def _riga_esito(nome: str, xs: list[float], ys: list[float]) -> str:
@@ -179,7 +277,11 @@ def _riga_esito(nome: str, xs: list[float], ys: list[float]) -> str:
 def analizza(ticker: str, giorni: int = 60, k: int = RITARDO) -> int:
     sent = serie_sentiment(ticker, giorni)
     prezzi = serie_prezzi(ticker, giorni)
-    righe = serie_ritardo(sent, prezzi, k)
+    tutte = serie_ritardo(sent, prezzi, k)
+
+    # La giornata in corso si mostra ma non si misura: vedi `serie_ritardo`.
+    righe = [r for r in tutte if not r["parziale"]]
+    in_corso = [r for r in tutte if r["parziale"]]
 
     print("=" * 70)
     print(f"  RITARDO DELLE NOTIZIE — {ticker}")
@@ -187,8 +289,11 @@ def analizza(ticker: str, giorni: int = 60, k: int = RITARDO) -> int:
     print()
     print(f"  Movimento inseguito: ultimi {k} giorni")
     print(f"  Giorni di sentiment utilizzabili: {len(sent)}")
-    print(f"  Residui calcolabili (dopo {MINIMO_FIT} giorni di stima): "
+    print(f"  Residui su giornate chiuse (dopo {MINIMO_FIT} di stima): "
           f"{len(righe)}")
+    if in_corso:
+        print(f"  Giornate ancora aperte, tenute fuori dal test: "
+              f"{len(in_corso)}")
     print()
 
     if len(righe) < MINIMO_GIORNI:
@@ -199,13 +304,8 @@ def analizza(ticker: str, giorni: int = 60, k: int = RITARDO) -> int:
         print()
         if righe:
             print(f"  Mancano {MINIMO_GIORNI - len(righe)} giorni.")
-            ultima = righe[-1]
             print()
-            print(f"  Ultimo giorno calcolato ({ultima['giorno']}):")
-            print(f"    movimento {k}gg     {ultima['rendimento']:+.2%}")
-            print(f"    tono atteso        {ultima['atteso']:+.3f}")
-            print(f"    tono vero          {ultima['sentiment']:+.3f}")
-            print(f"    ritardo            {ultima['residuo']:+.3f}")
+            stampa_ultimo(righe + in_corso, k)
         print()
         return 0
 
@@ -249,6 +349,8 @@ def analizza(ticker: str, giorni: int = 60, k: int = RITARDO) -> int:
         print("  descrizione di adesso: quanto la stampa ha recepito il")
         print("  movimento, non quanto ne resta da fare. Si può mostrare, ma")
         print("  con parole che non promettono un domani.")
+    print()
+    stampa_ultimo(righe, k)
     print()
     return 0
 

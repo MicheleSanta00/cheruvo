@@ -5,7 +5,7 @@ import {
   ResponsiveContainer, ReferenceLine, ReferenceArea, Cell,
 } from 'recharts'
 import Icon from './Icon.jsx'
-import { formattaPrezzo } from './LogoCrypto.jsx'
+import { formattaPrezzo, formattaVariazione, formattaPct } from '../utils/numeri.js'
 import { correlazione, compatibileConZero, spiegazione } from '../utils/incertezza.js'
 
 // ── Rileva schermi piccoli (per proporzioni grafico e tooltip) ────────────
@@ -73,7 +73,7 @@ function CustomTooltip({ active, payload, label, compact }) {
             {open  != null && <>
               <span style={{ color: '#64748b' }}>Variazione</span>
               <span style={{ color: close >= open ? '#4ade80' : '#f87171' }}>
-                {close >= open ? '+' : ''}{formattaPrezzo(close - open)} ({((close - open) / open * 100).toFixed(2)}%)
+                {formattaVariazione(close - open, close)} ({formattaPct((close - open) / open * 100)})
               </span>
             </>}
             {vol   != null && <><span style={{ color: '#64748b' }}>Volume</span><span style={{ color: '#94a3b8' }}>{fmtVol(vol)}</span></>}
@@ -266,16 +266,20 @@ function DataPanel({ prices, sentiment, stats, correlation }) {
       <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(130px, 1fr))', gap: 1, background: 'var(--border)', marginBottom: 16 }}>
         <Block label="Ultimo prezzo" value={`$${formattaPrezzo(last.Close)}`} big
           sub={<span style={{ color: isUp ? '#4ade80' : '#f87171' }}>
-            {isUp ? '+' : ''}{change.toFixed(2)} ({isUp ? '+' : ''}{pct.toFixed(2)}%) sul periodo
+            {formattaVariazione(change, last.Close)} ({formattaPct(pct)}) sul periodo
           </span>}
         />
-        <Block label="Apertura periodo" value={`$${(first.Open ?? first.Close)?.toFixed(2)}`}
-          sub={<span style={{ color: '#64748b' }}>{first.date}</span>}
+        {/* La chiusura del primo giorno, non l'apertura: la variazione "sul
+            periodo" qui accanto parte da lì, e i due numeri devono tornare.
+            Prima la casella mostrava l'apertura, e su Tesla si leggeva
+            "apertura 370,15, ultimo 379,18, variazione −0,53". */}
+        <Block label="Inizio periodo" value={`$${formattaPrezzo(first.Close)}`}
+          sub={<span style={{ color: '#64748b' }}>chiusura del {first.date}</span>}
         />
-        <Block label="Massimo periodo" value={`$${high.toFixed(2)}`} valueColor="#4ade80"
+        <Block label="Massimo periodo" value={`$${formattaPrezzo(high)}`} valueColor="#4ade80"
           sub={<span style={{ color: '#64748b' }}>su {prices.length} candele</span>}
         />
-        <Block label="Minimo periodo" value={`$${low.toFixed(2)}`} valueColor="#f87171"
+        <Block label="Minimo periodo" value={`$${formattaPrezzo(low)}`} valueColor="#f87171"
           sub={<span style={{ color: '#64748b' }}>su {prices.length} candele</span>}
         />
       </div>
@@ -376,7 +380,7 @@ function TooltipOggi({ active, payload, label, chiusuraIeri, tipoRiferimento }) 
       {rispettoIeri != null && (
         <div style={{ fontFamily: 'var(--mono)', fontSize: 11, marginTop: 2,
                       color: rispettoIeri >= 0 ? 'var(--green)' : 'var(--red)' }}>
-          {rispettoIeri >= 0 ? '+' : ''}{formattaPrezzo(rispettoIeri)} {etichettaRif}
+          {formattaVariazione(rispettoIeri, d.Close)} {etichettaRif}
         </div>
       )}
       {d.Volume > 0 && (
@@ -734,8 +738,8 @@ function GraficoOggiCorpo({ prices, ticker, statoBorsa, isMobile, espanso,
         </span>
         {variazione != null && (
           <span style={{ fontFamily: 'var(--mono)', fontSize: 14, fontWeight: 700, color: colore }}>
-            {variazione >= 0 ? '+' : ''}{formattaPrezzo(variazione)}
-            {' '}({variazione >= 0 ? '+' : ''}{variazionePct.toFixed(2)}%)
+            {formattaVariazione(variazione, ultimo)}
+            {' '}({formattaPct(variazionePct)})
           </span>
         )}
         <span style={{ marginLeft: 'auto', display: 'flex', alignItems: 'center',

@@ -12,6 +12,7 @@ variazione vs settimana precedente e le 2 notizie più forti.
 import os
 import hmac
 import hashlib
+import html
 import logging
 from datetime import datetime, timezone
 
@@ -89,6 +90,26 @@ def _week_key(now: datetime | None = None) -> str:
     return f"{y}-W{w:02d}"
 
 
+def testo_sicuro(t) -> str:
+    """
+    Testo di terzi dentro l'HTML di un'email.
+
+    I titoli arrivano da GDELT, cioe' da migliaia di siti che non
+    controlliamo, e fino al 24 settembre 2026 finivano nell'email cosi'
+    com'erano: un titolo con dentro "<a href=...>" diventava un link vero,
+    con il nostro nome sopra.
+    """
+    return html.escape(str(t or ""), quote=True)
+
+
+def url_sicuro(u) -> str:
+    """Solo http e https: un 'javascript:' in un href non deve mai uscire da qui."""
+    u = str(u or "").strip()
+    if not u.lower().startswith(("http://", "https://")):
+        return "#"
+    return html.escape(u, quote=True)
+
+
 def _pick_tickers(tickers: list[str], plan: str) -> list[str]:
     """Free: il primo ticker · Pro: tutti fino al cap."""
     return tickers[:FREE_TICKERS] if plan != "pro" else tickers[:PRO_TICKERS]
@@ -152,7 +173,11 @@ def get_week_stats(tickers: list[str]) -> dict:
         cur.execute(f"""
             SELECT ticker, title, url, sentiment FROM (
                 SELECT ticker, title, url, sentiment,
-                       ROW_NUMBER() OVER (PARTITION BY ticker ORDER BY ABS(sentiment) DESC) AS rn
+                       -- NULLS LAST: in Postgres i NULL vengono PRIMA in un
+                       -- ordinamento discendente, quindi una riga senza
+                       -- punteggio finiva fra "le due notizie piu' forti".
+                       ROW_NUMBER() OVER (PARTITION BY ticker
+                                          ORDER BY ABS(sentiment) DESC NULLS LAST) AS rn
                 FROM news
                 WHERE published_date >= NOW() - INTERVAL '7 days'
                   AND ticker IN ({ph})
@@ -193,10 +218,11 @@ def _build_digest_html(user: dict, stats: dict, shown: list[str]) -> str:
         for nw in (s.get("news") or [])[:2]:
             news_html += (f'<div style="padding:6px 0;font-size:13px">'
                           f'{_chip(nw["sentiment"])} '
-                          f'<a href="{nw["url"]}" style="color:#333;text-decoration:none">{nw["title"][:110]}</a></div>')
+                          f'<a href="{url_sicuro(nw["url"])}" style="color:#333;text-decoration:none">'
+                          f'{testo_sicuro((nw["title"] or "")[:110])}</a></div>')
         blocks += f"""
         <div style="border:1px solid #eee;border-radius:10px;padding:14px 16px;margin-bottom:12px">
-          <div style="font-size:15px;font-weight:700">{tk}
+          <div style="font-size:15px;font-weight:700">{testo_sicuro(tk)}
             <span style="font-size:14px;margin-left:8px">{_chip(avg)}</span>{delta_html}
             <span style="color:#999;font-size:12px;float:right">{s.get('n', 0)} news</span>
           </div>
@@ -319,9 +345,10 @@ def unsubscribe(u: str, t: str):
       <meta name="viewport" content="width=device-width,initial-scale=1"><title>Cheruvo</title></head>
       <body style="font-family:sans-serif;background:#0b0f16;color:#e6edf3;display:flex;
         align-items:center;justify-content:center;height:100vh;margin:0;text-align:center">
-      <div><h2>Digest disattivato ✓</h2>
-      <p style="color:#8b949e">Non riceverai più il riepilogo settimanale.<br>
-      Puoi riattivarlo in ogni momento dal tuo profilo su
+      <div><h2>Email facoltative disattivate ✓</h2>
+      <p style="color:#8b949e">Non riceverai più il riepilogo settimanale, gli avvisi
+      sulla watchlist e i consigli dei primi giorni.<br>
+      Puoi riattivarle in ogni momento dal tuo profilo su
       <a href="https://app.cheruvo.com" style="color:#60a5fa">app.cheruvo.com</a>.</p></div></body></html>""")
 
 

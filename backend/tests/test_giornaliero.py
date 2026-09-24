@@ -232,3 +232,35 @@ def test_la_fusione_avviene_dentro_il_giorno_non_fra_giorni():
     ])
     out = aggrega_giornaliero(df)
     assert [r["n"] for r in out] == [1, 1]
+
+
+# ── La media in cima alla pagina ──────────────────────────────────────────
+#
+# 24 settembre 2026: /api/news calcolava la media con `mean()` su tutte le
+# righe, quindi sessantuno riprese dello stesso lancio d'agenzia valevano
+# sessantuno giudizi. Il grafico le fondeva e il numero sopra il grafico no.
+
+def test_la_media_della_pagina_fonde_le_riprese():
+    import pandas as pd
+    from giornaliero import media_senza_riprese
+    righe = ([{"title": "Intel targets $15 billion stock sale", "sentiment": 0.8}] * 61
+             + [{"title": "Intel CEO resigns", "sentiment": -0.4}])
+    media, distinte = media_senza_riprese(pd.DataFrame(righe))
+    assert distinte == 2
+    assert abs(media - 0.2) < 1e-9      # (0.8 - 0.4) / 2, non (61*0.8 - 0.4)/62
+
+
+def test_le_righe_senza_titolo_non_si_fondono_fra_loro():
+    import pandas as pd
+    from giornaliero import media_senza_riprese
+    media, distinte = media_senza_riprese(pd.DataFrame(
+        [{"title": None, "sentiment": 0.5}, {"title": "", "sentiment": -0.5}]))
+    assert distinte == 2 and media == 0.0
+
+
+def test_senza_punteggi_la_media_non_esiste():
+    import pandas as pd
+    from giornaliero import media_senza_riprese
+    assert media_senza_riprese(pd.DataFrame(columns=["title", "sentiment"])) == (None, 0)
+    assert media_senza_riprese(pd.DataFrame(
+        [{"title": "x", "sentiment": None}])) == (None, 0)

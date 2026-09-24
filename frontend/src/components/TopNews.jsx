@@ -1,6 +1,7 @@
 import { useState } from 'react'
 import { useLang } from '../LangContext.jsx'
 import Icon from './Icon.jsx'
+import { urlSicuro, pulisciTitolo } from '../utils/testo.js'
 
 /**
  * Flusso notizie in tabella densa.
@@ -92,7 +93,12 @@ export default function TopNews({ news, isPro, onUpgrade }) {
 
   // Si guarda cosa è VISIBILE, non cosa esiste: la nota deve riferirsi alle
   // righe che l'utente ha davanti agli occhi in questo momento.
-  const conIstituzionali = visibili.some((n) => n.score_source === 'istituzionale')
+  //
+  // `startsWith` e non `===`: dal 24 settembre 2026 una riga regolatoria
+  // ripunteggiata da Groq diventa 'istituzionale_llm2' invece di perdere il
+  // marchio (prima diventava 'llm2', e la nota spariva proprio quando il
+  // punteggio, cioè la modifica da dichiarare, c'era). Vedi sentiment_groq.py.
+  const conIstituzionali = visibili.some((n) => (n.score_source || '').startsWith('istituzionale'))
 
   const ora = (d) => {
     if (!d) return '—'
@@ -147,7 +153,9 @@ export default function TopNews({ news, isPro, onUpgrade }) {
             <tr>
               <th style={{ ...th, width: 62 }}>{it ? 'Ora' : 'Time'}</th>
               <th style={th}>{it ? 'Titolo' : 'Headline'}</th>
-              <th style={{ ...th, width: 108 }}>{it ? 'Fonte' : 'Source'}</th>
+              {/* Sul telefono la colonna Fonte spingeva fuori dallo schermo proprio
+                  il punteggio (24 settembre 2026): la fonte scende sotto il titolo. */}
+              <th className="hide-mobile" style={{ ...th, width: 108 }}>{it ? 'Fonte' : 'Source'}</th>
               <th style={{ ...th, width: 62, textAlign: 'right' }}>Score</th>
             </tr>
           </thead>
@@ -163,10 +171,15 @@ export default function TopNews({ news, isPro, onUpgrade }) {
                     {ora(n.published_date)}
                   </td>
                   <td style={td}>
-                    <a href={n.url} target="_blank" rel="noopener noreferrer"
-                      style={{ color: 'var(--white)', textDecoration: 'none' }}>
-                      {n.title}
-                    </a>
+                    {urlSicuro(n.url) ? (
+                      <a href={urlSicuro(n.url)} target="_blank" rel="noopener noreferrer"
+                        style={{ color: 'var(--white)', textDecoration: 'none' }}>
+                        {pulisciTitolo(n.title)}
+                      </a>
+                    ) : (
+                      /* Indirizzo assente o non http(s): il titolo resta, il link no. */
+                      <span style={{ color: 'var(--white)' }}>{pulisciTitolo(n.title)}</span>
+                    )}
                     {/* intensità del giudizio, senza aggiungere un altro numero */}
                     <div style={{ height: 3, borderRadius: 2, background: 'rgba(var(--rgb-contrasto), 0.06)', marginTop: 4, overflow: 'hidden' }}>
                       <div style={{
@@ -174,8 +187,12 @@ export default function TopNews({ news, isPro, onUpgrade }) {
                         background: colore(s),
                       }} />
                     </div>
+                    <div className="fonte-telefono" style={{ fontSize: 10.5, color: 'var(--muted)', marginTop: 4 }}>
+                      {(n.source || '').replace(/^GDELT · /, '')}
+                      {etichettaLingua(n.lingua) && ` · in ${etichettaLingua(n.lingua)}`}
+                    </div>
                   </td>
-                  <td style={{ ...td, color: 'var(--muted)', fontSize: 10.5, whiteSpace: 'nowrap' }}>
+                  <td className="hide-mobile" style={{ ...td, color: 'var(--muted)', fontSize: 10.5, whiteSpace: 'nowrap' }}>
                     {(n.source || '').replace(/^GDELT · /, '')}
                     {(() => {
                       const l = etichettaLingua(n.lingua)

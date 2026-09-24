@@ -1,7 +1,6 @@
 import { useState } from 'react'
 import { supabase } from '../supabase'
 import { useLang } from '../LangContext.jsx'
-import apiFetch from '../apiFetch.js'
 
 export default function Auth({ onLogin, onIndietro }) {
   const { lang, t, toggleLang } = useLang()
@@ -11,6 +10,36 @@ export default function Auth({ onLogin, onIndietro }) {
   const [loading, setLoading]   = useState(false)
   const [error, setError]       = useState('')
   const [message, setMessage]   = useState('')
+
+  // PASSWORD DIMENTICATA (24 settembre 2026).
+  //
+  // Non c'era: chi dimenticava la password restava chiuso fuori per sempre,
+  // con i suoi titoli in watchlist e i suoi avvisi, e l'unica via era
+  // scrivere a mano all'indirizzo della privacy. Supabase manda l'email con
+  // il link; al ritorno App.jsx riceve l'evento PASSWORD_RECOVERY e chiede la
+  // password nuova.
+  const recupera = async () => {
+    setError('')
+    setMessage('')
+    if (!email.trim()) {
+      setError(lang === 'it' ? 'Scrivi prima la tua email.' : 'Type your email first.')
+      return
+    }
+    setLoading(true)
+    const { error } = await supabase.auth.resetPasswordForEmail(email.trim(), {
+      redirectTo: window.location.origin,
+    })
+    setLoading(false)
+    // Stessa risposta che l'email esista o no: dire "questa email non è
+    // registrata" permetterebbe a chiunque di scoprire chi usa Cheruvo.
+    if (error && !/rate|limit/i.test(error.message || '')) {
+      setError(error.message)
+      return
+    }
+    setMessage(lang === 'it'
+      ? 'Se l\'email è registrata, ti arriva un link per scegliere una password nuova.'
+      : 'If the email is registered, you will receive a link to choose a new password.')
+  }
 
   const handle = async () => {
     setLoading(true)
@@ -27,10 +56,9 @@ export default function Auth({ onLogin, onIndietro }) {
         setError(error.message)
       } else {
         setMessage(t.auth.confirmEmail)
-        // Invia email di benvenuto (giorno 0) — fire and forget, non blocca l'UI
-        if (data?.session) {
-          apiFetch('/onboarding/welcome', { method: 'POST' }).catch(() => {})
-        }
+        // L'email di benvenuto non parte più da qui: la chiede App.jsx al
+        // primo accesso. Da qui partiva solo se Supabase dava subito una
+        // sessione, e con la conferma dell'email attiva non la dà mai.
       }
     }
     setLoading(false)
@@ -146,6 +174,15 @@ export default function Auth({ onLogin, onIndietro }) {
         >
           {loading ? t.auth.loading : isLogin ? t.auth.login : t.auth.register}
         </button>
+
+        {isLogin && (
+          <p style={{ fontSize: 12.5, textAlign: 'center', marginTop: 12, marginBottom: 0 }}>
+            <span onClick={loading ? undefined : recupera}
+              style={{ color: 'var(--muted)', cursor: 'pointer', textDecoration: 'underline' }}>
+              {lang === 'it' ? 'Password dimenticata?' : 'Forgot your password?'}
+            </span>
+          </p>
+        )}
 
         <p style={{ fontSize: 13, color: 'var(--muted)', textAlign: 'center', marginTop: 16 }}>
           {isLogin ? t.auth.noAccount : t.auth.hasAccount}{' '}

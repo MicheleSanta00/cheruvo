@@ -85,27 +85,11 @@ export function nelMercato(ticker, mercato) {
 /** Il titolo da aprire quando si passa da un mercato all'altro. */
 export const PREDEFINITO = { azioni: 'NVDA', crypto: 'BTC-USD' }
 
-/**
- * Prezzo con la precisione giusta per il suo ordine di grandezza.
- *
- * Serviva perché il grafico usava toFixed(2) ovunque. Su Bitcoin a 64.366,85
- * va benissimo. Su Dogecoin, che vale 0,08 dollari, mostrava "0.08" buttando
- * via tutta l'informazione: due monete diverse a 0,081 e 0,084 sarebbero
- * apparse identiche, e una variazione del 4% invisibile.
- */
-export function formattaPrezzo(v) {
-  if (v == null || Number.isNaN(v)) return '—'
-  const a = Math.abs(v)
-  const decimali = a >= 1000 ? 2      // 64.366,85
-    : a >= 1    ? 2                   // 3,42
-    : a >= 0.01 ? 4                   // 0,0812
-    : a >= 0.0001 ? 6                 // 0,000834
-    : 8                               // monete micro
-  return v.toLocaleString('it-IT', {
-    minimumFractionDigits: decimali,
-    maximumFractionDigits: decimali,
-  })
-}
+// Il formato dei prezzi sta in utils/numeri.js dal 24 settembre 2026, insieme
+// a quello di variazioni e percentuali: stesse regole ovunque, e funzioni pure
+// che si provano senza React. Resta esportato anche da qui perché mezzo
+// frontend lo importa da questo file.
+export { formattaPrezzo } from '../utils/numeri.js'
 
 export default function LogoCrypto({ ticker, size = 18 }) {
   const m = MONETE[(ticker || '').toUpperCase()]

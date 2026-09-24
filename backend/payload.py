@@ -42,6 +42,6 @@ def righe_per_json(df) -> list[dict]:
     import numpy as np
 
     DA_NON_ESPORRE = ("sentiment_2", "sentiment_3",
-                      "score_source_2", "score_source_3")
+                      "score_source_2", "score_source_3", "tono_gdelt")
     d = df.drop(columns=[c for c in DA_NON_ESPORRE if c in df.columns])
     return d.replace({np.nan: None}).to_dict(orient="records")

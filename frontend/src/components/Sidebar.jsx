@@ -30,7 +30,7 @@ const MAX_WATCHLIST_FREE = 5
 const MAX_DAYS_FREE = 30
 const MAX_DAYS_PRO = 90
 
-export default function Sidebar({ ticker, days, period, hasTicker, onLoad, onFetch, loading, fetching, onTickerChange, onDaysChange, onPeriodChange, isPro, onUpgrade, mercatoAttivo = 'azioni', onMercatoChange }) {
+export default function Sidebar({ ticker, days, period, hasTicker, onLoad, onFetch, loading, fetching, onTickerChange, onDaysChange, onPeriodChange, isPro, onUpgrade, mercatoAttivo = 'azioni', onMercatoChange, onServeAccount }) {
   const { t } = useLang()
   // Campo "aggiungi": parte vuoto. Prima ereditava il ticker aperto e
   // compariva una riga fantasma con dentro NVDA.
@@ -173,9 +173,13 @@ export default function Sidebar({ ticker, days, period, hasTicker, onLoad, onFet
       try {
         const { data: { user } } = await supabase.auth.getUser()
         if (!user) return
-        await supabase.from('watchlist').insert(
+        // supabase-js non solleva: restituisce { error }. Il `catch` qui
+        // sotto quindi non vedeva mai un rifiuto del database, e il giro
+        // proseguiva come se il salvataggio fosse riuscito.
+        const { error } = await supabase.from('watchlist').insert(
           migliori.map((tk) => ({ user_id: user.id, ticker: tk }))
         )
+        if (error) console.warn('Cheruvo: watchlist iniziale non salvata', error)
         setWatchlist(migliori)
       } catch (_) {
         // Se il salvataggio fallisce li mostriamo comunque: meglio una
@@ -219,7 +223,23 @@ export default function Sidebar({ ticker, days, period, hasTicker, onLoad, onFet
     setSaving(true)
     try {
       const { data: { user } } = await supabase.auth.getUser()
-      await supabase.from('watchlist').insert({ user_id: user.id, ticker: v })
+      // Senza account non c'e' una watchlist da salvare: prima qui
+      // `user.id` esplodeva su null e il visitatore non vedeva niente.
+      if (!user) { onServeAccount?.(); return }
+      // IL SALVATAGGIO CHE SPARIVA (24 settembre 2026).
+      //
+      // supabase-js non solleva eccezioni: restituisce { error }. Questa
+      // riga non lo guardava, quindi il titolo compariva in lista anche
+      // quando il database l'aveva rifiutato, e al ricaricamento spariva.
+      // Il rifiuto c'era eccome: il trigger della migrazione 002 bocciava il
+      // quarto titolo a chiunque non avesse un abbonamento, cioe' a tutti
+      // (vedi supabase/migrations/009_watchlist_senza_muro.sql).
+      const { error } = await supabase.from('watchlist').insert({ user_id: user.id, ticker: v })
+      if (error) {
+        console.warn('Cheruvo: titolo non salvato in watchlist', error)
+        setErrore(t.sidebar.nonSalvato(v))
+        return
+      }
       setWatchlist(prev => [...prev, v])
       setInput('')
       setShowSuggestions(false)
@@ -230,9 +250,18 @@ export default function Sidebar({ ticker, days, period, hasTicker, onLoad, onFet
 
   const removeTicker = async (tk) => {
     const { data: { user } } = await supabase.auth.getUser()
-    await supabase.from('watchlist').delete().eq('ticker', tk).eq('user_id', user.id)
+    if (!user) return
+    const { error } = await supabase.from('watchlist').delete().eq('ticker', tk).eq('user_id', user.id)
+    if (error) {
+      // Stesso motivo dell'aggiunta: senza questo controllo la riga
+      // spariva dallo schermo e restava nel database, e al ricaricamento
+      // tornava, insieme agli avvisi via email su quel titolo.
+      console.warn('Cheruvo: titolo non tolto dalla watchlist', error)
+      setErrore(t.sidebar.nonRimosso(tk))
+      return
+    }
     setWatchlist(prev => prev.filter(x => x !== tk))
-}
+  }
 
   const submit = (tk) => {
     const v = (tk || input).toUpperCase()

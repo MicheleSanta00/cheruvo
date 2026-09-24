@@ -6,12 +6,17 @@ a Supabase chiamando /auth/v1/user. Più robusto, zero config su Render:
 bastano SUPABASE_URL e SUPABASE_ANON_KEY (le stesse già usate dal frontend).
 """
 
+import hashlib
+import logging
 import os
 import time
 import httpx
+import jwt as pyjwt
 from fastapi import HTTPException, Depends
 from fastapi.security import HTTPBearer, HTTPAuthorizationCredentials
 from database import get_pool
+
+logger = logging.getLogger(__name__)
 
 # ── Cache tier utente ──────────────────────────────────────────────────────
 # Evita una query DB a ogni richiesta autenticata.
@@ -43,11 +48,90 @@ security          = HTTPBearer()
 security_optional = HTTPBearer(auto_error=False)
 
 
+# ── Token gia' verificati ─────────────────────────────────────────────────
+#
+# PERCHE', 24 settembre 2026.
+#
+# Ogni richiesta di un utente con l'account aperto passava da qui, e qui
+# faceva una chiamata di rete a Supabase: anche per leggere le notizie, che
+# sono pubbliche. Aprire un titolo sono quattro richieste in fila (validate,
+# news, prices, sentiment), quindi quattro viaggi andata e ritorno verso
+# Supabase prima di mostrare un numero, ognuno con la sua stretta di mano TLS.
+#
+# Qui si ricorda per un minuto che quel token e' stato verificato davvero.
+# Il rischio che si accetta e' preciso: un'uscita dall'account puo' restare
+# valida fino a sessanta secondi. Il token non viene mai creduto sulla
+# parola: entra in questo elenco SOLO dopo che Supabase ha risposto 200.
+#
+# Serve anche al limitatore di richieste in main.py, che per la stessa
+# ragione non deve fidarsi di un token che nessuno ha controllato.
+DURATA_VERIFICA = 60          # secondi
+MASSIMO_TOKEN_IN_MEMORIA = 2000
+_token_verificati: dict[str, tuple[dict, float]] = {}
+
+
+def _impronta(token: str) -> str:
+    """Il token non si tiene in chiaro nemmeno in memoria: basta l'impronta."""
+    return hashlib.sha256((token or "").encode()).hexdigest()
+
+
+def _scadenza_dichiarata(token: str) -> float | None:
+    """
+    Il campo `exp` del token, letto SENZA verificare la firma.
+
+    Si usa solo per ACCORCIARE la durata in memoria, mai per allungarla o per
+    fidarsi di qualcosa: la verifica vera l'ha gia' fatta Supabase.
+    """
+    try:
+        exp = pyjwt.decode(token, options={"verify_signature": False}).get("exp")
+        return float(exp) if exp else None
+    except Exception:
+        return None
+
+
+def utente_in_memoria(token: str | None) -> dict | None:
+    """L'utente di un token verificato da poco, oppure None."""
+    if not token:
+        return None
+    voce = _token_verificati.get(_impronta(token))
+    if not voce:
+        return None
+    utente, scade = voce
+    if time.time() >= scade:
+        _token_verificati.pop(_impronta(token), None)
+        return None
+    return utente
+
+
+def _ricorda(token: str, utente: dict) -> None:
+    if len(_token_verificati) >= MASSIMO_TOKEN_IN_MEMORIA:
+        # Svuotare tutto e' grossolano ma sicuro: il costo e' una verifica in
+        # piu' per chi torna, mai un token creduto senza controllo.
+        _token_verificati.clear()
+    scade = time.time() + DURATA_VERIFICA
+    exp = _scadenza_dichiarata(token)
+    if exp is not None:
+        scade = min(scade, exp)
+    _token_verificati[_impronta(token)] = (utente, scade)
+
+
 async def _verify_with_supabase(token: str) -> dict:
     """
     Chiama Supabase /auth/v1/user con il Bearer token.
     Supabase verifica la firma internamente — nessun JWT_SECRET necessario.
     Ritorna il dict utente con 'sub' = user_id UUID.
+
+    SUPABASE CHE NON RISPONDE NON E' UN TOKEN SCADUTO (24 settembre 2026).
+
+    Un timeout o una connessione rifiutata uscivano da qui come eccezione di
+    httpx, cioe' come errore 500. Sugli endpoint PUBBLICI era il danno
+    peggiore: `get_current_user_optional` intercetta solo HTTPException,
+    quindi un utente con l'account aperto riceveva un 500 sulle notizie
+    proprio mentre un visitatore anonimo le leggeva senza problemi.
+
+    Adesso diventa un 503. Non un 401, di proposito: `apiFetch.js` a un 401
+    risponde disconnettendo l'utente, e un intoppo di rete di Supabase non e'
+    un buon motivo per buttare fuori qualcuno.
     """
     if not SUPABASE_URL or not SUPABASE_ANON_KEY:
         raise HTTPException(
@@ -58,14 +142,23 @@ async def _verify_with_supabase(token: str) -> dict:
             ),
         )
 
-    async with httpx.AsyncClient(timeout=5.0) as client:
-        r = await client.get(
-            f"{SUPABASE_URL}/auth/v1/user",
-            headers={
-                "Authorization": f"Bearer {token}",
-                "apikey": SUPABASE_ANON_KEY,
-            },
-        )
+    gia_visto = utente_in_memoria(token)
+    if gia_visto is not None:
+        return gia_visto
+
+    try:
+        async with httpx.AsyncClient(timeout=5.0) as client:
+            r = await client.get(
+                f"{SUPABASE_URL}/auth/v1/user",
+                headers={
+                    "Authorization": f"Bearer {token}",
+                    "apikey": SUPABASE_ANON_KEY,
+                },
+            )
+    except httpx.HTTPError as e:
+        logger.warning("Verifica token non riuscita per un problema di rete: %s", e)
+        raise HTTPException(status_code=503,
+                            detail="Servizio di accesso momentaneamente non raggiungibile")
 
     if r.status_code == 401:
         raise HTTPException(status_code=401, detail="Token scaduto — effettua nuovamente il login")
@@ -73,12 +166,16 @@ async def _verify_with_supabase(token: str) -> dict:
         raise HTTPException(status_code=401, detail="Autenticazione fallita")
 
     data = r.json()
+    if not isinstance(data, dict) or not data.get("id"):
+        raise HTTPException(status_code=401, detail="Autenticazione fallita")
     # Normalizza: 'sub' = user_id, compatibile con il resto del codice
-    return {
+    utente = {
         "sub":   data["id"],
         "email": data.get("email", ""),
         **data,
     }
+    _ricorda(token, utente)
+    return utente
 
 
 async def get_current_user(
@@ -124,15 +221,36 @@ def tier_di(user: dict | None) -> str:
     Quindi niente livelli nuovi: chi passa vede quello che vede un iscritto
     senza abbonamento. Registrarsi serve gia' per la watchlist, gli alert,
     l'export, la chat e il pulsante di aggiornamento, che restano dove sono.
+
+    LA REGOLA ERA SCRITTA GIUSTA E APPLICATA A META' (24 settembre 2026).
+
+    Con il paywall spento un iscritto senza abbonamento vale "pro"
+    (`get_user_tier` qui sotto), ma chi non aveva un account riceveva "free"
+    scritto a mano. Quindi il visitatore NON vedeva quello che vede un
+    iscritto: storico delle notizie tagliato a trenta giorni e i periodi 6M e
+    1A del grafico respinti con un 403. E il frontend, che parte da
+    `isPro = true`, quei bottoni glieli mostrava lo stesso: cliccandoli usciva
+    un grafico vuoto, senza una parola. La striscia in cima all'app gli
+    diceva intanto "i dati sono gli stessi".
+
+    Adesso la frase del titolo vale in tutti e due gli stati del paywall.
     """
     if not user or not user.get("sub"):
-        return "free"
+        return _tier_senza_abbonamento()
     return get_user_tier(user["sub"])
+
+
+def _tier_senza_abbonamento() -> str:
+    """
+    Cosa vede chi non paga. Letto a ogni chiamata e non fissato all'import,
+    cosi' un test (o un domani un interruttore) puo' cambiarlo.
+    """
+    return "free" if PAYWALL_ATTIVO else "pro"
 
 
 def get_user_tier(user_id: str) -> str:
     if not PAYWALL_ATTIVO:
-        return "pro"
+        return _tier_senza_abbonamento()
 
     cached = _get_cached_tier(user_id)
     if cached is not None:

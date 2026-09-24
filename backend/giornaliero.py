@@ -54,8 +54,47 @@ def chiave_titolo(t) -> str:
     import re
     if not isinstance(t, str):
         return ""
-    t = re.sub(r"[^\w\s]", " ", t.lower())
+    # `_` va tolto a mano: in Python e' un carattere di parola (\w), in
+    # Postgres [:alnum:] no. Senza, "snake_case" restava intero qui e
+    # diventava "snake case" nella classifica (market.CHIAVE_TITOLO_SQL), e
+    # le due chiavi devono coincidere. Trovato il 24 settembre 2026 mettendo
+    # le due funzioni davanti a un Postgres vero (tests/test_sql_vero.py).
+    t = re.sub(r"[^\w\s]|_", " ", t.lower())
     return re.sub(r"\s+", " ", t).strip()[:90]
+
+
+def media_senza_riprese(df) -> tuple[float | None, int]:
+    """
+    La media del sentiment di un elenco di notizie, con le riprese fuse.
+
+    PERCHE', 24 settembre 2026.
+
+    La media in cima alla pagina di un titolo (e nei KPI, e nella riga della
+    watchlist quando il titolo non e' in classifica) veniva da
+    `df["sentiment"].mean()` su tutte le righe. Cioe' proprio il conto che
+    qui sotto, in `aggrega_giornaliero`, e in `market.py` e' stato tolto l'11
+    e il 15 agosto: sessantuno riprese dello stesso lancio d'agenzia valevano
+    sessantuno giudizi. Il grafico fondeva le riprese e il numero sopra il
+    grafico no, quindi i due potevano non tornare fra loro.
+
+    Stessa regola del resto del prodotto: stesso titolo (normalizzato da
+    `chiave_titolo`) vale una voce sola, col punteggio medio fra le copie. Le
+    righe senza titolo restano notizie a se'. Ritorna (media, notizie
+    distinte); la media e' None se non c'e' nessun punteggio.
+    """
+    if df is None or len(df) == 0 or "sentiment" not in df.columns:
+        return None, 0
+    d = df[df["sentiment"].notna()].copy()
+    if d.empty:
+        return None, 0
+    if "title" in d.columns:
+        d["_chiave"] = d["title"].map(chiave_titolo)
+    else:
+        d["_chiave"] = ""
+    vuote = d["_chiave"] == ""
+    d.loc[vuote, "_chiave"] = ["§" + str(i) for i in range(int(vuote.sum()))]
+    per_notizia = d.groupby("_chiave")["sentiment"].mean()
+    return float(per_notizia.mean()), int(len(per_notizia))
 
 
 def aggrega_giornaliero(df) -> list[dict]:

@@ -91,6 +91,9 @@ html, body, #root {
 
 /* utils */
 .mobile-only { display: none !important; } /* visibile solo su mobile (override nella media query) */
+/* La fonte sotto il titolo nell'elenco notizie: solo sul telefono, dove la
+   colonna Fonte non ci sta (TopNews.jsx). */
+.fonte-telefono { display: none; }
 .muted    { color: var(--muted); }
 .blue     { color: var(--azure); }
 .pos      { color: var(--green); }
@@ -320,6 +323,7 @@ input  { font-family: var(--sans); }
   /* Il blocco prezzo compare solo qui. Classe dedicata: .mobile-only è
      già usata altrove e deve restare inline-flex. */
   .solo-telefono { display: flex !important; }
+  .fonte-telefono { display: block !important; }
 
   /* Le cinque metriche occupavano l'intera prima schermata prima ancora che
      si vedesse un prezzo. Restano, ma compatte e su due colonne strette. */

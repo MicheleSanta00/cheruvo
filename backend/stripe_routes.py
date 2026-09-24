@@ -1,12 +1,31 @@
+import logging
 import os
 import stripe
 from fastapi import APIRouter, HTTPException, Request, Depends
 from database import get_pool
 from auth import get_current_user, invalidate_tier_cache
 
+logger = logging.getLogger(__name__)
+
 stripe.api_key = os.environ.get("STRIPE_SECRET_KEY", "")
 PRICE_ID = os.environ.get("STRIPE_PRICE_ID", "")
-FRONTEND_URL = os.environ.get("FRONTEND_URL", "https://appcheruvo.app")
+# Il ripiego era "https://appcheruvo.app", un dominio che non e' di Cheruvo:
+# se su Render mancava FRONTEND_URL, chi finiva di pagare veniva rimandato a
+# un indirizzo che chiunque poteva registrare. Corretto il 24 settembre 2026.
+FRONTEND_URL = os.environ.get("FRONTEND_URL", "https://app.cheruvo.com")
+
+# Gli stati di Stripe tradotti nei nostri tre. "trialing" vale come pagato,
+# "incomplete" no (il primo pagamento non e' andato a buon fine).
+STATO_DA_STRIPE = {
+    "active": "pro",
+    "trialing": "pro",
+    "past_due": "past_due",
+    "unpaid": "past_due",
+    "canceled": "free",
+    "incomplete_expired": "free",
+    "incomplete": "free",
+    "paused": "free",
+}
 
 router = APIRouter()
 
@@ -54,12 +73,19 @@ def init_subscriptions_table():
 
 
 @router.post("/checkout")
-async def create_checkout(request: Request):
-    body = await request.json()
-    email = body.get("email")
-    user_id = body.get("user_id")
+async def create_checkout(user: dict = Depends(get_current_user)):
+    """
+    Apre il pagamento su Stripe per l'utente che lo chiede.
+
+    Fino al 24 settembre 2026 non chiedeva il login e prendeva email e
+    user_id dal CORPO della richiesta: chiunque poteva aprire sessioni a nome
+    di un altro utente, o di un utente inventato, e riempire l'account Stripe
+    di sessioni fasulle. Adesso l'identita' viene dal token verificato.
+    """
+    email = user.get("email")
+    user_id = user.get("sub")
     if not email or not user_id:
-        raise HTTPException(status_code=400, detail="Email e user_id richiesti")
+        raise HTTPException(status_code=400, detail="Account senza email")
     try:
         session = stripe.checkout.Session.create(
             payment_method_types=["card"],
@@ -72,7 +98,10 @@ async def create_checkout(request: Request):
         )
         return {"url": session.url}
     except Exception as e:
-        raise HTTPException(status_code=500, detail=str(e))
+        # Il messaggio di Stripe resta nel log: all'utente non serve, e puo'
+        # contenere dettagli di configurazione dell'account.
+        logger.error("Checkout Stripe non riuscito per %s: %s", user_id, e)
+        raise HTTPException(status_code=502, detail="Pagamento non disponibile in questo momento")
 
 
 @router.post("/webhook")
@@ -88,9 +117,17 @@ async def stripe_webhook(request: Request):
     conn = _conn()
     try:
         cur = conn.cursor()
-        if event["type"] == "checkout.session.completed":
+        tipo = event["type"]
+        if tipo == "checkout.session.completed":
             s = event["data"]["object"]
             user_id = s["metadata"]["user_id"]
+            # `customer_email` e' valorizzato solo se l'email e' stata passata
+            # alla creazione della sessione; altrimenti sta in
+            # customer_details. La colonna e' NOT NULL: senza ripiego l'INSERT
+            # falliva, il webhook rispondeva 500 e chi aveva pagato restava free.
+            email = (s.get("customer_email")
+                     or (s.get("customer_details") or {}).get("email")
+                     or "")
             cur.execute("""
                 INSERT INTO subscriptions (user_id, email, stripe_customer_id, stripe_sub_id, status)
                 VALUES (%s, %s, %s, %s, 'pro')
@@ -98,9 +135,9 @@ async def stripe_webhook(request: Request):
                     stripe_customer_id = EXCLUDED.stripe_customer_id,
                     stripe_sub_id = EXCLUDED.stripe_sub_id,
                     status = 'pro'
-            """, (user_id, s["customer_email"], s["customer"], s["subscription"]))
+            """, (user_id, email, s.get("customer"), s.get("subscription")))
             invalidate_tier_cache(user_id)  # upgrade immediato, senza aspettare TTL cache
-        elif event["type"] == "customer.subscription.deleted":
+        elif tipo == "customer.subscription.deleted":
             cur.execute(
                 "UPDATE subscriptions SET status = 'free' WHERE stripe_sub_id = %s RETURNING user_id",
                 (event["data"]["object"]["id"],)
@@ -108,7 +145,7 @@ async def stripe_webhook(request: Request):
             row = cur.fetchone()
             if row:
                 invalidate_tier_cache(row[0])  # downgrade immediato
-        elif event["type"] == "invoice.payment_failed":
+        elif tipo == "invoice.payment_failed":
             # Il pagamento mensile è fallito — downgrade a past_due
             # Stripe riproverà automaticamente; se fallisce di nuovo invierà subscription.deleted
             sub_id = event["data"]["object"].get("subscription")
@@ -116,6 +153,38 @@ async def stripe_webhook(request: Request):
                 cur.execute(
                     "UPDATE subscriptions SET status = 'past_due' WHERE stripe_sub_id = %s RETURNING user_id",
                     (sub_id,)
+                )
+                row = cur.fetchone()
+                if row:
+                    invalidate_tier_cache(row[0])
+        elif tipo in ("invoice.paid", "invoice.payment_succeeded"):
+            # IL RITORNO DA past_due NON C'ERA (24 settembre 2026).
+            #
+            # Una carta rifiutata una volta metteva l'utente in 'past_due';
+            # quando Stripe ritentava e il pagamento passava, arrivava questo
+            # evento e nessuno lo ascoltava. Risultato: un abbonato che paga
+            # trattato come free per sempre. Si riporta a 'pro' solo chi era
+            # in 'past_due', per non resuscitare un abbonamento cancellato.
+            sub_id = event["data"]["object"].get("subscription")
+            if sub_id:
+                cur.execute(
+                    "UPDATE subscriptions SET status = 'pro' "
+                    "WHERE stripe_sub_id = %s AND status = 'past_due' RETURNING user_id",
+                    (sub_id,)
+                )
+                row = cur.fetchone()
+                if row:
+                    invalidate_tier_cache(row[0])
+        elif tipo == "customer.subscription.updated":
+            # Lo stato vero dell'abbonamento, qualunque sia la strada da cui
+            # ci e' arrivato (ritentativo riuscito, pausa, disdetta a fine
+            # periodo diventata effettiva).
+            oggetto = event["data"]["object"]
+            nuovo = STATO_DA_STRIPE.get(oggetto.get("status"))
+            if nuovo and oggetto.get("id"):
+                cur.execute(
+                    "UPDATE subscriptions SET status = %s WHERE stripe_sub_id = %s RETURNING user_id",
+                    (nuovo, oggetto["id"])
                 )
                 row = cur.fetchone()
                 if row:
